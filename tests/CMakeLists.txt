@@ -27,6 +27,7 @@ add_library(testcore OBJECT
     ${CMAKE_SOURCE_DIR}/src/core/connection.cpp
     ${CMAKE_SOURCE_DIR}/src/core/playlist-model.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/music-database-model.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/file-system-model.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/log.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/browser-widget.h
 )
@@ -62,3 +63,30 @@ add_test(NAME test-log COMMAND test-log)
 add_test(NAME test-config COMMAND test-config)
 add_test(NAME test-playlist-model COMMAND test-playlist-model)
 add_test(NAME test-db-browser COMMAND test-db-browser)
+
+# ── File browser test ─────────────────────────────────────────────────────────
+
+add_executable(test-file-browser test-file-browser.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/file-browser.cpp
+)
+target_link_libraries(test-file-browser PRIVATE testcore Qt6::Widgets doctest::doctest trompeloeil::trompeloeil)
+target_include_directories(test-file-browser PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-file-browser COMMAND test-file-browser)
+
+# ── Search browser test ───────────────────────────────────────────────────────
+
+add_executable(test-search-browser test-search-browser.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/search-browser.cpp
+)
+target_link_libraries(test-search-browser PRIVATE testcore Qt6::Widgets doctest::doctest trompeloeil::trompeloeil)
+target_include_directories(test-search-browser PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-search-browser COMMAND test-search-browser)
+
+# ── Playlist editor test ──────────────────────────────────────────────────────
+
+add_executable(test-playlist-editor test-playlist-editor.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/playlist-editor.cpp
+)
+target_link_libraries(test-playlist-editor PRIVATE testcore Qt6::Widgets doctest::doctest trompeloeil::trompeloeil)
+target_include_directories(test-playlist-editor PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-playlist-editor COMMAND test-playlist-editor)
