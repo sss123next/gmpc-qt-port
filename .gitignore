@@ -26,9 +26,6 @@ cmake_install.cmake
 # ── Doxygen output (generated at build/docs) ──────────────────────────────────
 docs/doxygen/
 
-# ── Original gmpc source (reference only) ─────────────────────────────────────
-gmpc-orig/
-
 # ── Codex / opencode tooling ──────────────────────────────────────────────────
 .opencode/
 .playwright-mcp/
