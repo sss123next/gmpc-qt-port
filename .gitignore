@@ -1,0 +1,34 @@
+# ── Build artifacts ────────────────────────────────────────────────────────────
+build/
+result
+*.o
+*.obj
+*.exe
+
+# ── IDE / editor cruft ─────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── Qt / CMake generated ───────────────────────────────────────────────────────
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# ── Nix build artifacts ────────────────────────────────────────────────────────
+.envrc
+
+# ── Doxygen output (generated at build/docs) ──────────────────────────────────
+docs/doxygen/
+
+# ── Original gmpc source (reference only) ─────────────────────────────────────
+gmpc-orig/
+
+# ── Codex / opencode tooling ──────────────────────────────────────────────────
+.opencode/
+.playwright-mcp/
