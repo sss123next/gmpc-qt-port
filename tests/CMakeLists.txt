@@ -90,3 +90,30 @@ add_executable(test-playlist-editor test-playlist-editor.cpp
 target_link_libraries(test-playlist-editor PRIVATE testcore Qt6::Widgets doctest::doctest trompeloeil::trompeloeil)
 target_include_directories(test-playlist-editor PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-playlist-editor COMMAND test-playlist-editor)
+
+# ── Widget tests ──────────────────────────────────────────────────────────────
+
+add_executable(test-volume-widget test-volume-widget.cpp
+    ${CMAKE_SOURCE_DIR}/src/widgets/volume-widget.cpp)
+target_link_libraries(test-volume-widget PRIVATE Qt6::Widgets doctest::doctest)
+target_include_directories(test-volume-widget PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-volume-widget COMMAND test-volume-widget)
+
+add_executable(test-progress-slider test-progress-slider.cpp
+    ${CMAKE_SOURCE_DIR}/src/widgets/progress-slider.cpp)
+target_link_libraries(test-progress-slider PRIVATE Qt6::Widgets doctest::doctest)
+target_include_directories(test-progress-slider PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-progress-slider COMMAND test-progress-slider)
+
+add_executable(test-song-info test-song-info.cpp
+    ${CMAKE_SOURCE_DIR}/src/widgets/song-info.cpp)
+target_link_libraries(test-song-info PRIVATE Qt6::Widgets doctest::doctest)
+target_include_directories(test-song-info PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-song-info COMMAND test-song-info)
+
+add_executable(test-cover-widget test-cover-widget.cpp
+    ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp)
+target_link_libraries(test-cover-widget PRIVATE Qt6::Widgets Qt6::Network doctest::doctest)
+target_include_directories(test-cover-widget PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-cover-widget COMMAND test-cover-widget)

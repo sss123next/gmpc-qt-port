@@ -20,10 +20,10 @@
 | browsers::FileBrowser | ✅ DONE | QTreeView + FileSystemModel (lazy loading via listmeta), 8 trompeloeil tests |
 | browsers::SearchBrowser | ✅ DONE | QLineEdit + QTreeView + SearchResultModel, 12 trompeloeil tests |
 | browsers::PlaylistEditor | ✅ DONE | Dual QListWidget + CRUD operations, 6 trompeloeil tests |
-| widgets::VolumeWidget | 🟡 SKELETON | QWidget only declared |
-| widgets::ProgressSlider | 🟡 SKELETON | QWidget only declared |
-| widgets::SongInfo | 🟡 SKELETON | QWidget only declared |
-| widgets::CoverWidget | 🟡 SKELETON | QWidget only declared |
+| widgets::VolumeWidget | ✅ DONE | QSlider + QLabel, 6 tests |
+| widgets::ProgressSlider | ✅ DONE | Promille range 0-1000, seek signal, 6 tests |
+| widgets::SongInfo | ✅ DONE | Artist/Title/Album labels, 5 tests |
+| widgets::CoverWidget | ✅ DONE | QLabel + AsyncDownload, placeholder, 4 tests |
 | metadata::CacheSqlite | ✅ DONE | SQLite key-value cache |
 | metadata::MetadataManager | 🟡 SKELETON | Stub |
 | metadata::CoverProvider | 🟡 SKELETON | Stub |
@@ -33,7 +33,7 @@
 | providers::LrcLib | ✅ DONE | LRCLIB, keyless, plain + synced lyrics |
 | tools::AsyncDownload | ✅ DONE | QNetworkAccessManager-based HTTP, get(QUrl) + get(QNetworkRequest) |
 | tools::Log | ✅ DONE | LOG_DEBUG/INFO/WARN/ERROR macros + file output |
-| tests | ✅ DONE | doctest + trompeloeil, 55 test cases (7 suites, 100% passing) |
+| tests | ✅ DONE | doctest + trompeloeil, 75 test cases (11 suites, 100% passing) |
 | Build (CMake + Nix flake) | ✅ DONE | Compiles, links, tests pass |
 
 ## Cover-art pipeline
@@ -88,11 +88,11 @@ lyrics.ovh ────────── резерв, без ключа, то�
 - [x] SearchBrowser — full-text search (QLineEdit + SearchResultModel + QTreeView)
 - [x] PlaylistEditor — playlist CRUD (dual QListWidget + button bar)
 
-### Фаза 3 — Виджеты
-- [ ] VolumeWidget — кастомный контрол громкости
-- [ ] ProgressSlider — кастомный слайдер прогресса
-- [ ] SongInfo — отображение информации о треке
-- [ ] CoverWidget — отображение обложки
+### Фаза 3 — Виджеты (DONE)
+- [x] VolumeWidget — кастомный контрол громкости (6 tests)
+- [x] ProgressSlider — кастомный слайдер прогресса (6 tests)
+- [x] SongInfo — отображение информации о треке (5 tests)
+- [x] CoverWidget — отображение обложки (4 tests)
 
 ### Фаза 4 — Метаданные и провайдеры
 - [ ] CacheSqlite — интеграция с провайдерами

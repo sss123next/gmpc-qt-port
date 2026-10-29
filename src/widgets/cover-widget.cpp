@@ -24,6 +24,6 @@ void CoverWidget::setCover(const QPixmap &pixmap)
 
 void CoverWidget::clear()
 {
+    setPixmap(QPixmap());          // must come before setText (clears text)
     setText(tr("No cover"));
-    setPixmap(QPixmap());
 }
