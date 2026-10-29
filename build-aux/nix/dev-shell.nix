@@ -29,6 +29,10 @@ pkgs.mkShell {
     # -- SQLite (for metadata cache) --
     sqlite
 
+    # -- Tests --
+    doctest               # header-only test framework
+    trompeloeil            # header-only mock framework
+
     # -- Dev tooling --
     gdb
     valgrind

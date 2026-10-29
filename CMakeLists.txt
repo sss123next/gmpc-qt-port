@@ -129,6 +129,8 @@ option(BUILD_TESTS "Build tests" OFF)
 if(BUILD_TESTS)
     enable_testing()
     find_package(Qt6 REQUIRED COMPONENTS Test)
+    find_package(doctest REQUIRED)
+    find_package(trompeloeil REQUIRED)
     add_subdirectory(tests)
 endif()
 
