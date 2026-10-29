@@ -1,5 +1,4 @@
-#ifndef GMPCQT_STATUSBAR_H
-#define GMPCQT_STATUSBAR_H
+#pragma once
 
 /**
  * @file statusbar.h
@@ -33,4 +32,3 @@ private:
     QLabel *infoLabel_;   ///< Playback info / messages.
 };
 
-#endif // GMPCQT_STATUSBAR_H

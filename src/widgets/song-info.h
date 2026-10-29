@@ -1,5 +1,4 @@
-#ifndef GMPCQT_SONG_INFO_H
-#define GMPCQT_SONG_INFO_H
+#pragma once
 
 /**
  * @file song-info.h
@@ -28,4 +27,3 @@ private:
     QLabel *albumLabel_;   ///< Album name.
 };
 
-#endif // GMPCQT_SONG_INFO_H

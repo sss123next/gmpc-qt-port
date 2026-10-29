@@ -1,5 +1,4 @@
-#ifndef GMPCQT_LASTFM_H
-#define GMPCQT_LASTFM_H
+#pragma once
 
 /**
  * @file lastfm.h
@@ -43,4 +42,3 @@ private:
     AsyncDownload *dl_;
 };
 
-#endif // GMPCQT_LASTFM_H

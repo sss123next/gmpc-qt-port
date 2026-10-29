@@ -1,5 +1,4 @@
-#ifndef GMPCQT_ASYNC_DOWNLOAD_H
-#define GMPCQT_ASYNC_DOWNLOAD_H
+#pragma once
 
 /**
  * @file async-download.h
@@ -42,4 +41,3 @@ private:
     Callback cb_;
 };
 
-#endif // GMPCQT_ASYNC_DOWNLOAD_H

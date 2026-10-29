@@ -1,5 +1,4 @@
-#ifndef GMPCQT_VOLUME_WIDGET_H
-#define GMPCQT_VOLUME_WIDGET_H
+#pragma once
 
 /**
  * @file volume-widget.h
@@ -27,4 +26,3 @@ private:
     QLabel *label_;
 };
 
-#endif // GMPCQT_VOLUME_WIDGET_H

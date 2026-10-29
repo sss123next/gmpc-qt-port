@@ -1,5 +1,4 @@
-#ifndef GMPCQT_PLAYLIST_MODEL_H
-#define GMPCQT_PLAYLIST_MODEL_H
+#pragma once
 
 /**
  * @file playlist-model.h
@@ -71,4 +70,3 @@ private:
     QList<SongEntry> songs_;
 };
 
-#endif // GMPCQT_PLAYLIST_MODEL_H

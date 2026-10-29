@@ -1,5 +1,4 @@
-#ifndef GMPCQT_METADATA_MANAGER_H
-#define GMPCQT_METADATA_MANAGER_H
+#pragma once
 
 /**
  * @file metadata-manager.h
@@ -18,4 +17,3 @@ public:
     explicit MetadataManager(QObject *parent = nullptr);
 };
 
-#endif // GMPCQT_METADATA_MANAGER_H

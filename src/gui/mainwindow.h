@@ -1,5 +1,4 @@
-#ifndef GMPCQT_MAINWINDOW_H
-#define GMPCQT_MAINWINDOW_H
+#pragma once
 
 /**
  * @file mainwindow.h
@@ -87,4 +86,3 @@ private:
     TrayIcon *trayIcon_;      ///< System-tray icon with popup menu.
 };
 
-#endif // GMPCQT_MAINWINDOW_H

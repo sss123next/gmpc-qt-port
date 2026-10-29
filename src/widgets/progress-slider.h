@@ -1,5 +1,4 @@
-#ifndef GMPCQT_PROGRESS_SLIDER_H
-#define GMPCQT_PROGRESS_SLIDER_H
+#pragma once
 
 /**
  * @file progress-slider.h
@@ -36,4 +35,3 @@ private:
     bool seeking_ = false;  ///< True while the user is dragging.
 };
 
-#endif // GMPCQT_PROGRESS_SLIDER_H

@@ -1,5 +1,4 @@
-#ifndef GMPCQT_CONTROLBAR_H
-#define GMPCQT_CONTROLBAR_H
+#pragma once
 
 /**
  * @file controlbar.h
@@ -35,4 +34,3 @@ private:
     QLabel *timeLabel_, *songLabel_;
 };
 
-#endif // GMPCQT_CONTROLBAR_H

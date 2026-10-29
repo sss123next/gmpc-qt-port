@@ -1,5 +1,4 @@
-#ifndef GMPCQT_DATABASE_BROWSER_H
-#define GMPCQT_DATABASE_BROWSER_H
+#pragma once
 
 /**
  * @file database-browser.h
@@ -33,4 +32,3 @@ private:
     QTreeView *view_;
 };
 
-#endif // GMPCQT_DATABASE_BROWSER_H

@@ -1,5 +1,4 @@
-#ifndef GMPCQT_MPD_COMMANDS_H
-#define GMPCQT_MPD_COMMANDS_H
+#pragma once
 
 /**
  * @file mpd-commands.h
@@ -67,4 +66,3 @@ private:
     Connection *conn_;
 };
 
-#endif // GMPCQT_MPD_COMMANDS_H

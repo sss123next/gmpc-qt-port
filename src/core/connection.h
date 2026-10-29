@@ -1,5 +1,4 @@
-#ifndef GMPCQT_CONNECTION_H
-#define GMPCQT_CONNECTION_H
+#pragma once
 
 /**
  * @file connection.h
@@ -123,4 +122,3 @@ private:
     Status lastStatus_;
 };
 
-#endif // GMPCQT_CONNECTION_H

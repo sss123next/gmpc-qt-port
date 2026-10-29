@@ -1,5 +1,4 @@
-#ifndef GMPCQT_COVER_WIDGET_H
-#define GMPCQT_COVER_WIDGET_H
+#pragma once
 
 /**
  * @file cover-widget.h
@@ -29,4 +28,3 @@ private:
     AsyncDownload *dl_;   ///< HTTP download helper.
 };
 
-#endif // GMPCQT_COVER_WIDGET_H

@@ -1,5 +1,4 @@
-#ifndef GMPCQT_TRAYICON_H
-#define GMPCQT_TRAYICON_H
+#pragma once
 
 /**
  * @file trayicon.h
@@ -34,4 +33,3 @@ private:
     MpdCommands *cmds_;
 };
 
-#endif // GMPCQT_TRAYICON_H

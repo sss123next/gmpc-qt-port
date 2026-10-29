@@ -1,5 +1,4 @@
-#ifndef GMPCQT_PLAYLIST_EDITOR_H
-#define GMPCQT_PLAYLIST_EDITOR_H
+#pragma once
 
 /**
  * @file playlist-editor.h
@@ -22,4 +21,3 @@ public:
     QString iconName() const override { return QStringLiteral("media-playlist"); }
 };
 
-#endif // GMPCQT_PLAYLIST_EDITOR_H

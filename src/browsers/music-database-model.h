@@ -1,5 +1,4 @@
-#ifndef GMPCQT_MUSIC_DATABASE_MODEL_H
-#define GMPCQT_MUSIC_DATABASE_MODEL_H
+#pragma once
 
 /**
  * @file music-database-model.h
@@ -56,4 +55,3 @@ private:
     MusicDbItem *root_; ///< invisible root
 };
 
-#endif // GMPCQT_MUSIC_DATABASE_MODEL_H

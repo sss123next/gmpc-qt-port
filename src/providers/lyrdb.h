@@ -1,5 +1,4 @@
-#ifndef GMPCQT_LRCLIB_H
-#define GMPCQT_LRCLIB_H
+#pragma once
 
 /**
  * @file lyrdb.h
@@ -49,4 +48,3 @@ private:
     AsyncDownload *dl_;
 };
 
-#endif // GMPCQT_LRCLIB_H

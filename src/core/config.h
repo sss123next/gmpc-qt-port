@@ -1,5 +1,4 @@
-#ifndef GMPCQT_CONFIG_H
-#define GMPCQT_CONFIG_H
+#pragma once
 
 /**
  * @file config.h
@@ -46,4 +45,3 @@ private:
     QSettings s_;
 };
 
-#endif // GMPCQT_CONFIG_H

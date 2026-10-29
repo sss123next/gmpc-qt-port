@@ -1,5 +1,4 @@
-#ifndef GMPCQT_MUSICBRAINZ_H
-#define GMPCQT_MUSICBRAINZ_H
+#pragma once
 
 /**
  * @file musicbrainz.h
@@ -49,4 +48,3 @@ private:
     QString pendingMbid_;
 };
 
-#endif // GMPCQT_MUSICBRAINZ_H

@@ -6,8 +6,7 @@
  * Must be included AFTER <doctest/doctest.h>.
  */
 
-#ifndef GMPCQT_TROMPELOEIL_DOCTEST_HPP
-#define GMPCQT_TROMPELOEIL_DOCTEST_HPP
+#pragma once
 
 #include <trompeloeil.hpp>
 
@@ -40,4 +39,3 @@ inline void reporter<specialized>::sendOk(
 
 } // namespace trompeloeil
 
-#endif // GMPCQT_TROMPELOEIL_DOCTEST_HPP

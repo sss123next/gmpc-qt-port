@@ -1,5 +1,4 @@
-#ifndef GMPCQT_DISCOGS_H
-#define GMPCQT_DISCOGS_H
+#pragma once
 
 /**
  * @file discogs.h
@@ -26,4 +25,3 @@ public:
     // TODO: fetchCover(), results parsing, token management
 };
 
-#endif // GMPCQT_DISCOGS_H

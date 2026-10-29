@@ -1,5 +1,4 @@
-#ifndef GMPCQT_FILE_BROWSER_H
-#define GMPCQT_FILE_BROWSER_H
+#pragma once
 
 /**
  * @file file-browser.h
@@ -22,4 +21,3 @@ public:
     QString iconName() const override { return QStringLiteral("folder"); }
 };
 
-#endif // GMPCQT_FILE_BROWSER_H

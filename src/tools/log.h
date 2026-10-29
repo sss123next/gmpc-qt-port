@@ -1,5 +1,4 @@
-#ifndef GMPCQT_LOG_H
-#define GMPCQT_LOG_H
+#pragma once
 
 /**
  * @file log.h
@@ -62,7 +61,7 @@ inline void logPrintf(const std::source_location &loc,
                             "DEBUG", (fmt) __VA_OPT__(, )              \
                             ##__VA_ARGS__);                             \
     } while (0)
-#endif
+#endif // NDEBUG
 
 /// Informational log.
 #define LOG_INFO(fmt, ...)                                              \
@@ -88,4 +87,3 @@ inline void logPrintf(const std::source_location &loc,
                             ##__VA_ARGS__);                              \
     } while (0)
 
-#endif // GMPCQT_LOG_H

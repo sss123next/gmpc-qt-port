@@ -1,5 +1,4 @@
-#ifndef GMPCQT_CURRENT_PLAYLIST_H
-#define GMPCQT_CURRENT_PLAYLIST_H
+#pragma once
 
 /**
  * @file current-playlist.h
@@ -33,4 +32,3 @@ private:
     QTreeView *view_;
 };
 
-#endif // GMPCQT_CURRENT_PLAYLIST_H

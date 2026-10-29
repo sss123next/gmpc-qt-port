@@ -1,5 +1,4 @@
-#ifndef GMPCQT_SEARCH_BROWSER_H
-#define GMPCQT_SEARCH_BROWSER_H
+#pragma once
 
 /**
  * @file search-browser.h
@@ -22,4 +21,3 @@ public:
     QString iconName() const override { return QStringLiteral("edit-find"); }
 };
 
-#endif // GMPCQT_SEARCH_BROWSER_H

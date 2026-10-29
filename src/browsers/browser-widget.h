@@ -1,5 +1,4 @@
-#ifndef GMPCQT_BROWSER_WIDGET_H
-#define GMPCQT_BROWSER_WIDGET_H
+#pragma once
 
 /**
  * @file browser-widget.h
@@ -40,4 +39,3 @@ public:
     virtual QString iconName() const { return {}; }
 };
 
-#endif // GMPCQT_BROWSER_WIDGET_H

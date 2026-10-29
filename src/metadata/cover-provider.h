@@ -1,5 +1,4 @@
-#ifndef GMPCQT_COVER_PROVIDER_H
-#define GMPCQT_COVER_PROVIDER_H
+#pragma once
 
 /**
  * @file cover-provider.h
@@ -31,4 +30,3 @@ private:
     CacheSqlite cache_;   ///< Persistent cache for fetched covers.
 };
 
-#endif // GMPCQT_COVER_PROVIDER_H

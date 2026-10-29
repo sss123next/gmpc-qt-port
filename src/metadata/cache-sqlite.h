@@ -1,5 +1,4 @@
-#ifndef GMPCQT_CACHE_SQLITE_H
-#define GMPCQT_CACHE_SQLITE_H
+#pragma once
 
 /**
  * @file cache-sqlite.h
@@ -33,4 +32,3 @@ private:
     sqlite3 *db_ = nullptr;
 };
 
-#endif // GMPCQT_CACHE_SQLITE_H
