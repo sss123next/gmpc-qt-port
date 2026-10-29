@@ -16,7 +16,7 @@
 | gui::StatusBar | ✅ DONE | Connection state + info label |
 | gui::TrayIcon | ✅ DONE | QSystemTrayIcon, play/pause/next/prev/quit |
 | browsers::CurrentPlaylist | ✅ DONE | QTreeView + PlaylistModel |
-| browsers::DatabaseBrowser | 🟡 SKELETON | QWidget только объявлен |
+| browsers::DatabaseBrowser | 🟡 PARTIAL | QTreeView + MusicDatabaseModel скелет, тесты (8 trompeloeil) |
 | browsers::FileBrowser | 🟡 SKELETON | QWidget только объявлен |
 | browsers::SearchBrowser | 🟡 SKELETON | QWidget только объявлен |
 | browsers::PlaylistEditor | 🟡 SKELETON | QWidget только объявлен |
@@ -33,7 +33,7 @@
 | providers::LrcLib (ex-LyrDB) | ✅ DONE | LRCLIB, без ключа, plain + synced lyrics |
 | tools::AsyncDownload | ✅ DONE | QNetworkAccessManager-based HTTP, get(QUrl) + get(QNetworkRequest) |
 | tools::Log | ✅ DONE | LOG_DEBUG/INFO/WARN/ERROR макросы + файловый вывод |
-| tests | ✅ DONE | doctest + trompeloeil, 14 кейсов (Config, Log, PlaylistModel) |
+| tests | ✅ DONE | doctest + trompeloeil, 22 кейса (Config, Log, PlaylistModel, DatabaseBrowser) |
 | Build (CMake + Nix flake) | ✅ DONE | Собирается, линкуется |
 
 ## Cover-art pipeline
@@ -83,7 +83,7 @@ lyrics.ovh ────────── резерв, без ключа, то�
 - [x] tests — doctest + trompeloeil (Config, Log, PlaylistModel)
 
 ### Фаза 2 — Браузеры (NEXT)
-- [ ] DatabaseBrowser — навигация по медиатеке
+- [x] DatabaseBrowser — навигация по медиатеке (MusicDatabaseModel skeleton + QTreeView)
 - [ ] FileBrowser — файловая навигация
 - [ ] SearchBrowser — поиск
 - [ ] PlaylistEditor — редактирование плейлистов
