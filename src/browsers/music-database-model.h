@@ -40,6 +40,18 @@ public:
     /** Load the list of artists from MPD. */
     void loadArtists();
 
+    /**
+     * Load albums for a given artist node.
+     * @param idx model index of the artist
+     */
+    void loadAlbums(const QModelIndex &idx);
+
+    /**
+     * Load tracks for a given (artist, album) node.
+     * @param idx model index of the album
+     */
+    void loadTracks(const QModelIndex &idx);
+
     // ── QAbstractItemModel interface ──────────────────────────────────────
     QModelIndex index(int row, int column,
                       const QModelIndex &parent = {}) const override;
