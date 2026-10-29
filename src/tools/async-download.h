@@ -24,8 +24,11 @@ public:
 
     explicit AsyncDownload(QObject *parent = nullptr);
 
-    /// Start an HTTP GET request.
+    /// Start an HTTP GET request (plain URL).
     void get(const QUrl &url, Callback cb);
+
+    /// Start an HTTP GET request with a pre-configured QNetworkRequest.
+    void get(const QNetworkRequest &req, Callback cb);
 
     /// Abort a running request (safe to call even if none is running).
     void cancel();

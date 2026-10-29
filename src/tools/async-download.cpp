@@ -19,6 +19,14 @@ void AsyncDownload::get(const QUrl &url, Callback cb)
             this, &AsyncDownload::onFinished);
 }
 
+void AsyncDownload::get(const QNetworkRequest &req, Callback cb)
+{
+    cb_ = std::move(cb);
+    current_ = mgr_->get(req);
+    connect(current_, &QNetworkReply::finished,
+            this, &AsyncDownload::onFinished);
+}
+
 void AsyncDownload::cancel()
 {
     if (current_) {

@@ -1,4 +1,7 @@
-{ pkgs, qt6 }:
+{ pkgs }:
+let
+  qt6 = pkgs.qt6;
+in
 
 pkgs.mkShell {
   name = "gmpc-qt";
