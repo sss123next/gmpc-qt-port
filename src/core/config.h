@@ -1,0 +1,49 @@
+#ifndef GMPCQT_CONFIG_H
+#define GMPCQT_CONFIG_H
+
+/**
+ * @file config.h
+ * @brief Application settings (singleton).
+ *
+ * Reads / writes persistent settings via QSettings (INI-style).
+ * Thread-safe after construction — use from the main thread only.
+ */
+
+#include <QSettings>
+#include <QString>
+
+/// Singleton holding all persistent user preferences.
+class Config {
+public:
+    static Config &instance();
+
+    // ── Connection ──────────────────────────────────────────────────
+    QString host() const;
+    void setHost(const QString &h);
+    int port() const;
+    void setPort(int p);
+    QString password() const;
+    void setPassword(const QString &p);
+    bool autoConnect() const;
+    void setAutoConnect(bool v);
+
+    // ── Window ──────────────────────────────────────────────────────
+    int windowWidth() const;
+    int windowHeight() const;
+    void setWindowSize(int w, int h);
+    bool startHidden() const;
+    void setStartHidden(bool v);
+
+    // ── Playback ────────────────────────────────────────────────────
+    bool stopOnExit() const;
+    void setStopOnExit(bool v);
+
+    /// Flush pending changes to disk.
+    void sync();
+
+private:
+    Config();
+    QSettings s_;
+};
+
+#endif // GMPCQT_CONFIG_H
