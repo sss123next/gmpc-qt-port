@@ -10,7 +10,7 @@
 | core::Connection | ✅ DONE | libmpdclient обёртка, QTimer polling (500ms) |
 | core::MpdCommands | ✅ DONE | Все команды плеера (20+), макрос MPD для conn_->raw() |
 | core::PlaylistModel | ✅ DONE | QAbstractListModel, загрузка очереди через mpd_send_list_queue_meta |
-| core::Config | 🟡 DONE | QSettings обёртка, базовая реализация |
+| core::Config | ✅ DONE | QSettings обёртка, базовая реализация |
 | gui::MainWindow | ✅ DONE | QMainWindow, sidebar, stacked browser views, tray |
 | gui::ControlBar | ✅ DONE | Transport, seek/volume, repeat/random/single/consume |
 | gui::StatusBar | ✅ DONE | Connection state + info label |
@@ -31,8 +31,9 @@
 | providers::MusicBrainz | ✅ DONE | MusicBrainz → Cover Art Archive, без ключа |
 | providers::Discogs | 🟡 SKELETON | Живой API, нужен OAuth — отложен |
 | providers::LrcLib (ex-LyrDB) | ✅ DONE | LRCLIB, без ключа, plain + synced lyrics |
-| tools::AsyncDownload | ✅ DONE | QNetworkAccessManager-based HTTP |
+| tools::AsyncDownload | ✅ DONE | QNetworkAccessManager-based HTTP, get(QUrl) + get(QNetworkRequest) |
 | tools::Log | ✅ DONE | LOG_DEBUG/INFO/WARN/ERROR макросы + файловый вывод |
+| tests | ✅ DONE | doctest + trompeloeil, 14 кейсов (Config, Log, PlaylistModel) |
 | Build (CMake + Nix flake) | ✅ DONE | Собирается, линкуется |
 
 ## Cover-art pipeline
@@ -79,6 +80,7 @@ lyrics.ovh ────────── резерв, без ключа, то�
 - [x] providers::MusicBrainz — MusicBrainz + CAA
 - [x] providers::LrcLib — LRCLIB lyrics (ex-LyrDB)
 - [x] Provider research — валидация живых сервисов
+- [x] tests — doctest + trompeloeil (Config, Log, PlaylistModel)
 
 ### Фаза 2 — Браузеры (NEXT)
 - [ ] DatabaseBrowser — навигация по медиатеке
@@ -105,4 +107,3 @@ lyrics.ovh ────────── резерв, без ключа, то�
 - [ ] Горячие клавиши
 - [ ] Настройки (окно Preferences)
 - [ ] DBus управление (MPRIS)
-- [ ] Тесты

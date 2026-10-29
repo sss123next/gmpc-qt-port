@@ -24,11 +24,14 @@ endfunction()
 
 add_library(testcore OBJECT
     ${CMAKE_SOURCE_DIR}/src/core/config.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/connection.cpp
     ${CMAKE_SOURCE_DIR}/src/core/playlist-model.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/music-database-model.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/log.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/browser-widget.h
 )
 target_include_directories(testcore PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(testcore PUBLIC Qt6::Core Qt6::Gui PkgConfig::LIBMPDCLIENT)
+target_link_libraries(testcore PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets PkgConfig::LIBMPDCLIENT)
 
 # ── Individual tests ──────────────────────────────────────────────────────────
 
@@ -44,9 +47,18 @@ add_executable(test-playlist-model test-playlist-model.cpp)
 target_link_libraries(test-playlist-model PRIVATE testcore Qt6::Widgets doctest::doctest)
 target_include_directories(test-playlist-model PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
+# ── Database browser test (uses trompeloeil mocks) ────────────────────────────
+
+add_executable(test-db-browser test-db-browser.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/database-browser.cpp
+)
+target_link_libraries(test-db-browser PRIVATE testcore Qt6::Widgets doctest::doctest trompeloeil::trompeloeil)
+target_include_directories(test-db-browser PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
 # ── Register with CTest ───────────────────────────────────────────────────────
 include(CTest)
 enable_testing()
 add_test(NAME test-log COMMAND test-log)
 add_test(NAME test-config COMMAND test-config)
 add_test(NAME test-playlist-model COMMAND test-playlist-model)
+add_test(NAME test-db-browser COMMAND test-db-browser)

@@ -46,6 +46,8 @@ set(BROWSER_SOURCES
     src/browsers/file-browser.h
     src/browsers/database-browser.cpp
     src/browsers/database-browser.h
+    src/browsers/music-database-model.cpp
+    src/browsers/music-database-model.h
     src/browsers/search-browser.cpp
     src/browsers/search-browser.h
     src/browsers/playlist-editor.cpp
