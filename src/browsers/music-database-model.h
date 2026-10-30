@@ -15,6 +15,8 @@
 #include <QString>
 #include <QList>
 
+#include <mpd/tag.h>
+
 class Connection;
 
 /// Custom data roles exposed to views.
@@ -45,6 +47,12 @@ public:
     // ── Population ────────────────────────────────────────────────────────
     /** Load the list of artists from MPD. */
     void loadArtists();
+
+    /**
+     * Load top-level items grouped by the given tag type.
+     * Replaces loadArtists() when the user switches tag groups.
+     */
+    void loadByTag(enum mpd_tag_type tag);
 
     /**
      * Load albums for a given artist node.

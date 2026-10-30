@@ -133,15 +133,23 @@ void Connection::pollStatus()
     }
 
     Status s = fetchStatus();
-    if (s.state        != lastStatus_.state        ||
-        s.volume       != lastStatus_.volume       ||
-        s.songId       != lastStatus_.songId       ||
-        s.queueVersion != lastStatus_.queueVersion ||
-        s.elapsed      != lastStatus_.elapsed      ||
-        s.repeat       != lastStatus_.repeat       ||
-        s.random       != lastStatus_.random)
-    {
+    bool changed = (s.state        != lastStatus_.state        ||
+                    s.volume       != lastStatus_.volume       ||
+                    s.songId       != lastStatus_.songId       ||
+                    s.queueVersion != lastStatus_.queueVersion ||
+                    s.elapsed      != lastStatus_.elapsed      ||
+                    s.repeat       != lastStatus_.repeat       ||
+                    s.random       != lastStatus_.random);
+
+    if (changed) {
         lastStatus_ = s;
         emit statusChanged(s);
     }
+
+    // Adaptive polling: faster while playing for smooth UI updates,
+    // slower when idle to reduce network chatter.
+    if (s.state == MPD_STATE_PLAY)
+        pollTimer_->setInterval(500);
+    else
+        pollTimer_->setInterval(2000);
 }

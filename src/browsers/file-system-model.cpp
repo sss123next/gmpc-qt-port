@@ -64,7 +64,7 @@ int FileSystemModel::rowCount(const QModelIndex &parent) const
 
 int FileSystemModel::columnCount(const QModelIndex &) const
 {
-    return 1; // file/directory name
+    return 3; // name, type, duration
 }
 
 QVariant FileSystemModel::data(const QModelIndex &index, int role) const
@@ -74,16 +74,32 @@ QVariant FileSystemModel::data(const QModelIndex &index, int role) const
 
     auto *item = static_cast<FileNode *>(index.internalPointer());
 
-    if (index.column() == 0 && role == Qt::DisplayRole)
-        return item->name;
+    if (role == Qt::DisplayRole) {
+        switch (index.column()) {
+        case 0: return item->name;
+        case 1: {
+            switch (item->type) {
+            case FileNode::Directory: return tr("Directory");
+            case FileNode::Song:      return tr("Song");
+            case FileNode::Playlist:  return tr("Playlist");
+            default:                  return {};
+            }
+        }
+        case 2: {
+            if (item->type == FileNode::Song && item->duration > 0) {
+                int mins = item->duration / 60;
+                int secs = item->duration % 60;
+                return QStringLiteral("%1:%2")
+                    .arg(mins)
+                    .arg(secs, 2, 10, QLatin1Char('0'));
+            }
+            return {};
+        }
+        }
+    }
 
     if (role == UriRole)
         return item->path;
-
-    if (role == Qt::DecorationRole && index.column() == 0) {
-        // We'll rely on the delegate or style for icons; no QIcon here
-        // to avoid a Qt::Gui dependency at model level.
-    }
 
     return {};
 }
@@ -93,8 +109,11 @@ QVariant FileSystemModel::headerData(int section, Qt::Orientation orient,
 {
     if (orient != Qt::Horizontal || role != Qt::DisplayRole)
         return {};
-    if (section == 0)
-        return tr("File");
+    switch (section) {
+    case 0: return tr("Name");
+    case 1: return tr("Type");
+    case 2: return tr("Duration");
+    }
     return {};
 }
 
@@ -145,7 +164,7 @@ void FileSystemModel::loadDirectory(FileNode *node)
         return; // error, bail
 
     // collect all children into a temp array first, then bulk-insert
-    struct Entry { FileNode::Type type; QString name; QString path; };
+    struct Entry { FileNode::Type type; QString name; QString path; unsigned duration; };
     QVector<Entry> entries;
 
     while (auto *entity = conn_->nextEntity()) {
@@ -156,7 +175,7 @@ void FileSystemModel::loadDirectory(FileNode *node)
             const QString full = node->path.isEmpty()
                 ? name
                 : node->path + QLatin1Char('/') + name;
-            entries.append({FileNode::Directory, name, full});
+            entries.append({FileNode::Directory, name, full, 0});
             break;
         }
         case MPD_ENTITY_TYPE_SONG: {
@@ -165,7 +184,8 @@ void FileSystemModel::loadDirectory(FileNode *node)
             const QString full = node->path.isEmpty()
                 ? name
                 : node->path + QLatin1Char('/') + name;
-            entries.append({FileNode::Song, name, full});
+            entries.append({FileNode::Song, name, full,
+                            mpd_song_get_duration(song)});
             break;
         }
         case MPD_ENTITY_TYPE_PLAYLIST: {
@@ -174,7 +194,7 @@ void FileSystemModel::loadDirectory(FileNode *node)
             const QString full = node->path.isEmpty()
                 ? name
                 : node->path + QLatin1Char('/') + name;
-            entries.append({FileNode::Playlist, name, full});
+            entries.append({FileNode::Playlist, name, full, 0});
             break;
         }
         default:
@@ -195,7 +215,7 @@ void FileSystemModel::loadDirectory(FileNode *node)
         : createIndex(node->parent->children.indexOf(node), 0, node);
     beginInsertRows(idx, start, start + entries.size() - 1);
     for (const auto &e : entries) {
-        auto *child = new FileNode{e.type, e.name, e.path, node, {}, false};
+        auto *child = new FileNode{e.type, e.name, e.path, node, {}, e.duration, false};
         node->children.append(child);
     }
     endInsertRows();

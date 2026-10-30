@@ -5,12 +5,14 @@
  * @brief MPD music database browser (tag-based navigation).
  *
  * Shows the MPD media library organised by artist/album in a QTreeView.
+ * Supports switching the top-level tag group via QComboBox.
  */
 
 #include "browser-widget.h"
 
 class Connection;
 class MusicDatabaseModel;
+class QComboBox;
 class QTreeView;
 
 /// Browse the MPD music database by tag.
@@ -29,9 +31,13 @@ public:
     void onActivate() override;
     void onConnectionChanged(bool connected) override;
 
+private slots:
+    void onTagChanged(int index);
+
 private:
     Connection *conn_;
     MusicDatabaseModel *model_;
     QTreeView *view_;
+    QComboBox *tagCombo_;
 };
 

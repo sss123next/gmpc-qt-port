@@ -11,6 +11,7 @@
 #include <QVector>
 
 class Connection;
+class QComboBox;
 class QLineEdit;
 class QTreeView;
 
@@ -75,10 +76,13 @@ public:
 
 private slots:
     void executeSearch();
+    /// Called when the search field combo changes.
+    void onFieldChanged(int index);
 
 private:
     Connection *conn_;
     SearchResultModel *model_;
     QTreeView *view_;
     QLineEdit *searchEdit_;
+    QComboBox *fieldCombo_;
 };

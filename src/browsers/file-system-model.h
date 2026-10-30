@@ -22,6 +22,7 @@ struct FileNode {
     QString path;     ///< full virtual path (empty for root)
     FileNode *parent = nullptr;
     QVector<FileNode *> children;
+    unsigned duration = 0; ///< seconds (only for Song)
     bool loaded = false; ///< children fetched from MPD yet
 
     ~FileNode() { qDeleteAll(children); }

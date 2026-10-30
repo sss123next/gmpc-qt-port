@@ -59,6 +59,41 @@ void MusicDatabaseModel::loadArtists()
     endInsertRows();
 }
 
+void MusicDatabaseModel::loadByTag(enum mpd_tag_type tag)
+{
+    if (!conn_ || !conn_->isConnected())
+        return;
+
+    // Reset the model
+    beginResetModel();
+    qDeleteAll(root_->children);
+    root_->children.clear();
+    endResetModel();
+
+    if (!mpd_search_db_tags(conn_->raw(), tag))
+        return;
+
+    if (!mpd_search_commit(conn_->raw()))
+        return;
+
+    QVector<QString> names;
+    while (auto *pair = mpd_recv_pair_tag(conn_->raw(), tag)) {
+        names.append(QString::fromUtf8(pair->value));
+        mpd_return_pair(conn_->raw(), pair);
+    }
+    mpd_response_finish(conn_->raw());
+
+    if (names.isEmpty())
+        return;
+
+    beginInsertRows({}, 0, names.size() - 1);
+    for (const auto &name : names) {
+        auto *node = new MusicDbItem{MusicDbItem::Artist, name, {}, root_};
+        root_->children.append(node);
+    }
+    endInsertRows();
+}
+
 void MusicDatabaseModel::loadAlbums(const QModelIndex &idx)
 {
     if (!idx.isValid())

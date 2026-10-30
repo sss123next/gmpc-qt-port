@@ -10,10 +10,38 @@
 #include <mpd/song.h>
 #include <mpd/tag.h>
 
+#include <QComboBox>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QTreeView>
 #include <QVBoxLayout>
+
+// ── Search field combo ──────────────────────────────────────────────────────
+
+/// Indices into the field combo — maps to MPD_TAG or "all".
+enum SearchField {
+    FieldAll = 0,
+    FieldArtist,
+    FieldAlbum,
+    FieldTitle,
+    FieldGenre,
+    FieldComposer,
+    FieldCount
+};
+
+/// Return the MPD_TAG for a specific field, or MPD_TAG_COUNT for "all".
+static enum mpd_tag_type fieldToTag(int field)
+{
+    switch (field) {
+    case FieldArtist:  return MPD_TAG_ARTIST;
+    case FieldAlbum:   return MPD_TAG_ALBUM;
+    case FieldTitle:   return MPD_TAG_TITLE;
+    case FieldGenre:   return MPD_TAG_GENRE;
+    case FieldComposer: return MPD_TAG_COMPOSER;
+    default:           return MPD_TAG_COUNT; // "all"
+    }
+}
 
 // ── SearchResultModel ───────────────────────────────────────────────────────
 
@@ -96,13 +124,27 @@ SearchBrowser::SearchBrowser(Connection *conn, QWidget *parent)
     , model_(new SearchResultModel(this))
     , view_(new QTreeView(this))
     , searchEdit_(new QLineEdit(this))
+    , fieldCombo_(new QComboBox(this))
 {
     auto *lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
 
+    // Top row: field combo + search input
+    auto *topRow = new QHBoxLayout;
+    fieldCombo_->addItem(tr("All fields"));
+    fieldCombo_->addItem(tr("Artist"));
+    fieldCombo_->addItem(tr("Album"));
+    fieldCombo_->addItem(tr("Title"));
+    fieldCombo_->addItem(tr("Genre"));
+    fieldCombo_->addItem(tr("Composer"));
+    fieldCombo_->setCurrentIndex(FieldAll);
+
     searchEdit_->setPlaceholderText(tr("Search songs\u2026"));
     connect(searchEdit_, &QLineEdit::returnPressed,
             this, &SearchBrowser::executeSearch);
+
+    topRow->addWidget(fieldCombo_);
+    topRow->addWidget(searchEdit_, 1);
 
     view_->setModel(model_);
     view_->setRootIsDecorated(false);
@@ -111,7 +153,7 @@ SearchBrowser::SearchBrowser(Connection *conn, QWidget *parent)
     view_->header()->setStretchLastSection(true);
     view_->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
-    lay->addWidget(searchEdit_);
+    lay->addLayout(topRow);
     lay->addWidget(view_);
 
     setEnabled(false); // disabled until connected
@@ -131,30 +173,42 @@ void SearchBrowser::executeSearch()
     if (!conn_ || !conn_->isConnected())
         return;
 
-    // Build a list of tag types to search against
-    static constexpr std::array tags = {
-        MPD_TAG_ARTIST,     MPD_TAG_ALBUM_ARTIST,
-        MPD_TAG_TITLE,      MPD_TAG_ALBUM,
-        MPD_TAG_GENRE,      MPD_TAG_COMPOSER,
-        MPD_TAG_PERFORMER,
-    };
+    const int fieldIndex = fieldCombo_->currentIndex();
+    const enum mpd_tag_type tag = fieldToTag(fieldIndex);
 
     if (!mpd_search_db_songs(conn_->raw(), false))
         return;
 
-    bool constraintsOk = true;
-    for (auto t : tags) {
+    if (tag != MPD_TAG_COUNT) {
+        // Single-tag search
         if (!mpd_search_add_tag_constraint(
                 conn_->raw(), MPD_OPERATOR_DEFAULT,
-                t, query.toUtf8().constData())) {
-            constraintsOk = false;
-            break;
+                tag, query.toUtf8().constData()) ||
+            !mpd_search_commit(conn_->raw()))
+        {
+            mpd_search_cancel(conn_->raw());
+            return;
         }
-    }
-
-    if (!constraintsOk || !mpd_search_commit(conn_->raw())) {
-        mpd_search_cancel(conn_->raw());
-        return;
+    } else {
+        // "All fields" — search across all known tags
+        bool ok = true;
+        for (auto t : {
+            MPD_TAG_ARTIST, MPD_TAG_ALBUM_ARTIST,
+            MPD_TAG_TITLE,  MPD_TAG_ALBUM,
+            MPD_TAG_GENRE,  MPD_TAG_COMPOSER,
+            MPD_TAG_PERFORMER,
+        }) {
+            if (!mpd_search_add_tag_constraint(
+                    conn_->raw(), MPD_OPERATOR_DEFAULT,
+                    t, query.toUtf8().constData())) {
+                ok = false;
+                break;
+            }
+        }
+        if (!ok || !mpd_search_commit(conn_->raw())) {
+            mpd_search_cancel(conn_->raw());
+            return;
+        }
     }
 
     // Collect results
@@ -177,4 +231,11 @@ void SearchBrowser::executeSearch()
     }
 
     model_->setResults(results);
+}
+
+void SearchBrowser::onFieldChanged(int index)
+{
+    Q_UNUSED(index);
+    // Re-focus the search input for immediate typing
+    searchEdit_->setFocus();
 }
