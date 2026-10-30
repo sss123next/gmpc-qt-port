@@ -135,7 +135,8 @@ add_executable(test-cover-widget test-cover-widget.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp)
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp)
 target_link_libraries(test-cover-widget PRIVATE Qt6::Widgets Qt6::Network
     PkgConfig::SQLITE3
     doctest::doctest)
@@ -173,7 +174,8 @@ add_executable(test-metadata-manager test-metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp)
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp)
 target_link_libraries(test-metadata-manager PRIVATE Qt6::Core Qt6::Gui Qt6::Network
     PkgConfig::SQLITE3
     doctest::doctest)

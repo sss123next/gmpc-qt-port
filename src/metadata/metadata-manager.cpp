@@ -2,6 +2,7 @@
 #include "cover-provider.h"
 #include "cache-sqlite.h"
 #include "providers/lyrdb.h"
+#include "providers/lyrics-ovh.h"
 
 MetadataManager::MetadataManager(const QString &cachePath,
                                  const QString &lastFmApiKey,
@@ -9,6 +10,7 @@ MetadataManager::MetadataManager(const QString &cachePath,
     : QObject(parent)
     , coverProvider_(new CoverProvider(lastFmApiKey, cachePath, this))
     , lyricsProvider_(new LrcLibProvider(this))
+    , lyricsFallback_(new LyricsOvhProvider(this))
     , cache_(new CacheSqlite(cachePath))
 {
     // Forward cover signals — stash artist/album is done in requestCover
@@ -45,7 +47,34 @@ MetadataManager::MetadataManager(const QString &cachePath,
                 }
             });
 
+    // When LrcLib fails, try lyrics.ovh as fallback
     connect(lyricsProvider_, &LrcLibProvider::notFound, this,
+            [this]() {
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    lyricsFallback_->fetchLyrics(pendingArtistLyrics_,
+                                                  pendingTitleLyrics_);
+                }
+            });
+
+    connect(lyricsProvider_, &LrcLibProvider::error, this,
+            [this](const QString &msg) {
+                emit error(msg);
+            });
+
+    // ── Lyrics.ovh fallback ─────────────────────────────────────────
+    connect(lyricsFallback_, &LyricsOvhProvider::lyricsFound, this,
+            [this](const QString &plain) {
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    cachePut(QString("lyrics:%1:%2")
+                             .arg(pendingArtistLyrics_, pendingTitleLyrics_),
+                             plain.toUtf8());
+                    emit lyricsReady(pendingArtistLyrics_, pendingTitleLyrics_, plain);
+                    pendingArtistLyrics_.clear();
+                    pendingTitleLyrics_.clear();
+                }
+            });
+
+    connect(lyricsFallback_, &LyricsOvhProvider::notFound, this,
             [this]() {
                 if (!pendingArtistLyrics_.isEmpty()) {
                     emit lyricsNotFound(pendingArtistLyrics_, pendingTitleLyrics_);
@@ -54,7 +83,7 @@ MetadataManager::MetadataManager(const QString &cachePath,
                 }
             });
 
-    connect(lyricsProvider_, &LrcLibProvider::error, this,
+    connect(lyricsFallback_, &LyricsOvhProvider::error, this,
             [this](const QString &msg) {
                 emit error(msg);
             });

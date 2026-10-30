@@ -17,6 +17,7 @@
 
 class CoverProvider;
 class LrcLibProvider;
+class LyricsOvhProvider;
 class CacheSqlite;
 
 /// Central coordinator for metadata fetching and caching.
@@ -61,6 +62,7 @@ private:
 
     CoverProvider    *coverProvider_;
     LrcLibProvider   *lyricsProvider_;
+    LyricsOvhProvider *lyricsFallback_;
     CacheSqlite      *cache_;
 
     // Pending request state for signal forwarding
@@ -73,3 +75,4 @@ private:
 // ── Forward-declare external providers ──────────────────────────────────────
 #include "tools/async-download.h"
 #include "providers/lyrdb.h"
+#include "providers/lyrics-ovh.h"

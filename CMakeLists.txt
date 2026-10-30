@@ -75,6 +75,8 @@ set(PROVIDER_SOURCES
     src/providers/discogs.h
     src/providers/lyrdb.cpp
     src/providers/lyrdb.h
+    src/providers/lyrics-ovh.cpp
+    src/providers/lyrics-ovh.h
     src/providers/musicbrainz.cpp
     src/providers/musicbrainz.h
 )
