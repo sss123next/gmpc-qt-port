@@ -77,6 +77,53 @@ void PreferencesDialog::setupUi()
     winForm->addRow(startHidden_);
     root->addWidget(winGroup);
 
+    // ── Proxy group ─────────────────────────────────────────────────
+    auto *proxyGroup = new QGroupBox(tr("Proxy"), this);
+    auto *proxyForm = new QFormLayout(proxyGroup);
+
+    proxyEnabled_ = new QCheckBox(tr("Enable HTTP proxy"), this);
+    proxyForm->addRow(proxyEnabled_);
+
+    proxyGroup_ = new QWidget(this);
+    auto *proxySubForm = new QFormLayout(proxyGroup_);
+    proxySubForm->setContentsMargins(0, 0, 0, 0);
+    proxyHost_ = new QLineEdit(this);
+    proxyHost_->setPlaceholderText(tr("proxy.example.com"));
+    proxyPort_ = new QSpinBox(this);
+    proxyPort_->setRange(1, 65535);
+    proxyPort_->setValue(8080);
+    proxySubForm->addRow(tr("Host:"), proxyHost_);
+    proxySubForm->addRow(tr("Port:"), proxyPort_);
+    proxyForm->addRow(proxyGroup_);
+
+    // Toggle proxy detail visibility
+    connect(proxyEnabled_, &QCheckBox::toggled, proxyGroup_, &QWidget::setVisible);
+    proxyGroup_->setVisible(false);  // hidden until enabled
+
+    root->addWidget(proxyGroup);
+
+    // ── Server group ────────────────────────────────────────────────
+    auto *serverGroup = new QGroupBox(tr("Server"), this);
+    auto *serverForm = new QFormLayout(serverGroup);
+
+    musicDirectory_ = new QLineEdit(this);
+    musicDirectory_->setPlaceholderText(tr("/path/to/music (optional)"));
+    serverForm->addRow(tr("Music directory:"), musicDirectory_);
+
+    reconnectDelay_ = new QSpinBox(this);
+    reconnectDelay_->setRange(500, 30000);
+    reconnectDelay_->setSuffix(tr(" ms"));
+    reconnectDelay_->setSingleStep(500);
+    serverForm->addRow(tr("Reconnect delay:"), reconnectDelay_);
+
+    connectionTimeout_ = new QSpinBox(this);
+    connectionTimeout_->setRange(1000, 60000);
+    connectionTimeout_->setSuffix(tr(" ms"));
+    connectionTimeout_->setSingleStep(1000);
+    serverForm->addRow(tr("Connection timeout:"), connectionTimeout_);
+
+    root->addWidget(serverGroup);
+
     // ── Tray group ───────────────────────────────────────────────────
     auto *trayGroup = new QGroupBox(tr("Tray Icon"), this);
     auto *trayForm = new QFormLayout(trayGroup);
@@ -110,6 +157,18 @@ void PreferencesDialog::loadFromConfig()
     autoConnect_->setChecked(cfg.autoConnect());
     stopOnExit_->setChecked(cfg.stopOnExit());
     startHidden_->setChecked(cfg.startHidden());
+
+    // Proxy
+    proxyEnabled_->setChecked(cfg.proxyEnabled());
+    proxyHost_->setText(cfg.proxyHost());
+    proxyPort_->setValue(cfg.proxyPort());
+    proxyGroup_->setVisible(cfg.proxyEnabled());
+
+    // Server
+    musicDirectory_->setText(cfg.musicDirectory());
+    reconnectDelay_->setValue(cfg.reconnectDelay());
+    connectionTimeout_->setValue(cfg.connectionTimeout());
+
     trayEnabled_->setChecked(cfg.trayEnabled());
 }
 
@@ -133,6 +192,17 @@ void PreferencesDialog::accept()
     cfg.setAutoConnect(autoConnect_->isChecked());
     cfg.setStopOnExit(stopOnExit_->isChecked());
     cfg.setStartHidden(startHidden_->isChecked());
+
+    // Proxy
+    cfg.setProxyEnabled(proxyEnabled_->isChecked());
+    cfg.setProxyHost(proxyHost_->text());
+    cfg.setProxyPort(proxyPort_->value());
+
+    // Server
+    cfg.setMusicDirectory(musicDirectory_->text());
+    cfg.setReconnectDelay(reconnectDelay_->value());
+    cfg.setConnectionTimeout(connectionTimeout_->value());
+
     cfg.setTrayEnabled(trayEnabled_->isChecked());
     cfg.sync();
 

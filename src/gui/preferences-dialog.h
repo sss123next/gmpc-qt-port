@@ -45,6 +45,17 @@ private:
     // Window group
     QCheckBox    *startHidden_;
 
+    // Proxy group
+    QCheckBox    *proxyEnabled_;
+    QWidget      *proxyGroup_;   ///< holds host_ + port_ widgets
+    QLineEdit    *proxyHost_;
+    QSpinBox     *proxyPort_;
+
+    // Server group
+    QLineEdit    *musicDirectory_;
+    QSpinBox     *reconnectDelay_;
+    QSpinBox     *connectionTimeout_;
+
     // Tray group
     QCheckBox    *trayEnabled_;
 

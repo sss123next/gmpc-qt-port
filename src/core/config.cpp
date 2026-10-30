@@ -52,6 +52,35 @@ bool Config::stopOnExit() const
 void Config::setStopOnExit(bool v)
     { s_.setValue("playback/stopOnExit", v); }
 
+// ── Proxy ──────────────────────────────────────────────────────────────────
+bool Config::proxyEnabled() const
+    { return s_.value("proxy/enabled", false).toBool(); }
+void Config::setProxyEnabled(bool v)
+    { s_.setValue("proxy/enabled", v); }
+QString Config::proxyHost() const
+    { return s_.value("proxy/host", "").toString(); }
+void Config::setProxyHost(const QString &h)
+    { s_.setValue("proxy/host", h); }
+int Config::proxyPort() const
+    { return s_.value("proxy/port", 8080).toInt(); }
+void Config::setProxyPort(int p)
+    { s_.setValue("proxy/port", p); }
+
+// ── Server ─────────────────────────────────────────────────────────────────
+QString Config::musicDirectory() const
+    { return s_.value("server/musicDirectory", "").toString(); }
+void Config::setMusicDirectory(const QString &d)
+    { s_.setValue("server/musicDirectory", d); }
+int Config::reconnectDelay() const
+    { return s_.value("server/reconnectDelay", 2000).toInt(); }
+void Config::setReconnectDelay(int ms)
+    { s_.setValue("server/reconnectDelay", ms); }
+int Config::connectionTimeout() const
+    { return s_.value("server/connectionTimeout", 5000).toInt(); }
+void Config::setConnectionTimeout(int ms)
+    { s_.setValue("server/connectionTimeout", ms); }
+
+// ── Tray ──────────────────────────────────────────────────────────────────
 bool Config::trayEnabled() const
     { return s_.value("tray/enabled", true).toBool(); }
 void Config::setTrayEnabled(bool v)
