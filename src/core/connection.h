@@ -90,11 +90,15 @@ public:
      */
     mpd_entity *nextEntity();
 
-    /** @brief Send a raw MPD command (minimal implementation).
+    /** @brief Send a raw MPD command and parse the key-value response.
+     *
+     *  Reads all (key, value) pairs returned by the server into a list.
+     *  On error the list is empty; use raw() to check connection state.
+     *
      *  @param cmd  Command string (e.g. "status").
-     *  @returns empty QByteArray; real parsing is TBD.
+     *  @returns List of key-value pairs in server order.
      */
-    QByteArray rawCommand(const QString &cmd);
+    QList<QPair<QString, QString>> rawCommand(const QString &cmd);
 
     /** @brief Access the raw libmpdclient handle.
      *  @returns pointer to ::mpd_connection or nullptr.

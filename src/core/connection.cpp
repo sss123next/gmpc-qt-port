@@ -114,14 +114,48 @@ mpd_entity *Connection::nextEntity()
     return conn_ ? mpd_recv_entity(conn_) : nullptr;
 }
 
-QByteArray Connection::rawCommand(const QString &cmd)
+QList<QPair<QString, QString>> Connection::rawCommand(const QString &cmd)
 {
+    QList<QPair<QString, QString>> result;
     if (!conn_)
-        return {};
+        return result;
 
-    mpd_send_command(conn_, cmd.toUtf8().constData(), nullptr);
-    // FIXME: proper response parsing
-    return {};
+    // Send the command
+    if (!mpd_send_command(conn_, cmd.toUtf8().constData(), nullptr)) {
+        LOG_WARN("rawCommand(%s): mpd_send_command failed",
+                 qPrintable(cmd));
+        mpd_connection_clear_error(conn_);
+        return result;
+    }
+
+    // Read all response pairs
+    while (auto *pair = mpd_recv_pair(conn_)) {
+        result.append({ QString::fromUtf8(pair->name),
+                        QString::fromUtf8(pair->value) });
+        mpd_return_pair(conn_, pair);
+    }
+
+    // Check for errors during iteration
+    if (mpd_connection_get_error(conn_) != MPD_ERROR_SUCCESS
+        && mpd_connection_get_error(conn_) != MPD_ERROR_CLOSED)
+    {
+        LOG_WARN("rawCommand(%s): error during recv",
+                 qPrintable(cmd));
+        mpd_connection_clear_error(conn_);
+        result.clear();
+        return result;
+    }
+
+    // Finish the response (consumes ACK if any)
+    if (!mpd_response_finish(conn_)) {
+        LOG_WARN("rawCommand(%s): mpd_response_finish failed",
+                 qPrintable(cmd));
+        mpd_connection_clear_error(conn_);
+        result.clear();
+        return result;
+    }
+
+    return result;
 }
 
 void Connection::pollStatus()
