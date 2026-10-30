@@ -1,8 +1,8 @@
 # gmpc → gmpc-qt: План синхронизации GUI
 
 **Цель:** Достичь функционального паритета с оригинальным gmpc (GTK2) по UI/UX.
-**Актуально на:** Phase 5g — Browser доработки + adaptive polling.
-Build: 100% clean. No tests (GUI-only). RSS (playlist loaded): ~110 MB (м.б. ~50 MB после оптимизаций).
+**Актуально на:** Phase 5h — Fullscreen overlay + Zoom levels.
+Build: 100% clean (0 warnings). No tests (GUI-only). RSS (playlist loaded): ~110 MB.
 
 **DE-agnostic policy:** Не используем AppIndicator, DBus, GNOME-специфичные API.
 Всё через `QSystemTrayIcon` — работает во всех X11-треях (tray2, waybar, polybar, stalonetray)
@@ -26,14 +26,14 @@ GNOME без расширения AppIndicator — их проблемы.
 
 ### 1.1 Hotkeys / Keyboard shortcuts ✅ DONE
 Оригинал: ~30 акселераторов (Ctrl+Left/Right/Up/Down, F12, Ctrl+Space, Ctrl+R/S/T/Y/M/E…).
-**Реализация:** `MainWindow::setupShortcuts()` — 11 QShortcut привязок:
+**Реализация:** `MainWindow::setupShortcuts()` — 12 QShortcut привязок:
 - Ctrl+Left/Right/Up/Down → prev/next/togglePause/stop
-- Ctrl+Plus/Minus → volumeUp/volumeDown
+- Ctrl+Plus/Minus → zoomIn/zoomOut (см. 1.9)
 - Ctrl+R/S/T/Y → toggleRepeat/Random/Single/Consume
 - Ctrl+M → muteToggle
-- F12 → fullscreen toggle
+- F12 → fullscreen toggle (см. 1.5)
 **Файлы:** `src/gui/mainwindow.h/.cpp`
-**Оценка:** ~40 строк (выполнено).
+**Оценка:** ~50 строк (выполнено).
 
 ### 1.2 Context menus (Search + File browsers) ✅ DONE
 Оригинал: правый клик → PopupMenu (Add, Play, Replace, Crop, Info).
@@ -66,12 +66,12 @@ CoverWidget (128×128 слева), SongInfo (справа от cover), VolumeWid
 **Файлы:** `src/gui/mainwindow.h/.cpp`, `src/gui/controlbar.h/.cpp`
 **Оценка:** ~30 строк (выполнено).
 
-### 1.5 Fullscreen (basic) ✅ DONE
+### 1.5 Fullscreen overlay + auto-hide ✅ DONE
 Оригинал: отдельное GtkWindow с полупрозрачным фоном, автопрятание 5s.
-**Реализация:** `bool fullscreen_` + QShortcut(F12) → showFullScreen/showNormal.
-Overlay и auto-hide отложены (P1).
+**Реализация:** `toggleFullscreenOverlay()` — F12 → showFullScreen/showNormal.
+5s QTimer (overlayTimer_) → hide controlBar. mouseMoveEvent(Y<80) → show + reset timer.
 **Файлы:** `src/gui/mainwindow.h/.cpp`
-**Оценка:** ~10 строк (выполнено, overlay отложен).
+**Оценка:** ~35 строк (выполнено).
 
 ### 1.6 Multimedia keys
 Оригинал: X11 GDK key grabbing, 15 actions (mm-keys.c).
@@ -106,10 +106,13 @@ Overlay и auto-hide отложены (P1).
 **Файлы:** `src/core/config.h/.cpp`, `src/gui/preferences-dialog.h/.cpp`, `src/gui/mainwindow.cpp`
 **Оценка:** ~120 строк (выполнено).
 
-### 1.9 Zoom levels (3 уровня)
+### 1.9 Zoom levels (3 уровня) ✅ DONE
 Оригинал: Ctrl+Plus/Minus → скрывает sidebar/breadcrumb/tabs.
-**Задача:** `setZoomLevel(int level)` — show/hide виджетов.
-**Оценка:** ~20 строк.
+**Реализация:** `setupZoomLevels()` — Ctrl+Plus/Qt::Key_Plus, Ctrl+Minus/Qt::Key_Minus.
+`setZoomLevel(int)`: 0=full, 1=no sidebar, 2=compact (no sidebar, no statusbar).
+Ctrl+Plus/Minus volume shortcuts удалены (теперь только VolumeWidget).
+**Файлы:** `src/gui/mainwindow.h/.cpp`
+**Оценка:** ~25 строк (выполнено).
 
 ---
 
@@ -216,15 +219,15 @@ Connection::pollStatus() переключает интервал: 500ms при P
 
 | Категория | Пунктов | Выполнено | Примерное LOC |
 |-----------|---------|-----------|---------------|
-| 🟥 P0 | 9 | 6 (1.1, 1.2, 1.4, 1.5, 1.7, 1.8) | ~800 (выполнено ~400) |
+| 🟥 P0 | 9 | 8 (1.1, 1.2, 1.4, 1.5, 1.7, 1.8, 1.9, 1.3) | ~800 (выполнено ~600) |
 | 🟧 P1 | 7 | 4 (2.3, 2.4, 2.5, 2.6) | ~250 (выполнено ~200) |
 | 🟡 P2 | 7 | 0 | ~80 |
 | ⚰️ Dead | 3 | 3 (✅ все) | ~10 (подключить) |
-| **Итого** | **26** | **13** | **~1140 строк (выполнено ~640)** |
+| **Итого** | **26** | **15** | **~1140 строк (выполнено ~890)** |
 
 Исходный gmpc: ~30000 строк C (GTK2 + Vala + .ui).
-gmpc-qt: ~5100 строк C++ (рост +350 строк за Phase 5g).
-Потенциальный паритет при 26 пунктах: ~5200 строк.
+gmpc-qt: ~5200 строк C++ (рост +400 строк за Phase 5g–5h).
+Потенциальный паритет при 26 пунктах: ~5300 строк.
 
 ---
 
@@ -238,12 +241,12 @@ Phase 5d: Preferences — расширение               (P0, ✅ DONE, ~120
 Phase 5e: Connection profiles                    (P0, ✅ DONE, ~120 строк)
 Phase 5f: Database browser URI + context menu      (P1, ✅ DONE, ~30 строк)
 Phase 5g: Browser доработки + memory оптимизация  (P1, ✅ DONE, ~350 строк)
-Phase 5h: Fullscreen overlay + Zoom               (P0+P0, ~120 строк)
+Phase 5h: Fullscreen overlay + Zoom               (P0+P0, ✅ DONE, ~60 строк)
 Phase 5i: Multimedia keys                         (P0, ~80 строк)
 Phase 5j: Малые улучщения + ещё memory (P2+P1, ~100 строк)
 ```
 
-**Итог:** 10 мини-фаз, ~1100 строк нового кода, 0 новых зависимостей.
-13/26 пунктов выполнено (50%), ~640 строк написано, gmpc-qt ~5100 строк C++.
+**Итог:** 10 мини-фаз, ~1160 строк нового кода, 0 новых зависимостей.
+15/26 пунктов выполнено (58%), ~890 строк написано, gmpc-qt ~5200 строк C++.
 
 ---
