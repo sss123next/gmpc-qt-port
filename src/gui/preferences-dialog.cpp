@@ -5,6 +5,9 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QStackedWidget>
+#include <QFontComboBox>
+#include <QColorDialog>
+#include <QToolButton>
 
 PreferencesDialog::PreferencesDialog(QWidget *parent)
     : QDialog(parent)
@@ -131,6 +134,75 @@ void PreferencesDialog::setupUi()
     trayForm->addRow(trayEnabled_);
     root->addWidget(trayGroup);
 
+    // ── Playlist group ──────────────────────────────────────────────
+    auto *playlistGroup = new QGroupBox(tr("Playlist"), this);
+    auto *playlistForm = new QFormLayout(playlistGroup);
+
+    headerMarkup_ = new QLineEdit(this);
+    headerMarkup_->setPlaceholderText(tr("e.g. $artist — $album ($year)"));
+    playlistForm->addRow(tr("Header markup:"), headerMarkup_);
+
+    auto *hlRow = new QHBoxLayout();
+    highlightColorBtn_ = new QPushButton(this);
+    highlightColorBtn_->setFixedSize(32, 24);
+    highlightColorBtn_->setToolTip(tr("Click to choose highlight colour"));
+    connect(highlightColorBtn_, &QPushButton::clicked, this, [this] {
+        QColor c = QColorDialog::getColor(
+            QColor(highlightColorBtn_->property("color").toString()), this);
+        if (c.isValid()) {
+            highlightColorBtn_->setStyleSheet(
+                QStringLiteral("background: %1").arg(c.name()));
+            highlightColorBtn_->setProperty("color", c.name());
+        }
+    });
+    auto *hlReset = new QToolButton(this);
+    hlReset->setText(tr("×"));
+    hlReset->setToolTip(tr("Reset to default"));
+    connect(hlReset, &QToolButton::clicked, this, [this] {
+        highlightColorBtn_->setStyleSheet(QString());
+        highlightColorBtn_->setProperty("color", QVariant());
+    });
+    hlRow->addWidget(highlightColorBtn_);
+    hlRow->addWidget(hlReset);
+    hlRow->addStretch();
+    playlistForm->addRow(tr("Highlight colour:"), hlRow);
+
+    root->addWidget(playlistGroup);
+
+    // ── Metadata group ──────────────────────────────────────────────
+    auto *metaGroup = new QGroupBox(tr("Metadata"), this);
+    auto *metaForm = new QFormLayout(metaGroup);
+
+    metadataFontCombo_ = new QFontComboBox(this);
+    metaForm->addRow(tr("Font:"), metadataFontCombo_);
+
+    auto *metaColorRow = new QHBoxLayout();
+    metadataColorBtn_ = new QPushButton(this);
+    metadataColorBtn_->setFixedSize(32, 24);
+    metadataColorBtn_->setToolTip(tr("Click to choose colour"));
+    connect(metadataColorBtn_, &QPushButton::clicked, this, [this] {
+        QColor c = QColorDialog::getColor(
+            QColor(metadataColorBtn_->property("color").toString()), this);
+        if (c.isValid()) {
+            metadataColorBtn_->setStyleSheet(
+                QStringLiteral("background: %1").arg(c.name()));
+            metadataColorBtn_->setProperty("color", c.name());
+        }
+    });
+    auto *metaColorReset = new QToolButton(this);
+    metaColorReset->setText(tr("×"));
+    metaColorReset->setToolTip(tr("Reset to default"));
+    connect(metaColorReset, &QToolButton::clicked, this, [this] {
+        metadataColorBtn_->setStyleSheet(QString());
+        metadataColorBtn_->setProperty("color", QVariant());
+    });
+    metaColorRow->addWidget(metadataColorBtn_);
+    metaColorRow->addWidget(metaColorReset);
+    metaColorRow->addStretch();
+    metaForm->addRow(tr("Colour:"), metaColorRow);
+
+    root->addWidget(metaGroup);
+
     // ── Profiles group ──────────────────────────────────────────────
     auto *profGroup = new QGroupBox(tr("Connection Profiles"), this);
     auto *profLayout = new QVBoxLayout(profGroup);
@@ -225,6 +297,26 @@ void PreferencesDialog::loadFromConfig()
 
     trayEnabled_->setChecked(cfg.trayEnabled());
 
+    // Playlist
+    headerMarkup_->setText(cfg.playlistHeaderMarkup());
+    const QString hlColor = cfg.playlistHighlightColor();
+    if (!hlColor.isEmpty()) {
+        highlightColorBtn_->setStyleSheet(
+            QStringLiteral("background: %1").arg(hlColor));
+        highlightColorBtn_->setProperty("color", QColor(hlColor));
+    }
+
+    // Metadata
+    const QString mFont = cfg.metadataFont();
+    if (!mFont.isEmpty())
+        metadataFontCombo_->setCurrentFont(QFont(mFont));
+    const QString mColor = cfg.metadataColor();
+    if (!mColor.isEmpty()) {
+        metadataColorBtn_->setStyleSheet(
+            QStringLiteral("background: %1").arg(mColor));
+        metadataColorBtn_->setProperty("color", QColor(mColor));
+    }
+
     // Profiles
     profiles_ = cfg.profiles();
     profileList_->clear();
@@ -265,6 +357,20 @@ void PreferencesDialog::accept()
     cfg.setConnectionTimeout(connectionTimeout_->value());
 
     cfg.setTrayEnabled(trayEnabled_->isChecked());
+
+    // Playlist
+    cfg.setPlaylistHeaderMarkup(headerMarkup_->text());
+    {
+        QVariant v = highlightColorBtn_->property("color");
+        cfg.setPlaylistHighlightColor(v.isValid() ? v.toString() : QString());
+    }
+
+    // Metadata
+    {
+        QVariant v = metadataColorBtn_->property("color");
+        cfg.setMetadataColor(v.isValid() ? v.toString() : QString());
+        cfg.setMetadataFont(metadataFontCombo_->currentFont().family());
+    }
 
     // Profiles — sync names back from list widget
     for (int i = 0; i < profiles_.size(); ++i) {

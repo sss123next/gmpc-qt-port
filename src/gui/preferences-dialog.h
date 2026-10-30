@@ -18,6 +18,8 @@
 #include <QPushButton>
 #include <QDialogButtonBox>
 #include <QGroupBox>
+#include <QListView>
+#include <QFontComboBox>
 #include "core/config.h"
 
 /// Modal settings dialog bound to Config.
@@ -67,6 +69,14 @@ private:
     QPushButton  *addProfileBtn_;
     QPushButton  *removeProfileBtn_;
     QList<ConnectionProfile> profiles_;    ///< working copy until accept()
+
+    // Playlist group
+    QLineEdit    *headerMarkup_;
+    QPushButton  *highlightColorBtn_;   ///< opens QColorDialog; shows chosen colour
+
+    // Metadata group
+    QFontComboBox *metadataFontCombo_;
+    QPushButton   *metadataColorBtn_;
 
     QDialogButtonBox *buttons_;
 };

@@ -43,21 +43,44 @@ ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
 
     timeLabel_ = new QLabel("0:00 / 0:00", this);
 
-    // — Mode buttons —
-    repeatBtn_ = new QPushButton(tr("R"), this);
+    // ── Countdown toggle ──────────────────────────────────────────────
+    countdownBtn_ = new QPushButton(this);
+    countdownBtn_->setText(tr("C"));
+    countdownBtn_->setToolTip(tr("Toggle countdown mode"));
+    countdownBtn_->setCheckable(true);
+    connect(countdownBtn_, &QPushButton::clicked, this, [this] {
+        countdown_ = !countdown_;
+        // Force a re-display; updateStatus will be called on next poll.
+    });
+
+    // — Mode buttons (icon-only) —
+    auto themedIcon = [&](const QString &name, const QStyle::StandardPixmap fallback) {
+        QIcon icon = QIcon::fromTheme(name, style()->standardIcon(fallback));
+        return icon;
+    };
+
+    repeatBtn_ = new QPushButton(this);
+    repeatBtn_->setIcon(themedIcon("media-repeat-all", QStyle::SP_BrowserReload));
     repeatBtn_->setCheckable(true);
+    repeatBtn_->setToolTip(tr("Toggle repeat"));
     connect(repeatBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleRepeat);
 
-    randomBtn_ = new QPushButton(tr("Z"), this);
+    randomBtn_ = new QPushButton(this);
+    randomBtn_->setIcon(themedIcon("media-shuffle", QStyle::SP_MediaPlay));
     randomBtn_->setCheckable(true);
+    randomBtn_->setToolTip(tr("Toggle random / shuffle"));
     connect(randomBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleRandom);
 
-    singleBtn_ = new QPushButton(tr("1"), this);
+    singleBtn_ = new QPushButton(this);
+    singleBtn_->setIcon(themedIcon("media-repeat-single", QStyle::SP_MediaPlay));
     singleBtn_->setCheckable(true);
+    singleBtn_->setToolTip(tr("Toggle single track"));
     connect(singleBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleSingle);
 
-    consumeBtn_ = new QPushButton(tr("C"), this);
+    consumeBtn_ = new QPushButton(this);
+    consumeBtn_->setIcon(themedIcon("edit-delete", QStyle::SP_TrashIcon));
     consumeBtn_->setCheckable(true);
+    consumeBtn_->setToolTip(tr("Toggle consume"));
     connect(consumeBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleConsume);
 
     // — Layout: [buttons] [seek+time] [cover] [song-info] [stretch] [modes] [vol] —
@@ -67,6 +90,7 @@ ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
     lay->addWidget(nextBtn_);
     lay->addWidget(seekSlider_);
     lay->addWidget(timeLabel_);
+    lay->addWidget(countdownBtn_);
     lay->addWidget(cover);
     lay->addWidget(info);
     lay->addStretch();
@@ -88,11 +112,17 @@ void ControlBar::updateStatus(const Connection::Status &s)
         seekSlider_->setRange(0, static_cast<int>(s.totalDuration));
         seekSlider_->setValue(static_cast<int>(s.elapsed));
     }
+
+    const int elapsed = static_cast<int>(s.elapsed);
+    const int total   = static_cast<int>(s.totalDuration);
+    const int display = countdown_
+        ? qMax(0, total - elapsed)
+        : elapsed;
     timeLabel_->setText(QStringLiteral("%1:%2 / %3:%4")
-        .arg(static_cast<int>(s.elapsed) / 60, 2, 10, QChar('0'))
-        .arg(static_cast<int>(s.elapsed) % 60, 2, 10, QChar('0'))
-        .arg(static_cast<int>(s.totalDuration) / 60, 2, 10, QChar('0'))
-        .arg(static_cast<int>(s.totalDuration) % 60, 2, 10, QChar('0')));
+        .arg(display / 60, 2, 10, QChar('0'))
+        .arg(display % 60, 2, 10, QChar('0'))
+        .arg(total / 60, 2, 10, QChar('0'))
+        .arg(total % 60, 2, 10, QChar('0')));
 
     repeatBtn_->setChecked(s.repeat);
     randomBtn_->setChecked(s.random);

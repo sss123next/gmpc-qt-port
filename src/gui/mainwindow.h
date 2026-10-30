@@ -12,7 +12,9 @@
 
 #include <QMainWindow>
 #include <QStackedWidget>
+#include <QTabBar>
 #include <QTreeView>
+#include <QLabel>
 #include <QTimer>
 #include <QAbstractNativeEventFilter>
 #include <xcb/xcb_keysyms.h>
@@ -81,7 +83,9 @@ private:
     void setupUi();
     void setupMenuBar();
     void setupSidebar();
+    void setupSidebarLabel();
     void setupCentralArea();
+    void setupBrowserTabs();
     void connectSignals();
     void tryAutoConnect();
 
@@ -91,7 +95,10 @@ private:
     MetadataManager *metadataMgr_;
 
     // Browser navigation
+    QWidget *sidebarPanel_;           ///< Wraps sidebarLabel_ + sidebar_.
+    QLabel *sidebarLabel_;            ///< Artist image / label above sidebar tree.
     QTreeView *sidebar_;              ///< Category tree (sidebar).
+    QTabBar *tabBar_;                 ///< Breadcrumb tabs above central stack.
     QStackedWidget *centralStack_;    ///< Right panel stacked browsers.
 
     // Browsers

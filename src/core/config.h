@@ -72,6 +72,22 @@ public:
     int connectionTimeout() const;
     void setConnectionTimeout(int ms);
 
+    // ── Playlist ────────────────────────────────────────────────────
+    /** @brief Header markup string (e.g. "$artist — $album"). */
+    QString playlistHeaderMarkup() const;
+    void setPlaylistHeaderMarkup(const QString &m);
+    /** @brief Highlight colour for the current track (empty = default). */
+    QString playlistHighlightColor() const;
+    void setPlaylistHighlightColor(const QString &c);
+
+    // ── Metadata ────────────────────────────────────────────────────
+    /** @brief Font family for metadata display (empty = default). */
+    QString metadataFont() const;
+    void setMetadataFont(const QString &f);
+    /** @brief Text colour for metadata (empty = theme default). */
+    QString metadataColor() const;
+    void setMetadataColor(const QString &c);
+
     // ── Tray ─────────────────────────────────────────────────────────
     bool trayEnabled() const;
     void setTrayEnabled(bool v);

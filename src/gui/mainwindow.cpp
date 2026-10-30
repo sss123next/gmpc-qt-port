@@ -164,13 +164,29 @@ void MainWindow::setupUi()
                                  volumeWidget_, this);
     layout->addWidget(controlBar_);
 
-    // Main splitter: sidebar | content
+    // Main splitter: sidebar | content (tab bar + stack)
     auto *splitter = new QSplitter(Qt::Horizontal, this);
     setupSidebar();
     setupCentralArea();
+    setupBrowserTabs();
 
-    splitter->addWidget(sidebar_);
-    splitter->addWidget(centralStack_);
+    auto *rightPanel = new QWidget(this);
+    auto *rightLay = new QVBoxLayout(rightPanel);
+    rightLay->setContentsMargins(0, 0, 0, 0);
+    rightLay->setSpacing(0);
+    rightLay->addWidget(tabBar_);
+    rightLay->addWidget(centralStack_, 1);
+
+    setupSidebarLabel();
+    sidebarPanel_ = new QWidget(this);
+    auto *sideLay = new QVBoxLayout(sidebarPanel_);
+    sideLay->setContentsMargins(0, 0, 0, 0);
+    sideLay->setSpacing(0);
+    sideLay->addWidget(sidebarLabel_);
+    sideLay->addWidget(sidebar_, 1);
+
+    splitter->addWidget(sidebarPanel_);
+    splitter->addWidget(rightPanel);
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
     splitter->setSizes({200, 600});
@@ -272,6 +288,17 @@ void MainWindow::setupSidebar()
     // TODO: proper QML-style sidebar with icons
 }
 
+void MainWindow::setupSidebarLabel()
+{
+    sidebarLabel_ = new QLabel(this);
+    sidebarLabel_->setFixedHeight(128);
+    sidebarLabel_->setScaledContents(true);
+    sidebarLabel_->setAlignment(Qt::AlignCenter);
+    sidebarLabel_->setText(tr("No cover"));
+    sidebarLabel_->setStyleSheet(QStringLiteral(
+        "QLabel { background: palette(window); color: palette(disabled,text); }"));
+}
+
 void MainWindow::setupCentralArea()
 {
     centralStack_ = new QStackedWidget(this);
@@ -314,6 +341,30 @@ void MainWindow::setupCentralArea()
         });
 
     // CurrentPlaylist: already playing — context menu not critical.
+}
+
+// ── Browser tabs ────────────────────────────────────────────────────────────
+
+void MainWindow::setupBrowserTabs()
+{
+    tabBar_ = new QTabBar(this);
+    tabBar_->addTab(tr("Current"));
+    tabBar_->addTab(tr("Database"));
+    tabBar_->addTab(tr("Files"));
+    tabBar_->addTab(tr("Search"));
+    tabBar_->addTab(tr("Playlist Editor"));
+    tabBar_->setExpanding(false);
+
+    connect(tabBar_, &QTabBar::currentChanged, this, [this](int idx) {
+        if (idx >= 0)
+            centralStack_->setCurrentIndex(idx);
+    });
+
+    connect(centralStack_, &QStackedWidget::currentChanged, this, [this](int idx) {
+        tabBar_->blockSignals(true);
+        tabBar_->setCurrentIndex(idx);
+        tabBar_->blockSignals(false);
+    });
 }
 
 // ── Signals ───────────────────────────────────────────────────────────────────
@@ -469,15 +520,18 @@ void MainWindow::setZoomLevel(int level)
 
     switch (level) {
     case 0: // Full
-        sidebar_->show();
+        sidebarPanel_->show();
+        tabBar_->show();
         statusBar_->show();
         break;
-    case 1: // No sidebar
-        sidebar_->hide();
+    case 1: // No sidebar, breadcrumb stays
+        sidebarPanel_->hide();
+        tabBar_->show();
         statusBar_->show();
         break;
-    case 2: // Compact — only control bar + content
-        sidebar_->hide();
+    case 2: // Compact — only control bar + content, no chrome
+        sidebarPanel_->hide();
+        tabBar_->hide();
         statusBar_->hide();
         break;
     }

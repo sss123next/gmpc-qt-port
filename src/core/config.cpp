@@ -91,6 +91,26 @@ int Config::connectionTimeout() const
 void Config::setConnectionTimeout(int ms)
     { s_.setValue("server/connectionTimeout", ms); }
 
+// ── Playlist ──────────────────────────────────────────────────────────────
+QString Config::playlistHeaderMarkup() const
+    { return s_.value("playlist/headerMarkup", "").toString(); }
+void Config::setPlaylistHeaderMarkup(const QString &m)
+    { s_.setValue("playlist/headerMarkup", m); }
+QString Config::playlistHighlightColor() const
+    { return s_.value("playlist/highlightColor", "").toString(); }
+void Config::setPlaylistHighlightColor(const QString &c)
+    { s_.setValue("playlist/highlightColor", c); }
+
+// ── Metadata ─────────────────────────────────────────────────────────────
+QString Config::metadataFont() const
+    { return s_.value("metadata/font", "").toString(); }
+void Config::setMetadataFont(const QString &f)
+    { s_.setValue("metadata/font", f); }
+QString Config::metadataColor() const
+    { return s_.value("metadata/color", "").toString(); }
+void Config::setMetadataColor(const QString &c)
+    { s_.setValue("metadata/color", c); }
+
 // ── Tray ──────────────────────────────────────────────────────────────────
 bool Config::trayEnabled() const
     { return s_.value("tray/enabled", true).toBool(); }
