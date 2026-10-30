@@ -36,6 +36,8 @@ set(GUI_SOURCES
     src/gui/statusbar.h
     src/gui/trayicon.cpp
     src/gui/trayicon.h
+    src/gui/preferences-dialog.cpp
+    src/gui/preferences-dialog.h
 )
 
 set(BROWSER_SOURCES

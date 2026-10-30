@@ -25,6 +25,11 @@ QString Config::password() const
 void Config::setPassword(const QString &p)
     { s_.setValue("connection/password", p); }
 
+QString Config::socketPath() const
+    { return s_.value("connection/socket", "").toString(); }
+void Config::setSocketPath(const QString &p)
+    { s_.setValue("connection/socket", p); }
+
 bool Config::autoConnect() const
     { return s_.value("connection/autoconnect", true).toBool(); }
 void Config::setAutoConnect(bool v)

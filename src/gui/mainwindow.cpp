@@ -2,6 +2,7 @@
 #include "controlbar.h"
 #include "statusbar.h"
 #include "trayicon.h"
+#include "preferences-dialog.h"
 
 #include "core/connection.h"
 #include "core/mpd-commands.h"
@@ -144,7 +145,12 @@ void MainWindow::connectSignals()
 void MainWindow::tryAutoConnect()
 {
     auto &cfg = Config::instance();
-    if (cfg.autoConnect()) {
+    if (!cfg.autoConnect()) return;
+
+    const QString sock = cfg.socketPath();
+    if (!sock.isEmpty()) {
+        conn_->connectToServer(sock, 0, cfg.password());
+    } else {
         conn_->connectToServer(cfg.host(), cfg.port(), cfg.password());
     }
 }
@@ -170,9 +176,8 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
 
 void MainWindow::showPreferences()
 {
-    // TODO: preferences dialog
-    QMessageBox::information(this, tr("Preferences"),
-                             tr("Preferences dialog not yet implemented."));
+    PreferencesDialog dlg(this);
+    dlg.exec();
 }
 
 void MainWindow::showAbout()

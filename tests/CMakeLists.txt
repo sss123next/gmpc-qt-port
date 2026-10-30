@@ -91,6 +91,14 @@ target_link_libraries(test-playlist-editor PRIVATE testcore Qt6::Widgets doctest
 target_include_directories(test-playlist-editor PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-playlist-editor COMMAND test-playlist-editor)
 
+# ── Preferences dialog test ────────────────────────────────────────────────────
+
+add_executable(test-preferences-dialog test-preferences-dialog.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/preferences-dialog.cpp)
+target_link_libraries(test-preferences-dialog PRIVATE testcore Qt6::Widgets doctest::doctest)
+target_include_directories(test-preferences-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-preferences-dialog COMMAND test-preferences-dialog)
+
 # ── Widget tests ──────────────────────────────────────────────────────────────
 
 add_executable(test-volume-widget test-volume-widget.cpp

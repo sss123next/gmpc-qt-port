@@ -32,9 +32,14 @@ public:
 
     // -- connection lifecycle ------------------------------------------------
 
-    /** @brief Open a TCP connection to an MPD server.
-     *  @param host      Hostname or IP (e.g. "localhost").
-     *  @param port      TCP port (default MPD = 6600).
+    /** @brief Open a connection to an MPD server.
+     *
+     *  libmpdclient auto-detects Unix-domain sockets when \a host
+     *  starts with '/' (e.g. "/home/sss/.mpd/sock").  Otherwise TCP
+     *  is used.
+     *
+     *  @param host      Hostname / IP or Unix socket path.
+     *  @param port      TCP port (ignored for Unix sockets; 0 = default).
      *  @param password  Optional password (empty = no auth).
      *  @param timeoutMs Socket timeout in milliseconds.
      *  @return true on success.
@@ -42,7 +47,7 @@ public:
      *  On success the polling timer is started and signal connected() fires.
      *  On failure errorOccurred() fires and false is returned.
      */
-    bool connectToServer(const QString &host, int port,
+    bool connectToServer(const QString &host, int port = 6600,
                          const QString &password = QString(),
                          int timeoutMs = 5000);
 

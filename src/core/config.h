@@ -25,6 +25,9 @@ public:
     void setPassword(const QString &p);
     bool autoConnect() const;
     void setAutoConnect(bool v);
+    /// Unix-domain socket path (overrides host:port when non-empty).
+    QString socketPath() const;
+    void setSocketPath(const QString &p);
 
     // ── Window ──────────────────────────────────────────────────────
     int windowWidth() const;
