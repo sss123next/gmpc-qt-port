@@ -24,6 +24,10 @@ class MpdCommands;
 /// MPRIS root interface (org.mpris.MediaPlayer2).
 class MprisRoot : public QObject {
     Q_OBJECT
+    // Without this Qt publishes the object under its C++ class name
+    // ("local.gmpc_qt.MprisRoot") and every MPRIS client fails to find the
+    // root interface.
+    Q_CLASSINFO("D-Bus Interface", "org.mpris.MediaPlayer2")
     Q_PROPERTY(QString Identity READ identity CONSTANT)
     Q_PROPERTY(bool CanQuit READ canQuit CONSTANT)
     Q_PROPERTY(bool CanRaise READ canRaise CONSTANT)
@@ -72,7 +76,7 @@ public:
     bool canGoPrevious() const;
     bool canPlay() const;
     bool canPause() const;
-    bool canSeek() const { return false; }
+    bool canSeek() const { return true; }
     bool canControl() const { return true; }
     double minimumRate() const { return 1.0; }
     double maximumRate() const { return 1.0; }
@@ -108,8 +112,12 @@ private:
 class MprisPlayer : public QObject {
     Q_OBJECT
 public:
+    // Bus names may contain '-', object paths may not: Qt refuses to marshall
+    // a QDBusObjectPath holding a hyphen, so the vendor prefix below uses '_'.
     static constexpr const char *kService = "org.mpris.MediaPlayer2.gmpc-qt";
     static constexpr const char *kPath    = "/org/mpris/MediaPlayer2";
+    /// Vendor namespace for mpris:trackid; MPRIS reserves /org/mpris for itself.
+    static constexpr const char *kTrackPathPrefix = "/org/gmpc_qt/song/";
 
     explicit MprisPlayer(Connection *conn, MpdCommands *cmds,
                          QObject *parent = nullptr);

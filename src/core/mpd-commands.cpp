@@ -43,15 +43,12 @@ void MpdCommands::previous()        { CHECK; mpd_run_previous(MPD); }
 // -------------------------------------------------------------------
 
 void MpdCommands::seek(int s) {
-    CHECK; mpd_run_seek_current(MPD, s, true);
+    // Third argument of mpd_run_seek_current() is "relative", not "absolute".
+    CHECK; mpd_run_seek_current(MPD, s, false);
 }
 
 void MpdCommands::seekRelative(int d) {
-    CHECK;
-    auto st = conn_->fetchStatus();
-    int pos = static_cast<int>(st.elapsed) + d;
-    if (pos < 0) pos = 0;
-    mpd_run_seek_current(MPD, pos, true);
+    CHECK; mpd_run_seek_current(MPD, d, true);
 }
 
 // -------------------------------------------------------------------

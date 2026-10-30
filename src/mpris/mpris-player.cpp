@@ -7,7 +7,9 @@
 #include "core/mpd-commands.h"
 
 #include <QDBusConnection>
+#include <QDBusError>
 #include <QCoreApplication>
+#include <QRegularExpression>
 #include <QUrl>
 
 // ── MprisRoot (non-adaptor, plain QObject on the bus) ───────────────────────
@@ -58,10 +60,17 @@ QVariantMap MprisPlayerAdaptor::metadata() const
     QVariantMap m;
     // Basic metadata — real song data would need PlaylistModel lookup.
     // For now identify the track by MPD song ID.
+    //
+    // MPRIS wants mpris:trackid as a D-Bus object path (type "o") and reserves
+    // /org/mpris for itself, hence the vendor prefix.  Qt refuses to marshall a
+    // path containing '-' (see kTrackPathPrefix), so the ID is hex and an idle
+    // player — songId -1 — becomes "none".
+    QString id = QString::number(lastStatus_.songId, 16);
+    if (!id.contains(QRegularExpression("^[A-Za-z0-9_]+$")))
+        id = QStringLiteral("none");
     m.insert("mpris:trackid",
              QVariant::fromValue(QDBusObjectPath(
-                 QStringLiteral("/org/gmpc-qt/song/%1")
-                 .arg(lastStatus_.songId))));
+                 QStringLiteral("%1%2").arg(MprisPlayer::kTrackPathPrefix, id))));
     if (lastStatus_.totalDuration > 0)
         m.insert("mpris:length",
                  static_cast<qlonglong>(lastStatus_.totalDuration * 1000000));
@@ -119,19 +128,20 @@ void MprisPlayerAdaptor::Play()      { cmds_->play(); }
 
 void MprisPlayerAdaptor::Seek(qlonglong offsetMicros)
 {
-    // libmpdclient: mpd_run_seek_current(conn_, seconds)
-    int curPos = qMax(0, static_cast<int>(lastStatus_.elapsed));
-    int newSec = curPos + static_cast<int>(offsetMicros / 1000000);
-    if (newSec >= 0)
-        cmds_->seek(newSec);
+    // MPRIS Seek() is a relative offset; MPD's own relative seek does the
+    // arithmetic, so there is nothing to add here.
+    cmds_->seekRelative(static_cast<int>(offsetMicros / 1000000));
 }
 
 void MprisPlayerAdaptor::SetPosition(const QDBusObjectPath &trackId,
                                       qlonglong positionMicros)
 {
+    // SetPosition() is absolute within the track identified by trackId; that ID
+    // is a token only — MPD seeks in whatever is currently playing.
     Q_UNUSED(trackId);
     int sec = static_cast<int>(positionMicros / 1000000);
-    cmds_->seek(sec);
+    if (sec >= 0)
+        cmds_->seek(sec);
 }
 
 void MprisPlayerAdaptor::OpenUri(const QString &uri)
@@ -188,29 +198,25 @@ MprisPlayer::MprisPlayer(Connection *conn, MpdCommands *cmds,
         return;
     }
 
-    // Root interface object (registered as non-adaptor since Qt6
-    // QDBusAbstractAdaptor handles method dispatch via the adaptor model,
-    // but the root interface is simpler without Q_PROPERTY for methods.
-    // We register it as a plain QObject on the bus path.
+    // Both interfaces share the one canonical MPRIS path: the adaptor is
+    // attached to root_ and ExportAdaptors publishes them together.  A second
+    // registerObject() on the same path would fail with AlreadyRegistered and
+    // abort registration before the service name is ever requested.
     root_ = new MprisRoot(this);
+    player_ = new MprisPlayerAdaptor(conn, cmds, root_);
     if (!bus.registerObject(kPath, root_, QDBusConnection::ExportAllSlots |
-                            QDBusConnection::ExportAllProperties))
+                            QDBusConnection::ExportAllProperties |
+                            QDBusConnection::ExportAdaptors))
     {
-        qWarning("MprisPlayer: failed to register root object on %s", kPath);
-        return;
-    }
-
-    // Player adaptor
-    player_ = new MprisPlayerAdaptor(conn, cmds, this);
-    if (!bus.registerObject(kPath, player_, QDBusConnection::ExportAdaptors)) {
-        qWarning("MprisPlayer: failed to register player adaptor on %s", kPath);
-        bus.unregisterObject(kPath);
+        qWarning("MprisPlayer: failed to register on %s: %s",
+                 kPath, qPrintable(bus.lastError().message()));
         return;
     }
 
     // Request ownership of the well-known name
     if (!bus.registerService(kService)) {
-        qWarning("MprisPlayer: failed to acquire service %s", kService);
+        qWarning("MprisPlayer: failed to acquire service %s: %s",
+                 kService, qPrintable(bus.lastError().message()));
         bus.unregisterObject(kPath);
         return;
     }
