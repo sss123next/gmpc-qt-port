@@ -35,6 +35,7 @@ class MetadataManager;
 class CoverWidget;
 class SongInfo;
 class VolumeWidget;
+class MprisPlayer;
 
 /// Top-level window composing all UI panels.
 class MainWindow : public QMainWindow {
@@ -119,6 +120,9 @@ private:
 
     // Tray
     TrayIcon *trayIcon_;      ///< System-tray icon with popup menu.
+
+    // MPRIS
+    MprisPlayer *mpris_ = nullptr;
 
     // Keyboard shortcuts
     void setupShortcuts();

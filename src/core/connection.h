@@ -131,3 +131,5 @@ private:
     Status lastStatus_;
 };
 
+Q_DECLARE_METATYPE(Connection::Status)
+

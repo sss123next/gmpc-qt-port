@@ -23,6 +23,8 @@
 #include "browsers/music-database-model.h"
 #include "browsers/file-system-model.h"
 
+#include "mpris/mpris-player.h"
+
 #include <functional>
 #include <QStandardItemModel>
 #include <QApplication>
@@ -205,6 +207,9 @@ void MainWindow::setupUi()
     // Tray icon (mainWindow = this for show/hide toggle)
     trayIcon_ = new TrayIcon(conn_, cmds_, this, this);
     trayIcon_->setVisible(cfg.trayEnabled());
+
+    // MPRIS DBus interface
+    mpris_ = new MprisPlayer(conn_, cmds_, this);
 
     // Start hidden if configured
     if (cfg.startHidden())

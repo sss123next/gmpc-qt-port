@@ -9,7 +9,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC OFF)  # no .ui files — pure code layout
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg DBus)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBMPDCLIENT REQUIRED IMPORTED_TARGET libmpdclient)
 pkg_check_modules(SQLITE3 REQUIRED IMPORTED_TARGET sqlite3)
@@ -99,6 +99,11 @@ set(TOOL_SOURCES
     src/tools/async-download.h
 )
 
+set(MPRIS_SOURCES
+    src/mpris/mpris-player.cpp
+    src/mpris/mpris-player.h
+)
+
 set(MAIN_SOURCE
     src/main.cpp
 )
@@ -113,6 +118,7 @@ qt_add_executable(gmpc-qt
     ${PROVIDER_SOURCES}
     ${WIDGET_SOURCES}
     ${TOOL_SOURCES}
+    ${MPRIS_SOURCES}
 )
 
 target_include_directories(gmpc-qt PRIVATE
@@ -125,6 +131,7 @@ target_link_libraries(gmpc-qt PRIVATE
     Qt6::Widgets
     Qt6::Network
     Qt6::Svg
+    Qt6::DBus
     PkgConfig::LIBMPDCLIENT
     PkgConfig::SQLITE3
     PkgConfig::CURL
