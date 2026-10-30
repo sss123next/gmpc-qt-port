@@ -7,6 +7,9 @@
  * Displays play/stop/prev/next buttons, repeat/random/single/consume
  * toggles, volume slider, seek slider, time label, and current-song
  * label.  Updated via MPD status push from ControlBar::updateStatus().
+ *
+ * CoverWidget and VolumeWidget are created and owned by MainWindow,
+ * injected here for layout placement.
  */
 
 #include <QWidget>
@@ -16,12 +19,21 @@
 #include "core/connection.h"
 
 class MpdCommands;
+class CoverWidget;
+class SongInfo;
+class VolumeWidget;
 
 /// Horizontal bar of MPD transport and mode controls.
 class ControlBar : public QWidget {
     Q_OBJECT
 public:
-    explicit ControlBar(MpdCommands *cmds, QWidget *parent = nullptr);
+    /// @param cmds   Transport commands.
+    /// @param cover  Cover-widget to display in the bar (owned by caller).
+    /// @param info   Song-info panel to display (owned by caller).
+    /// @param vol    Volume widget to display (owned by caller).
+    /// @param parent Qt parent.
+    explicit ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
+                        VolumeWidget *vol, QWidget *parent = nullptr);
 
     /// Refresh all widgets from a fresh MPD status snapshot.
     void updateStatus(const Connection::Status &s);
@@ -30,7 +42,7 @@ private:
     MpdCommands *cmds_;
     QPushButton *playBtn_, *stopBtn_, *prevBtn_, *nextBtn_;
     QPushButton *repeatBtn_, *randomBtn_, *singleBtn_, *consumeBtn_;
-    QSlider *volumeSlider_, *seekSlider_;
-    QLabel *timeLabel_, *songLabel_;
+    QSlider *seekSlider_;
+    QLabel *timeLabel_;
 };
 

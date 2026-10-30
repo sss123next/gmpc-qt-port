@@ -24,6 +24,9 @@ public:
     QString title() const override { return tr("Files"); }
     QString iconName() const override { return QStringLiteral("folder"); }
 
+    /// The embedded tree view (for context menu setup).
+    QTreeView *treeView() const { return view_; }
+
     void onActivate() override;
     void onConnectionChanged(bool connected) override;
 

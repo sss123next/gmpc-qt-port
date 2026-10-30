@@ -77,6 +77,9 @@ QVariant FileSystemModel::data(const QModelIndex &index, int role) const
     if (index.column() == 0 && role == Qt::DisplayRole)
         return item->name;
 
+    if (role == UriRole)
+        return item->path;
+
     if (role == Qt::DecorationRole && index.column() == 0) {
         // We'll rely on the delegate or style for icons; no QIcon here
         // to avoid a Qt::Gui dependency at model level.

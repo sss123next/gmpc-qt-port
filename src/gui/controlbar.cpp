@@ -1,16 +1,20 @@
 #include "controlbar.h"
 #include "core/mpd-commands.h"
+#include "widgets/cover-widget.h"
+#include "widgets/song-info.h"
+#include "widgets/volume-widget.h"
 
 #include <QHBoxLayout>
 #include <QStyle>
 
-ControlBar::ControlBar(MpdCommands *cmds, QWidget *parent)
+ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
+                       VolumeWidget *vol, QWidget *parent)
     : QWidget(parent), cmds_(cmds)
 {
     auto *lay = new QHBoxLayout(this);
     lay->setContentsMargins(4, 4, 4, 4);
 
-    // Transport buttons
+    // — Transport buttons —
     prevBtn_ = new QPushButton(this);
     prevBtn_->setIcon(style()->standardIcon(QStyle::SP_MediaSkipBackward));
     connect(prevBtn_, &QPushButton::clicked, cmds_, &MpdCommands::previous);
@@ -28,21 +32,14 @@ ControlBar::ControlBar(MpdCommands *cmds, QWidget *parent)
     nextBtn_->setIcon(style()->standardIcon(QStyle::SP_MediaSkipForward));
     connect(nextBtn_, &QPushButton::clicked, cmds_, &MpdCommands::next);
 
-    // Seek slider
+    // — Seek slider + time —
     seekSlider_ = new QSlider(Qt::Horizontal, this);
     seekSlider_->setRange(0, 0);
     seekSlider_->setMaximumWidth(300);
 
     timeLabel_ = new QLabel("0:00 / 0:00", this);
 
-    // Volume
-    volumeSlider_ = new QSlider(Qt::Horizontal, this);
-    volumeSlider_->setRange(0, 100);
-    volumeSlider_->setValue(70);
-    volumeSlider_->setMaximumWidth(100);
-    connect(volumeSlider_, &QSlider::valueChanged, cmds_, &MpdCommands::setVolume);
-
-    // Mode buttons
+    // — Mode buttons —
     repeatBtn_ = new QPushButton(tr("R"), this);
     repeatBtn_->setCheckable(true);
     connect(repeatBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleRepeat);
@@ -59,25 +56,23 @@ ControlBar::ControlBar(MpdCommands *cmds, QWidget *parent)
     consumeBtn_->setCheckable(true);
     connect(consumeBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleConsume);
 
-    // Song label (elided)
-    songLabel_ = new QLabel(this);
-    songLabel_->setMinimumWidth(200);
-
+    // — Layout: [buttons] [seek+time] [cover] [song-info] [stretch] [modes] [vol] —
     lay->addWidget(prevBtn_);
     lay->addWidget(playBtn_);
     lay->addWidget(stopBtn_);
     lay->addWidget(nextBtn_);
     lay->addWidget(seekSlider_);
     lay->addWidget(timeLabel_);
-    lay->addWidget(songLabel_);
+    lay->addWidget(cover);
+    lay->addWidget(info);
     lay->addStretch();
     lay->addWidget(repeatBtn_);
     lay->addWidget(randomBtn_);
     lay->addWidget(singleBtn_);
     lay->addWidget(consumeBtn_);
-    lay->addWidget(volumeSlider_);
+    lay->addWidget(vol);
 
-    setMaximumHeight(40);
+    setMaximumHeight(48);
 }
 
 void ControlBar::updateStatus(const Connection::Status &s)
@@ -97,7 +92,6 @@ void ControlBar::updateStatus(const Connection::Status &s)
         .arg(static_cast<int>(s.totalDuration) / 60, 2, 10, QChar('0'))
         .arg(static_cast<int>(s.totalDuration) % 60, 2, 10, QChar('0')));
 
-    volumeSlider_->setValue(s.volume);
     repeatBtn_->setChecked(s.repeat);
     randomBtn_->setChecked(s.random);
     singleBtn_->setChecked(s.single);

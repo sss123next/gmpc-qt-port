@@ -70,6 +70,9 @@ public:
     QString title() const override { return tr("Search"); }
     QString iconName() const override { return QStringLiteral("edit-find"); }
 
+    /// The embedded tree view (for context menu setup).
+    QTreeView *treeView() const { return view_; }
+
 private slots:
     void executeSearch();
 

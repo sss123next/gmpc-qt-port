@@ -24,6 +24,9 @@ public:
     QString title() const override { return tr("Current"); }
     QString iconName() const override { return QStringLiteral("media-playback-start"); }
 
+    /// The embedded tree view (for context menu setup).
+    QTreeView *treeView() const { return view_; }
+
 private:
     void setupUi();
 

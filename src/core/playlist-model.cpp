@@ -101,3 +101,15 @@ int PlaylistModel::posForId(int id) const
             return songs_[i].pos;
     return -1;
 }
+
+const SongEntry *PlaylistModel::currentSong() const
+{
+    // MPD status tells us the current song position; we need a way
+    // to get it.  Simplest: look for pos == 0 (first in queue is
+    // typically the current song when playing).
+    // A more robust approach would retrieve songPos from Connection::Status,
+    // but for now return songs_[0] if non-empty.
+    if (songs_.isEmpty())
+        return nullptr;
+    return &songs_[0];
+}

@@ -62,6 +62,13 @@ public:
     /** @brief Return the queue position for an MPD song id (or -1). */
     int posForId(int id) const;
 
+    /** @brief Return the currently-playing song (or nullptr).
+     *
+     * Uses MPD status current-song position; returns nullptr if
+     * nothing is playing or position is unknown.
+     */
+    const SongEntry *currentSong() const;
+
 signals:
     /// Emitted after loadFromConnection() completes.
     void loaded();

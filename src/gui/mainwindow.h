@@ -6,7 +6,8 @@
  *
  * Contains the full UI layout: menu bar, control bar, sidebar with
  * browser stack, status bar, and system-tray icon.  Owns the central
- * Connection, MpdCommands, and PlaylistModel instances.
+ * Connection, MpdCommands, PlaylistModel, and MetadataManager
+ * instances.
  */
 
 #include <QMainWindow>
@@ -25,6 +26,10 @@ class CurrentPlaylist;
 class FileBrowser;
 class SearchBrowser;
 class PlaylistEditor;
+class MetadataManager;
+class CoverWidget;
+class SongInfo;
+class VolumeWidget;
 
 /// Top-level window composing all UI panels.
 class MainWindow : public QMainWindow {
@@ -66,6 +71,7 @@ private:
     Connection *conn_;
     MpdCommands *cmds_;
     PlaylistModel *playlistModel_;
+    MetadataManager *metadataMgr_;
 
     // Browser navigation
     QTreeView *sidebar_;              ///< Category tree (sidebar).
@@ -79,10 +85,24 @@ private:
     PlaylistEditor *playlistEditor_;
 
     // Bars
-    ControlBar *controlBar_;  ///< Transport buttons + volume + seek.
+    ControlBar *controlBar_;  ///< Transport buttons + cover + info + volume.
     StatusBar *statusBar_;    ///< Connection indicator + messages.
+
+    // Widgets embedded in ControlBar (owned by MainWindow)
+    CoverWidget *coverWidget_;
+    SongInfo *songInfo_;
+    VolumeWidget *volumeWidget_;
 
     // Tray
     TrayIcon *trayIcon_;      ///< System-tray icon with popup menu.
+
+    // Keyboard shortcuts
+    void setupShortcuts();
+
+    // Context menu helper for tree-view browsers
+    void setupBrowserContextMenu(QTreeView *view,
+                                 std::function<QString(QModelIndex)> getUri);
+
+    bool fullscreen_ = false; ///< Whether the window is fullscreen.
 };
 

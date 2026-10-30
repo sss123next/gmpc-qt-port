@@ -31,6 +31,8 @@ struct FileNode {
 class FileSystemModel : public QAbstractItemModel {
     Q_OBJECT
 public:
+    /// Custom data role that returns the full virtual path.
+    static constexpr int UriRole = Qt::UserRole + 1;
     explicit FileSystemModel(Connection *conn, QObject *parent = nullptr);
     ~FileSystemModel() override;
 

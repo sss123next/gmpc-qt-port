@@ -48,6 +48,16 @@ public slots:
     void volumeUp(int step = 5);
     void volumeDown(int step = 5);
 
+    // -- queue manipulation -------------------------------------------------
+    /** @brief Add a URI (song or directory) to the queue. */
+    void addUri(const QString &uri);
+
+    /** @brief Play a specific queue position. */
+    void playPos(int pos);
+
+    /** @brief Clear the entire queue (current playlist). */
+    void clearQueue();
+
     // -- playback modes -----------------------------------------------------
     void setRepeat(bool on);
     void setRandom(bool on);

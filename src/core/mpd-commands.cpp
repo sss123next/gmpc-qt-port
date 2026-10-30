@@ -63,6 +63,26 @@ void MpdCommands::volumeUp(int s)   { CHECK; auto st = conn_->fetchStatus(); mpd
 void MpdCommands::volumeDown(int s) { CHECK; auto st = conn_->fetchStatus(); mpd_run_set_volume(MPD, st.volume - s); }
 
 // -------------------------------------------------------------------
+//  Queue manipulation
+// -------------------------------------------------------------------
+
+void MpdCommands::addUri(const QString &uri) {
+    CHECK;
+    const QByteArray u = uri.toUtf8();
+    mpd_run_add(MPD, u.constData());
+}
+
+void MpdCommands::playPos(int pos) {
+    CHECK;
+    mpd_run_play_pos(MPD, static_cast<unsigned>(pos));
+}
+
+void MpdCommands::clearQueue() {
+    CHECK;
+    mpd_run_clear(MPD);
+}
+
+// -------------------------------------------------------------------
 //  Playback modes
 // -------------------------------------------------------------------
 
