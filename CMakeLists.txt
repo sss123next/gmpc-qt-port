@@ -14,6 +14,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBMPDCLIENT REQUIRED IMPORTED_TARGET libmpdclient)
 pkg_check_modules(SQLITE3 REQUIRED IMPORTED_TARGET sqlite3)
 pkg_check_modules(CURL REQUIRED IMPORTED_TARGET libcurl)
+pkg_check_modules(XCB_KEYSYMS REQUIRED IMPORTED_TARGET xcb-keysyms)
 
 # ── Sources ───────────────────────────────────────────────────────────────────
 set(CORE_SOURCES
@@ -125,6 +126,7 @@ target_link_libraries(gmpc-qt PRIVATE
     PkgConfig::LIBMPDCLIENT
     PkgConfig::SQLITE3
     PkgConfig::CURL
+    PkgConfig::XCB_KEYSYMS
 )
 
 # ── Install ───────────────────────────────────────────────────────────────────

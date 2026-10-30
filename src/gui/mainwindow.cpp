@@ -36,6 +36,77 @@
 #include <QMessageBox>
 #include <QCloseEvent>
 #include <QStandardPaths>
+#include <xcb/xcb_keysyms.h>
+
+// ── MediaKeyFilter ───────────────────────────────────────────────────────────
+
+MainWindow::MediaKeyFilter::MediaKeyFilter(MpdCommands *cmds)
+    : cmds_(cmds)
+{
+    // Connect to the X display via the default xcb connection.
+    // On Wayland this will be nullptr and nativeEventFilter bails out.
+    xcb_connection_t *c = xcb_connect(nullptr, nullptr);
+    if (xcb_connection_has_error(c)) {
+        xcb_disconnect(c);
+        return;
+    }
+    keysyms_ = xcb_key_symbols_alloc(c);
+    xcb_disconnect(c);
+}
+
+bool MainWindow::MediaKeyFilter::nativeEventFilter(
+    const QByteArray &eventType, void *message, qintptr * /*result*/)
+{
+    if (eventType != "xcb_generic_event_t")
+        return false;
+    if (!keysyms_)
+        return false;
+
+    auto *ev = static_cast<xcb_generic_event_t *>(message);
+    if ((ev->response_type & 0x7f) != XCB_KEY_PRESS)
+        return false;
+
+    auto *kp = reinterpret_cast<xcb_key_press_event_t *>(ev);
+    xcb_keycode_t *codes = xcb_key_symbols_get_keycode(keysyms_, kp->detail);
+    if (!codes)
+        return false;
+
+    xcb_keysym_t ks = xcb_key_symbols_get_keysym(keysyms_, kp->detail, 0);
+    free(codes);
+
+    switch (ks) {
+    case 0x1008ff14: // XF86AudioPrev
+    case 0x1008ff16: // XF86AudioRewind
+        cmds_->previous();
+        return true;
+    case 0x1008ff17: // XF86AudioNext
+    case 0x1008ff19: // XF86AudioForward
+        cmds_->next();
+        return true;
+    case 0x1008ff13: // XF86AudioStop
+        cmds_->stop();
+        return true;
+    case 0x1008ff15: // XF86AudioPause
+        cmds_->pause();
+        return true;
+    case 0x1008ff11: // XF86AudioPlay
+        cmds_->play();
+        return true;
+    case 0x1008ff12: // XF86AudioPrev (alternative as XF86AudioPlayPause — but let's map to toggle)
+        cmds_->togglePause();
+        return true;
+    default:
+        return false;
+    }
+}
+
+MainWindow::MediaKeyFilter::~MediaKeyFilter()
+{
+    if (keysyms_)
+        xcb_key_symbols_free(keysyms_);
+}
+
+// ── MainWindow ───────────────────────────────────────────────────────────────
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -60,6 +131,7 @@ void MainWindow::setupUi()
 
     setupMenuBar();
     setupShortcuts();
+    setupMediaKeys();
     setupZoomLevels();
 
     auto *central = new QWidget(this);
@@ -350,6 +422,17 @@ void MainWindow::setupShortcuts()
     // Fullscreen: F12
     auto *fs = new QShortcut(QKeySequence(Qt::Key_F12), this);
     connect(fs, &QShortcut::activated, this, &MainWindow::toggleFullscreenOverlay);
+}
+
+// ── Multimedia keys ─────────────────────────────────────────────────────────
+
+void MainWindow::setupMediaKeys()
+{
+    auto *filter = new MediaKeyFilter(cmds_);
+    qApp->installNativeEventFilter(filter);
+
+    // The filter is a QObject child of the application (no leak);
+    // cleaned up on app exit.
 }
 
 // ── Zoom levels ──────────────────────────────────────────────────────────────

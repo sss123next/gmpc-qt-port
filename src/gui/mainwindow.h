@@ -14,6 +14,8 @@
 #include <QStackedWidget>
 #include <QTreeView>
 #include <QTimer>
+#include <QAbstractNativeEventFilter>
+#include <xcb/xcb_keysyms.h>
 
 #include "core/connection.h"
 
@@ -35,6 +37,20 @@ class VolumeWidget;
 /// Top-level window composing all UI panels.
 class MainWindow : public QMainWindow {
     Q_OBJECT
+
+    /// Intercepts X11 XF86Audio* keypresses from media keyboards.
+    class MediaKeyFilter : public QAbstractNativeEventFilter {
+    public:
+        explicit MediaKeyFilter(MpdCommands *cmds);
+        ~MediaKeyFilter() override;
+        bool nativeEventFilter(const QByteArray &eventType,
+                               void *message, qintptr *result) override;
+    private:
+        MpdCommands *cmds_;
+        xcb_key_symbols_t *keysyms_ = nullptr;
+    };
+    friend class MediaKeyFilter;
+
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
@@ -99,6 +115,7 @@ private:
 
     // Keyboard shortcuts
     void setupShortcuts();
+    void setupMediaKeys();
 
     // ── Zoom / Fullscreen ───────────────────────────────────────────────▲
     void setupZoomLevels();         ///< Ctrl+Plus/Minus zoom control.
