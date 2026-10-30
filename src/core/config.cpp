@@ -161,5 +161,64 @@ QString Config::activeProfile() const
 void Config::setActiveProfile(const QString &name)
     { s_.setValue("profiles/active", name); }
 
+// ── Default media key table ─────────────────────────────────────────────
+static QList<MediaKeyBinding> defaultMediaKeyBindings()
+{
+    return {
+        { 0x1008ff14, MediaKeyAction::Previous },  // XF86AudioPrev
+        { 0x1008ff16, MediaKeyAction::Rewind   },  // XF86AudioRewind
+        { 0x1008ff17, MediaKeyAction::Next     },  // XF86AudioNext
+        { 0x1008ff19, MediaKeyAction::Forward  },  // XF86AudioForward
+        { 0x1008ff13, MediaKeyAction::Stop     },  // XF86AudioStop
+        { 0x1008ff15, MediaKeyAction::Pause    },  // XF86AudioPause
+        { 0x1008ff11, MediaKeyAction::Play     },  // XF86AudioPlay
+        { 0x1008ff12, MediaKeyAction::PlayPause},  // XF86AudioPlayPause
+    };
+}
+
+static const char *mkGroup = "mediakeys";
+
+QList<MediaKeyBinding> Config::mediaKeyBindings() const
+{
+    // If no saved bindings, return defaults
+    if (!s_.childGroups().contains(QLatin1StringView(mkGroup)))
+        return defaultMediaKeyBindings();
+
+    QList<MediaKeyBinding> list;
+    const int count = s_.value(QStringLiteral("%1/count").arg(mkGroup), 0).toInt();
+    for (int i = 0; i < count; ++i) {
+        const QString p = QStringLiteral("%1/%2/").arg(mkGroup).arg(i);
+        MediaKeyBinding b;
+        b.keysym = static_cast<quint32>(s_.value(p + "keysym", 0).toUInt());
+        b.action = static_cast<MediaKeyAction>(
+            s_.value(p + "action", 0).toInt());
+        list.append(b);
+    }
+    return list;
+}
+
+void Config::setMediaKeyBindings(const QList<MediaKeyBinding> &list)
+{
+    // Remove old
+    s_.remove(mkGroup);
+    s_.setValue(QStringLiteral("%1/count").arg(mkGroup), list.size());
+    for (int i = 0; i < list.size(); ++i) {
+        const auto &b = list[i];
+        const QString p = QStringLiteral("%1/%2/").arg(mkGroup).arg(i);
+        s_.setValue(p + "keysym", static_cast<quint32>(b.keysym));
+        s_.setValue(p + "action",  static_cast<int>(b.action));
+    }
+}
+
+MediaKeyAction Config::actionForKey(quint32 keysym) const
+{
+    const auto bindings = mediaKeyBindings();
+    for (const auto &b : bindings) {
+        if (b.keysym == keysym)
+            return b.action;
+    }
+    return MediaKeyAction::None;
+}
+
 void Config::sync()
     { s_.sync(); }

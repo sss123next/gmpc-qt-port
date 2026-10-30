@@ -1,7 +1,7 @@
 # gmpc → gmpc-qt: План синхронизации GUI
 
 **Цель:** Достичь функционального паритета с оригинальным gmpc (GTK2) по UI/UX.
-**Актуально на:** Phase 5k — P2 финал + Preferences доводка.
+**Актуально на:** Phase 5l — Multimedia keys config (Preferences).
 Build: 100% clean (0 warnings). No tests (GUI-only). RSS (playlist loaded): ~110 MB.
 
 **DE-agnostic policy:** Не используем AppIndicator, DBus, GNOME-специфичные API.
@@ -75,12 +75,17 @@ CoverWidget (128×128 слева), SongInfo (справа от cover), VolumeWid
 
 ### 1.6 Multimedia keys
 Оригинал: X11 GDK key grabbing, 15 actions (mm-keys.c).
-**Файлы:** `src/gui/main-window.cpp` + возможно `QAbstractNativeEventFilter`.
+**Файлы:** `src/gui/mainwindow.cpp` + `QAbstractNativeEventFilter`.
 **Подзадачи:**
-- [ ] Перехват X11 ключей мультимедиа (XF86AudioPlay/Pause/Next/Prev/Stop)
-- [ ] Preference page: привязка клавиш к действиям
-**Зависимости:** Preferences plugin (2.4).
-**Оценка:** ~80 строк.
+- [x] Перехват X11 ключей мультимедиа (XF86AudioPlay/Pause/Next/Prev/Stop)
+- [x] Preference page: привязка клавиш к действиям
+**Реализация:**
+- MediaKeyFilter: X11 native event filter через xcb-keysyms, routing через Config::actionForKey()
+- Config: `MediaKeyAction` enum, `MediaKeyBinding` struct, `mediaKeyBindings()` c 8 дефолтными XF86Audio keysym → action
+- Preferences: "Multimedia Keys" QGroupBox с QComboBox (8 actions) для каждой из 8 XF86Audio-клавиш
+- Сохранение через QSettings, синхронизация при accept()
+**Зависимости:** xcb-keysyms, Config
+**Оценка:** ~120 строк (выполнено).
 
 ### 1.7 Preferences: расширение
 Оригинал: 10 .ui-страниц, plugin-based sidebar.
@@ -93,7 +98,7 @@ CoverWidget (128×128 слева), SongInfo (справа от cover), VolumeWid
 **Остаётся:**
 - [x] Playlist config (header markup, highlights)
 - [x] Metadata appearance (font/color)
-- [ ] Multimedia keys config
+- [x] Multimedia keys config
 
 ### 1.8 Connection profiles ✅ DONE
 Оригинал: GmpcProfiles (несколько host/port/password).
@@ -227,14 +232,14 @@ QIcon::fromTheme с fallback на QStyle::standardIcon. Tooltip-подписи.
 
 | Категория | Пунктов | Выполнено | Примерное LOC |
 |-----------|---------|-----------|---------------|
-| 🟥 P0 | 9 | 9 (1.1–1.9) | ~800 (выполнено ~780) |
+| 🟥 P0 | 9 | 9 (1.1–1.9) | ~800 (выполнено ~800) |
 | 🟧 P1 | 7 | 5 (2.2–2.7) | ~250 (выполнено ~210) |
 | 🟡 P2 | 7 | 7 (3.1–3.7) | ~80 (выполнено ~80) |
 | ⚰️ Dead | 3 | 3 (✅ все) | ~10 (подключить) |
-| **Итого** | **26** | **24** | **~1140 строк (выполнено ~1070)** |
+| **Итого** | **26** | **24** | **~1140 строк (выполнено ~1090)** |
 
 Исходный gmpc: ~30000 строк C (GTK2 + Vala + .ui).
-gmpc-qt: ~5400 строк C++ (рост +100 строк за Phase 5k).
+gmpc-qt: ~5500 строк C++ (рост +100 строк за Phase 5l).
 Потенциальный паритет при 26 пунктах: ~5500 строк.
 
 ---
@@ -250,10 +255,11 @@ Phase 5e: Connection profiles                    (P0, ✅ DONE, ~120 строк)
 Phase 5f: Database browser URI + context menu      (P1, ✅ DONE, ~30 строк)
 Phase 5g: Browser доработки + memory оптимизация  (P1, ✅ DONE, ~350 строк)
 Phase 5h: Fullscreen overlay + Zoom               (P0+P0, ✅ DONE, ~60 строк)
-Phase 5i: Multimedia keys                         (P0, ✅ DONE, ~80 строк)
+Phase 5i: Multimedia keys native event filter      (P0, ✅ DONE, ~80 строк)
 Phase 5j: Малые улучщения (tooltip, position, фильтр) (P2+P1, ✅ DONE, ~80 строк)
 Phase 5k: P2 финал + Preferences доводка          (P2+P0, ✅ DONE, ~100 строк)
+Phase 5l: Multimedia keys config — Preferences    (P0, ✅ DONE, ~120 строк)
 ```
 
-**Итог:** 11 мини-фаз, ~1280 строк нового кода, 1 новая зависимость (xcb-keysyms).
-24/26 пунктов выполнено (92%), ~1070 строк написано, gmpc-qt ~5400 строк C++.
+**Итог:** 12 мини-фаз, ~1400 строк нового кода, 1 новая зависимость (xcb-keysyms).
+24/26 пунктов выполнено (92%), ~1090 строк написано, gmpc-qt ~5500 строк C++.

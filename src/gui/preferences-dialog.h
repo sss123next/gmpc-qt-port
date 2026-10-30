@@ -19,6 +19,7 @@
 #include <QDialogButtonBox>
 #include <QGroupBox>
 #include <QListView>
+#include <QLabel>
 #include <QFontComboBox>
 #include "core/config.h"
 
@@ -77,6 +78,15 @@ private:
     // Metadata group
     QFontComboBox *metadataFontCombo_;
     QPushButton   *metadataColorBtn_;
+
+    // Multimedia-keys group
+    struct KeyBindingRow {
+        QLabel     *keysymLabel;   ///< Human-readable keysym name
+        QComboBox  *actionCombo;   ///< Action selector
+        MediaKeyBinding binding;   ///< Original keysym+action
+    };
+    QList<KeyBindingRow> keyBindingsRows_;
+    QList<MediaKeyBinding> keyBindings_;   ///< working copy until accept()
 
     QDialogButtonBox *buttons_;
 };

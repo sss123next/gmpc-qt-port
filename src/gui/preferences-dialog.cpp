@@ -8,6 +8,7 @@
 #include <QFontComboBox>
 #include <QColorDialog>
 #include <QToolButton>
+#include <algorithm>
 
 PreferencesDialog::PreferencesDialog(QWidget *parent)
     : QDialog(parent)
@@ -203,6 +204,49 @@ void PreferencesDialog::setupUi()
 
     root->addWidget(metaGroup);
 
+    // ── Multimedia keys group ───────────────────────────────────────
+    auto *mmGroup = new QGroupBox(tr("Multimedia Keys"), this);
+    auto *mmForm = new QFormLayout(mmGroup);
+
+    // Build a static table of known XF86Audio keysyms
+    static const struct { quint32 ks; const char *name; } knownKeys[] = {
+        { 0x1008ff11, "XF86AudioPlay"       },
+        { 0x1008ff12, "XF86AudioPlayPause"  },
+        { 0x1008ff13, "XF86AudioStop"       },
+        { 0x1008ff14, "XF86AudioPrev"       },
+        { 0x1008ff15, "XF86AudioPause"      },
+        { 0x1008ff16, "XF86AudioRewind"     },
+        { 0x1008ff17, "XF86AudioNext"       },
+        { 0x1008ff19, "XF86AudioForward"    },
+    };
+
+    for (const auto &k : knownKeys) {
+        auto *lbl = new QLabel(QLatin1StringView(k.name), this);
+        auto *combo = new QComboBox(this);
+        // Populate actions
+        using MKA = MediaKeyAction;
+        combo->addItem(tr("None"),          static_cast<int>(MKA::None));
+        combo->addItem(tr("Play"),          static_cast<int>(MKA::Play));
+        combo->addItem(tr("Pause"),         static_cast<int>(MKA::Pause));
+        combo->addItem(tr("Play/Pause"),    static_cast<int>(MKA::PlayPause));
+        combo->addItem(tr("Stop"),          static_cast<int>(MKA::Stop));
+        combo->addItem(tr("Next"),          static_cast<int>(MKA::Next));
+        combo->addItem(tr("Previous"),      static_cast<int>(MKA::Previous));
+        combo->addItem(tr("Rewind"),        static_cast<int>(MKA::Rewind));
+        combo->addItem(tr("Forward"),       static_cast<int>(MKA::Forward));
+
+        mmForm->addRow(lbl, combo);
+
+        KeyBindingRow r;
+        r.keysymLabel = lbl;
+        r.actionCombo = combo;
+        r.binding.keysym = k.ks;
+        r.binding.action = MKA::None;
+        keyBindingsRows_.append(r);
+    }
+
+    root->addWidget(mmGroup);
+
     // ── Profiles group ──────────────────────────────────────────────
     auto *profGroup = new QGroupBox(tr("Connection Profiles"), this);
     auto *profLayout = new QVBoxLayout(profGroup);
@@ -323,6 +367,24 @@ void PreferencesDialog::loadFromConfig()
     for (const auto &p : profiles_) {
         profileList_->addItem(p.name.isEmpty() ? tr("(unnamed)") : p.name);
     }
+
+    // Multimedia keys — load saved bindings
+    keyBindings_ = cfg.mediaKeyBindings();
+    for (auto &row : keyBindingsRows_) {
+        // Find saved binding for this keysym
+        auto it = std::find_if(keyBindings_.begin(), keyBindings_.end(),
+            [ks = row.binding.keysym](const MediaKeyBinding &b) {
+                return b.keysym == ks;
+            });
+        int actionVal = 0; // None
+        if (it != keyBindings_.end())
+            actionVal = static_cast<int>(it->action);
+        int idx = row.actionCombo->findData(actionVal);
+        if (idx >= 0)
+            row.actionCombo->setCurrentIndex(idx);
+        else
+            row.actionCombo->setCurrentIndex(0);  // fallback to None
+    }
 }
 
 void PreferencesDialog::accept()
@@ -379,6 +441,20 @@ void PreferencesDialog::accept()
             profiles_[i].name = item->text();
     }
     cfg.setProfiles(profiles_);
+
+    // Multimedia keys — collect from combo boxes
+    {
+        QList<MediaKeyBinding> bindings;
+        for (const auto &row : keyBindingsRows_) {
+            MediaKeyBinding b;
+            b.keysym = row.binding.keysym;
+            b.action = static_cast<MediaKeyAction>(
+                row.actionCombo->currentData().toInt());
+            bindings.append(b);
+        }
+        cfg.setMediaKeyBindings(bindings);
+    }
+
     cfg.sync();
 
     QDialog::accept();

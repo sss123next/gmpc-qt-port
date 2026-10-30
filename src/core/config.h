@@ -22,6 +22,28 @@ struct ConnectionProfile {
     bool    autoConnect = true;
 };
 
+/// Named multimedia-key actions (must match MediaKeyFilter actions).
+enum class MediaKeyAction : int {
+    None,
+    Play,
+    Pause,
+    PlayPause,
+    Stop,
+    Next,
+    Previous,
+    Rewind,
+    Forward,
+    VolumeUp,
+    VolumeDown,
+    Mute,
+};
+
+/// One bindable multimedia key / action pair.
+struct MediaKeyBinding {
+    quint32 keysym = 0;          ///< X11 keysym (e.g. 0x1008ff14 for XF86AudioPrev)
+    MediaKeyAction action = MediaKeyAction::None;
+};
+
 /// Singleton holding all persistent user preferences.
 class Config {
 public:
@@ -102,6 +124,13 @@ public:
     /** @brief Name of the currently active profile (empty = manual). */
     QString activeProfile() const;
     void setActiveProfile(const QString &name);
+
+    // ── Multimedia keys ────────────────────────────────────────────
+    /// Persistent key → action bindings (defaults match XF86Audio keysyms).
+    QList<MediaKeyBinding> mediaKeyBindings() const;
+    void setMediaKeyBindings(const QList<MediaKeyBinding> &list);
+    /// Convenience: look up action for a keysym, or None if unbound.
+    MediaKeyAction actionForKey(quint32 keysym) const;
 
     /// Flush pending changes to disk.
     void sync();

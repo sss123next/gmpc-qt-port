@@ -74,27 +74,31 @@ bool MainWindow::MediaKeyFilter::nativeEventFilter(
     xcb_keysym_t ks = xcb_key_symbols_get_keysym(keysyms_, kp->detail, 0);
     free(codes);
 
-    switch (ks) {
-    case 0x1008ff14: // XF86AudioPrev
-    case 0x1008ff16: // XF86AudioRewind
-        cmds_->previous();
-        return true;
-    case 0x1008ff17: // XF86AudioNext
-    case 0x1008ff19: // XF86AudioForward
-        cmds_->next();
-        return true;
-    case 0x1008ff13: // XF86AudioStop
-        cmds_->stop();
-        return true;
-    case 0x1008ff15: // XF86AudioPause
-        cmds_->pause();
-        return true;
-    case 0x1008ff11: // XF86AudioPlay
-        cmds_->play();
-        return true;
-    case 0x1008ff12: // XF86AudioPrev (alternative as XF86AudioPlayPause — but let's map to toggle)
-        cmds_->togglePause();
-        return true;
+    // Route through configurable bindings
+    const auto action = Config::instance().actionForKey(static_cast<quint32>(ks));
+    switch (action) {
+    case MediaKeyAction::Play:
+        cmds_->play(); return true;
+    case MediaKeyAction::Pause:
+        cmds_->pause(); return true;
+    case MediaKeyAction::PlayPause:
+        cmds_->togglePause(); return true;
+    case MediaKeyAction::Stop:
+        cmds_->stop(); return true;
+    case MediaKeyAction::Next:
+        cmds_->next(); return true;
+    case MediaKeyAction::Previous:
+        cmds_->previous(); return true;
+    case MediaKeyAction::Rewind:
+        cmds_->previous(); return true;
+    case MediaKeyAction::Forward:
+        cmds_->next(); return true;
+    case MediaKeyAction::VolumeUp:
+    case MediaKeyAction::VolumeDown:
+    case MediaKeyAction::Mute:
+        // Not wired yet — reserved for future VolumeWidget integration
+        return false;
+    case MediaKeyAction::None:
     default:
         return false;
     }
