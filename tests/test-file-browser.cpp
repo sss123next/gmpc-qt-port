@@ -41,19 +41,54 @@ TEST_CASE("FileSystemModel is initially empty")
     CHECK_EQ(model.canFetchMore({}), true);
 }
 
-TEST_CASE("FileSystemModel has single column")
+TEST_CASE("FileSystemModel has three columns")
 {
     MockConnection conn;
     FileSystemModel model(&conn);
-    CHECK_EQ(model.columnCount({}), 1);
+    CHECK_EQ(model.columnCount({}), 3);
 }
 
-TEST_CASE("FileSystemModel header returns name")
+TEST_CASE("FileSystemModel header returns names for all columns")
 {
     MockConnection conn;
     FileSystemModel model(&conn);
-    auto h = model.headerData(0, Qt::Horizontal);
-    CHECK_FALSE(h.toString().isEmpty());
+    auto h0 = model.headerData(0, Qt::Horizontal);
+    CHECK_FALSE(h0.toString().isEmpty());
+    auto h1 = model.headerData(1, Qt::Horizontal);
+    CHECK_FALSE(h1.toString().isEmpty());
+    auto h2 = model.headerData(2, Qt::Horizontal);
+    CHECK_FALSE(h2.toString().isEmpty());
+    // Out-of-range column returns null
+    CHECK(model.headerData(3, Qt::Horizontal).isNull());
+}
+
+TEST_CASE("FileSystemModel column 0 header is Name")
+{
+    MockConnection conn;
+    FileSystemModel model(&conn);
+    CHECK_EQ(model.headerData(0, Qt::Horizontal).toString(), "Name");
+}
+
+TEST_CASE("FileSystemModel column 1 header is Type")
+{
+    MockConnection conn;
+    FileSystemModel model(&conn);
+    CHECK_EQ(model.headerData(1, Qt::Horizontal).toString(), "Type");
+}
+
+TEST_CASE("FileSystemModel column 2 header is Duration")
+{
+    MockConnection conn;
+    FileSystemModel model(&conn);
+    CHECK_EQ(model.headerData(2, Qt::Horizontal).toString(), "Duration");
+}
+
+TEST_CASE("FileSystemModel UriRole returns empty for invalid index")
+{
+    MockConnection conn;
+    FileSystemModel model(&conn);
+    QVariant uri = model.data(QModelIndex(), FileSystemModel::UriRole);
+    CHECK(uri.isNull());
 }
 
 TEST_CASE("FileSystemModel default state is safe")
