@@ -27,6 +27,7 @@
 #include <QStandardItemModel>
 #include <QApplication>
 #include <QMenuBar>
+#include <QMouseEvent>
 #include <QSplitter>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -59,6 +60,7 @@ void MainWindow::setupUi()
 
     setupMenuBar();
     setupShortcuts();
+    setupZoomLevels();
 
     auto *central = new QWidget(this);
     auto *layout = new QVBoxLayout(central);
@@ -325,12 +327,8 @@ void MainWindow::setupShortcuts()
     auto *stop = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Down), this);
     connect(stop, &QShortcut::activated, cmds_, &MpdCommands::stop);
 
-    // Volume: Ctrl+Plus / Ctrl+Minus
-    auto *volUp = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Plus), this);
-    connect(volUp, &QShortcut::activated, this, [this] { cmds_->volumeUp(); });
-
-    auto *volDown = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Minus), this);
-    connect(volDown, &QShortcut::activated, this, [this] { cmds_->volumeDown(); });
+    // Volume is controlled via VolumeWidget scroll / slider.
+    // Ctrl+Plus/Minus are reserved for zoom levels (setupZoomLevels).
 
     // Playback modes: Ctrl+R, Ctrl+S, Ctrl+T, Ctrl+Y
     auto *repeat = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_R), this);
@@ -351,13 +349,89 @@ void MainWindow::setupShortcuts()
 
     // Fullscreen: F12
     auto *fs = new QShortcut(QKeySequence(Qt::Key_F12), this);
-    connect(fs, &QShortcut::activated, this, [this] {
-        fullscreen_ = !fullscreen_;
-        if (fullscreen_)
-            showFullScreen();
-        else
-            showNormal();
+    connect(fs, &QShortcut::activated, this, &MainWindow::toggleFullscreenOverlay);
+}
+
+// ── Zoom levels ──────────────────────────────────────────────────────────────
+
+void MainWindow::setupZoomLevels()
+{
+    // Ctrl+Plus: zoom in
+    auto *zoomIn = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Plus), this);
+    connect(zoomIn, &QShortcut::activated, this, [this] {
+        int next = qMin(zoomLevel_ + 1, 2);
+        if (next != zoomLevel_)
+            setZoomLevel(next);
     });
+
+    // Ctrl+Minus: zoom out
+    auto *zoomOut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Minus), this);
+    connect(zoomOut, &QShortcut::activated, this, [this] {
+        int prev = qMax(zoomLevel_ - 1, 0);
+        if (prev != zoomLevel_)
+            setZoomLevel(prev);
+    });
+}
+
+void MainWindow::setZoomLevel(int level)
+{
+    zoomLevel_ = level;
+
+    switch (level) {
+    case 0: // Full
+        sidebar_->show();
+        statusBar_->show();
+        break;
+    case 1: // No sidebar
+        sidebar_->hide();
+        statusBar_->show();
+        break;
+    case 2: // Compact — only control bar + content
+        sidebar_->hide();
+        statusBar_->hide();
+        break;
+    }
+}
+
+// ── Fullscreen overlay ───────────────────────────────────────────────────────
+
+void MainWindow::toggleFullscreenOverlay()
+{
+    fullscreen_ = !fullscreen_;
+
+    if (fullscreen_) {
+        showFullScreen();
+
+        if (!overlayTimer_) {
+            overlayTimer_ = new QTimer(this);
+            overlayTimer_->setSingleShot(true);
+            connect(overlayTimer_, &QTimer::timeout, this, [this] {
+                if (fullscreen_ && controlBar_->isVisible())
+                    controlBar_->hide();
+            });
+        }
+
+        // Reset timer on each toggle
+        overlayTimer_->start(5000);
+    } else {
+        showNormal();
+        controlBar_->show();
+        if (overlayTimer_)
+            overlayTimer_->stop();
+    }
+}
+
+void MainWindow::mouseMoveEvent(QMouseEvent *event)
+{
+    if (fullscreen_) {
+        // Mouse at top of screen: show control bar, restart timer
+        if (event->position().y() < 80) {
+            if (!controlBar_->isVisible())
+                controlBar_->show();
+            overlayTimer_->start(5000);
+        }
+    }
+    QMainWindow::mouseMoveEvent(event);
 }
 
 // ── Context menus for browsers ───────────────────────────────────────────────

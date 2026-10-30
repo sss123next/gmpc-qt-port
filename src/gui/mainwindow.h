@@ -13,6 +13,7 @@
 #include <QMainWindow>
 #include <QStackedWidget>
 #include <QTreeView>
+#include <QTimer>
 
 #include "core/connection.h"
 
@@ -99,11 +100,21 @@ private:
     // Keyboard shortcuts
     void setupShortcuts();
 
+    // ── Zoom / Fullscreen ───────────────────────────────────────────────▲
+    void setupZoomLevels();         ///< Ctrl+Plus/Minus zoom control.
+    void setZoomLevel(int level);   ///< 0=full, 1=no-sidebar, 2=compact.
+    void toggleFullscreenOverlay(); ///< F12 handler with auto-hide.
+
     // Context menu helper for tree-view browsers
     void setupBrowserContextMenu(QTreeView *view,
                                  std::function<QString(QModelIndex)> getUri);
 
     bool fullscreen_ = false; ///< Whether the window is fullscreen.
+    int zoomLevel_ = 0;       ///< Current zoom level (0/1/2).
+    QTimer *overlayTimer_ = nullptr; ///< Auto-hide timer for fullscreen.
+
+protected:
+    void mouseMoveEvent(QMouseEvent *event) override;
 
     // Cached song-id to avoid redundant cover/songinfo updates.
     int lastSongId_ = -1;
