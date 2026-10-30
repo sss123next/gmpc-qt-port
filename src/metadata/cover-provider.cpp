@@ -1,4 +1,5 @@
 #include "cover-provider.h"
+#include "providers/discogs.h"
 #include "tools/async-download.h"
 
 #include <QUrl>
@@ -10,18 +11,29 @@
 #include <QDebug>
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CoverProvider — cascading MusicBrainz → Last.FM → Deezer
+// CoverProvider — cascading MusicBrainz → Last.FM → Deezer → Discogs
 // ══════════════════════════════════════════════════════════════════════════════
 
 CoverProvider::CoverProvider(const QString &lastFmApiKey,
+                             const QString &discogsToken,
                              const QString &cachePath,
                              QObject *parent)
     : QObject(parent)
     , lastFmApiKey_(lastFmApiKey)
+    , discogsToken_(discogsToken)
     , cache_(cachePath)
     , dl_(new AsyncDownload(this))
+    , discogs_(new DiscogsProvider(discogsToken_, this))
     , ownsDl_(true)
-{}
+{
+    // Forward Discogs signals
+    connect(discogs_, &DiscogsProvider::coverFound,
+            this, &CoverProvider::onDiscogsCover);
+    connect(discogs_, &DiscogsProvider::error,
+            this, &CoverProvider::onDiscogsError);
+    connect(discogs_, &DiscogsProvider::notFound,
+            this, [this]() { onDiscogsError(QString()); });
+}
 
 CoverProvider::~CoverProvider()
 {
@@ -249,6 +261,26 @@ void CoverProvider::onDeezerCover(const QByteArray &data)
 }
 
 void CoverProvider::onDeezerError(const QString &msg)
+{
+    Q_UNUSED(msg);
+    tryDiscogs();
+}
+
+// ── Discogs ─────────────────────────────────────────────────────────────────
+
+static const char *kDiscogsLog = "discogs";
+
+void CoverProvider::tryDiscogs()
+{
+    discogs_->fetchCover(artist_, album_);
+}
+
+void CoverProvider::onDiscogsCover(const QByteArray &data)
+{
+    tryComplete(data, "Discogs");
+}
+
+void CoverProvider::onDiscogsError(const QString &msg)
 {
     Q_UNUSED(msg);
     emit notFound();

@@ -202,6 +202,10 @@ void PreferencesDialog::setupUi()
     metaColorRow->addStretch();
     metaForm->addRow(tr("Colour:"), metaColorRow);
 
+    discogsTokenEdit_ = new QLineEdit(this);
+    discogsTokenEdit_->setPlaceholderText(tr("Discogs Personal Access Token"));
+    metaForm->addRow(tr("Discogs token:"), discogsTokenEdit_);
+
     root->addWidget(metaGroup);
 
     // ── Multimedia keys group ───────────────────────────────────────
@@ -361,6 +365,9 @@ void PreferencesDialog::loadFromConfig()
         metadataColorBtn_->setProperty("color", QColor(mColor));
     }
 
+    // Metadata — additional
+    discogsTokenEdit_->setText(cfg.discogsToken());
+
     // Profiles
     profiles_ = cfg.profiles();
     profileList_->clear();
@@ -432,6 +439,7 @@ void PreferencesDialog::accept()
         QVariant v = metadataColorBtn_->property("color");
         cfg.setMetadataColor(v.isValid() ? v.toString() : QString());
         cfg.setMetadataFont(metadataFontCombo_->currentFont().family());
+        cfg.setDiscogsToken(discogsTokenEdit_->text());
     }
 
     // Profiles — sync names back from list widget

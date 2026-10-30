@@ -102,6 +102,10 @@ void Config::setPlaylistHighlightColor(const QString &c)
     { s_.setValue("playlist/highlightColor", c); }
 
 // ── Metadata ─────────────────────────────────────────────────────────────
+QString Config::discogsToken() const
+    { return s_.value("metadata/discogsToken", "").toString(); }
+void Config::setDiscogsToken(const QString &t)
+    { s_.setValue("metadata/discogsToken", t); }
 QString Config::metadataFont() const
     { return s_.value("metadata/font", "").toString(); }
 void Config::setMetadataFont(const QString &f)

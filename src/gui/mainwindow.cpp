@@ -155,7 +155,8 @@ void MainWindow::setupUi()
     // ── Metadata manager ─────────────────────────────────────────────────
     const QString cacheDir = QStandardPaths::writableLocation(
         QStandardPaths::AppDataLocation);
-    metadataMgr_ = new MetadataManager(cacheDir, QString(), this);
+    metadataMgr_ = new MetadataManager(cacheDir, QString(),
+                                        cfg.discogsToken(), this);
 
     // ── Widgets for the control bar ──────────────────────────────────────
     coverWidget_ = new CoverWidget(this);

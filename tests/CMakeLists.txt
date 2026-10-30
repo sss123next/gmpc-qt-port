@@ -136,7 +136,8 @@ add_executable(test-cover-widget test-cover-widget.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp)
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-cover-widget PRIVATE Qt6::Widgets Qt6::Network
     PkgConfig::SQLITE3
     doctest::doctest)
@@ -148,7 +149,8 @@ add_test(NAME test-cover-widget COMMAND test-cover-widget)
 add_executable(test-cover-provider test-cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
-    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp)
+    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-cover-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Network
     PkgConfig::SQLITE3
     doctest::doctest)
@@ -160,7 +162,8 @@ add_test(NAME test-cover-provider COMMAND test-cover-provider)
 add_executable(test-deezer-provider test-deezer-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
-    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp)
+    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-deezer-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Network
     PkgConfig::SQLITE3
     doctest::doctest)
@@ -175,9 +178,20 @@ add_executable(test-metadata-manager test-metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp)
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-metadata-manager PRIVATE Qt6::Core Qt6::Gui Qt6::Network
     PkgConfig::SQLITE3
     doctest::doctest)
 target_include_directories(test-metadata-manager PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-metadata-manager COMMAND test-metadata-manager)
+
+# ── DiscogsProvider test ────────────────────────────────────────────────────
+
+add_executable(test-discogs-provider test-discogs-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp)
+target_link_libraries(test-discogs-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Network
+    doctest::doctest)
+target_include_directories(test-discogs-provider PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-discogs-provider COMMAND test-discogs-provider)

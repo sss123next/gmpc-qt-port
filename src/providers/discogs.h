@@ -2,26 +2,46 @@
 
 /**
  * @file discogs.h
- * @brief Discogs API provider (cover art).
+ * @brief Discogs API provider for cover art (search + download).
  *
- * Requires a personal access token (free).
- * Rate limits: 60 req/min (authenticated), 25 req/min (unauthenticated).
- * Unauthenticated requests use a low limit — real usage requires a token.
+ * Two modes:
+ *   - With token:   60 req/min (authenticated)
+ *   - Without token: 25 req/min — enough for occasional lookups
  *
- * @code
- *   "https://api.discogs.com/database/search?q=ARTIST+ALBUM&token=TOKEN"
- * @endcode
+ * API:  GET https://api.discogs.com/database/search?q=ARTIST+ALBUM&token=TOKEN
+ *       → results[].cover_image (URL of the cover image)
  *
- * TODO — full implementation with OAuth / token support.
+ * Rate limits: https://www.discogs.com/developers#page:home,header:home-rate-limiting
  */
 
 #include <QObject>
+#include <QString>
+#include <QByteArray>
+#include "tools/async-download.h"
 
-/// Cover-art provider via Discogs API.
+/// Cover-art provider via Discogs search API.
 class DiscogsProvider : public QObject {
     Q_OBJECT
 public:
-    explicit DiscogsProvider(QObject *parent = nullptr);
-    // TODO: fetchCover(), results parsing, token management
-};
+    /// @param token  Discogs personal access token (empty = unauthenticated).
+    explicit DiscogsProvider(const QString &token, QObject *parent = nullptr);
+    ~DiscogsProvider() override;
 
+    void setDownloader(AsyncDownload *dl);
+
+    /// Fetch cover image for artist/album.
+    void fetchCover(const QString &artist, const QString &album);
+
+signals:
+    void coverFound(const QByteArray &imageData);
+    void notFound();
+    void error(const QString &message);
+
+private:
+    void onSearchReply(bool ok, const QByteArray &data);
+    void onImageReply(bool ok, const QByteArray &data);
+
+    AsyncDownload *dl_;
+    QString token_;
+    bool ownsDl_ = true;
+};

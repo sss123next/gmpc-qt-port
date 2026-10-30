@@ -69,7 +69,7 @@ TEST_CASE("CoverProvider cache path — second call returns cached")
     // also fail).  The cache will NOT be populated.
     // Without mocking AsyncDownload we can't test cache hit reliably here.
     // But we CAN verify that CoverProvider doesn't crash.
-    CoverProvider prov("", tmp.path());
+    CoverProvider prov("", "", tmp.path());
     bool emitted = false;
     QObject::connect(&prov, &CoverProvider::notFound, &ctx, [&]() { emitted = true; });
     prov.fetchCover("Some Artist", "Some Album");

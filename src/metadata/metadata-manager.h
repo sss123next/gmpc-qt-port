@@ -24,10 +24,12 @@ class CacheSqlite;
 class MetadataManager : public QObject {
     Q_OBJECT
 public:
-    /// @param cachePath    Path to the SQLite cache database.
-    /// @param lastFmApiKey API key for Last.FM (empty = disabled).
+    /// @param cachePath     Path to the SQLite cache database.
+    /// @param lastFmApiKey  API key for Last.FM (empty = disabled).
+    /// @param discogsToken  Discogs personal access token (empty = unauthenticated).
     explicit MetadataManager(const QString &cachePath,
                              const QString &lastFmApiKey,
+                             const QString &discogsToken,
                              QObject *parent = nullptr);
 
     ~MetadataManager() override;

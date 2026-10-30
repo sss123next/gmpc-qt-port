@@ -78,6 +78,7 @@ private:
     // Metadata group
     QFontComboBox *metadataFontCombo_;
     QPushButton   *metadataColorBtn_;
+    QLineEdit     *discogsTokenEdit_;
 
     // Multimedia-keys group
     struct KeyBindingRow {

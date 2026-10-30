@@ -103,6 +103,8 @@ public:
     void setPlaylistHighlightColor(const QString &c);
 
     // ── Metadata ────────────────────────────────────────────────────
+    QString discogsToken() const;
+    void setDiscogsToken(const QString &t);
     /** @brief Font family for metadata display (empty = default). */
     QString metadataFont() const;
     void setMetadataFont(const QString &f);

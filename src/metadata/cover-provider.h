@@ -4,7 +4,7 @@
  * @file cover-provider.h
  * @brief Cover-art fetching pipeline.
  *
- * Orchestrates cascading providers: MusicBrainz → Last.FM → Deezer.
+ * Orchestrates cascading providers: MusicBrainz → Last.FM → Deezer → Discogs.
  * Results are cached in a local SQLite store.  Each invalid provider
  * (e.g. Last.FM without an API key) is skipped.
  *
@@ -16,13 +16,16 @@
 #include "cache-sqlite.h"
 
 class AsyncDownload;
+class DiscogsProvider;
 
 /// Facade that fetches cover art through a cascading provider chain.
 class CoverProvider : public QObject {
     Q_OBJECT
 public:
-    /// @param lastFmApiKey Empty string disables Last.FM.
+    /// @param lastFmApiKey  Empty string disables Last.FM.
+    /// @param discogsToken  Empty string = unauthenticated (25 req/min).
     explicit CoverProvider(const QString &lastFmApiKey,
+                           const QString &discogsToken,
                            const QString &cachePath,
                            QObject *parent = nullptr);
     ~CoverProvider() override;
@@ -51,12 +54,17 @@ private:
     void tryDeezer();
     void onDeezerCover(const QByteArray &data);
     void onDeezerError(const QString &msg);
+    void tryDiscogs();
+    void onDiscogsCover(const QByteArray &data);
+    void onDiscogsError(const QString &msg);
     void tryComplete(const QByteArray &data, const QString &label);
 
     QString cacheKey() const;
     QString lastFmApiKey_;
+    QString discogsToken_;
     CacheSqlite cache_;
     AsyncDownload *dl_;
+    DiscogsProvider *discogs_;
     bool ownsDl_ = true;
     QString artist_;
     QString album_;

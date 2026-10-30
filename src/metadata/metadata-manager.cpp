@@ -6,9 +6,10 @@
 
 MetadataManager::MetadataManager(const QString &cachePath,
                                  const QString &lastFmApiKey,
+                                 const QString &discogsToken,
                                  QObject *parent)
     : QObject(parent)
-    , coverProvider_(new CoverProvider(lastFmApiKey, cachePath, this))
+    , coverProvider_(new CoverProvider(lastFmApiKey, discogsToken, cachePath, this))
     , lyricsProvider_(new LrcLibProvider(this))
     , lyricsFallback_(new LyricsOvhProvider(this))
     , cache_(new CacheSqlite(cachePath))
