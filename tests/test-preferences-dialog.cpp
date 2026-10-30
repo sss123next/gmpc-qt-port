@@ -1,9 +1,12 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
 /**
  * @file test-preferences-dialog.cpp
  * @brief Tests for PreferencesDialog.
+ *
+ * Uses DOCTEST_CONFIG_IMPLEMENT + explicit main() with QApplication on stack
+ * to avoid segfault on static QApplication destruction (Qt6 requirement).
  */
 
 #include <QApplication>
@@ -16,11 +19,6 @@
 
 #include "gui/preferences-dialog.h"
 #include "core/config.h"
-
-static int argc = 1;
-static char arg0[] = "gmpc-qt-test";
-static char *argv = arg0;
-static QApplication app(argc, &argv);
 
 /// Reset all config keys to their defaults, so tests don't leak across runs.
 static void resetConfig()
@@ -164,4 +162,13 @@ TEST_CASE("PreferencesDialog accept saves socket path")
     CHECK_EQ(cfg.socketPath().toStdString(), "/run/mpd/socket");
     CHECK(cfg.host().isEmpty());  // TCP cleared
     CHECK_EQ(cfg.port(), 0);       // TCP cleared
+}
+
+int main(int argc, char *argv[])
+{
+    doctest::Context ctx(argc, argv);
+    QApplication app(argc, argv);
+    int result = ctx.run();
+    // QApplication destroyed on scope exit BEFORE global statics
+    return result;
 }

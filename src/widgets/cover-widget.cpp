@@ -1,8 +1,9 @@
 #include "cover-widget.h"
+#include "metadata/metadata-manager.h"
 #include <QPixmap>
 
 CoverWidget::CoverWidget(QWidget *parent)
-    : QLabel(parent), dl_(new AsyncDownload(this))
+    : QLabel(parent)
 {
     setMinimumSize(128, 128);
     setAlignment(Qt::AlignCenter);
@@ -10,11 +11,33 @@ CoverWidget::CoverWidget(QWidget *parent)
     setStyleSheet("border: 1px solid gray; background: #222; color: #888;");
 }
 
+void CoverWidget::setMetadataManager(MetadataManager *mgr)
+{
+    mgr_ = mgr;
+    if (mgr_) {
+        connect(mgr_, &MetadataManager::coverReady, this,
+                [this](const QString &artist, const QString &album,
+                       const QByteArray &data) {
+                    Q_UNUSED(artist);
+                    Q_UNUSED(album);
+                    QPixmap pm;
+                    if (pm.loadFromData(data))
+                        setCover(pm);
+                });
+        connect(mgr_, &MetadataManager::coverNotFound, this,
+                [this](const QString &, const QString &) {
+                    clear();
+                });
+    }
+}
+
 void CoverWidget::fetchCover(const QString &artist, const QString &album)
 {
-    Q_UNUSED(artist);
-    Q_UNUSED(album);
-    // TODO: LastFM / Discogs cover fetch
+    if (mgr_) {
+        mgr_->requestCover(artist, album);
+    } else {
+        clear();
+    }
 }
 
 void CoverWidget::setCover(const QPixmap &pixmap)
