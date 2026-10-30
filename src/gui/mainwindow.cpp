@@ -129,6 +129,13 @@ void MainWindow::setupUi()
     auto &cfg = Config::instance();
     resize(cfg.windowWidth(), cfg.windowHeight());
 
+    // Restore position (if saved) and maximized state
+    const int wx = cfg.windowX(), wy = cfg.windowY();
+    if (wx >= 0 && wy >= 0)
+        move(wx, wy);
+    if (cfg.windowMaximized())
+        showMaximized();
+
     setupMenuBar();
     setupShortcuts();
     setupMediaKeys();
@@ -566,6 +573,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     auto &cfg = Config::instance();
     cfg.setWindowSize(width(), height());
+    cfg.setWindowPos(x(), y());
+    cfg.setWindowMaximized(isMaximized());
     cfg.sync();
     event->accept();
 }

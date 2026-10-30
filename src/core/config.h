@@ -44,6 +44,11 @@ public:
     int windowWidth() const;
     int windowHeight() const;
     void setWindowSize(int w, int h);
+    int windowX() const;
+    int windowY() const;
+    bool windowMaximized() const;
+    void setWindowPos(int x, int y);
+    void setWindowMaximized(bool v);
     bool startHidden() const;
     void setStartHidden(bool v);
 

@@ -10,6 +10,8 @@
 
 #include "browser-widget.h"
 #include <QTreeView>
+#include <QLineEdit>
+#include <QSortFilterProxyModel>
 
 class Connection;
 class PlaylistModel;
@@ -27,11 +29,16 @@ public:
     /// The embedded tree view (for context menu setup).
     QTreeView *treeView() const { return view_; }
 
+private slots:
+    void onFilterChanged(const QString &text);
+
 private:
     void setupUi();
 
     Connection *conn_;
     PlaylistModel *model_;
     QTreeView *view_;
+    QLineEdit *filterEdit_;
+    QSortFilterProxyModel *proxy_;
 };
 

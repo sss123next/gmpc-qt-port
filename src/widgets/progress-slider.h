@@ -33,5 +33,6 @@ protected:
 
 private:
     bool seeking_ = false;  ///< True while the user is dragging.
+    float total_ = 0;       ///< Total duration in seconds (for tooltip).
 };
 

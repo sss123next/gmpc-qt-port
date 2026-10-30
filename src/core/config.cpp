@@ -42,6 +42,17 @@ int Config::windowHeight() const
 void Config::setWindowSize(int w, int h)
     { s_.setValue("window/width", w); s_.setValue("window/height", h); }
 
+int Config::windowX() const
+    { return s_.value("window/x", -1).toInt(); }
+int Config::windowY() const
+    { return s_.value("window/y", -1).toInt(); }
+bool Config::windowMaximized() const
+    { return s_.value("window/maximized", false).toBool(); }
+void Config::setWindowPos(int x, int y)
+    { s_.setValue("window/x", x); s_.setValue("window/y", y); }
+void Config::setWindowMaximized(bool v)
+    { s_.setValue("window/maximized", v); }
+
 bool Config::startHidden() const
     { return s_.value("window/startHidden", false).toBool(); }
 void Config::setStartHidden(bool v)
