@@ -1,8 +1,8 @@
 # gmpc → gmpc-qt: План синхронизации GUI
 
 **Цель:** Достичь функционального паритета с оригинальным gmpc (GTK2) по UI/UX.
-**Актуально на:** Phase 5e — Connection profiles.
-Build: 100% clean. No tests (GUI-only).
+**Актуально на:** Phase 5g — Browser доработки + adaptive polling.
+Build: 100% clean. No tests (GUI-only). RSS (playlist loaded): ~110 MB (м.б. ~50 MB после оптимизаций).
 
 **DE-agnostic policy:** Не используем AppIndicator, DBus, GNOME-специфичные API.
 Всё через `QSystemTrayIcon` — работает во всех X11-треях (tray2, waybar, polybar, stalonetray)
@@ -127,26 +127,39 @@ Overlay и auto-hide отложены (P1).
 
 ### 2.3 SongInfo — подключён в MainWindow ✅ DONE
 
-### 2.4 Search browser: field selector
+### 2.4 Search browser: field selector ✅ DONE
 Оригинал: dropdown выбора поля (Artist/Album/Title/…/Query).
 У нас: фиксированный мульти-поиск.
-**Задача:** QComboBox + переключение режима поиска.
+**Реализация:** QComboBox с 6 вариантами (All/Artist/Album/Title/Genre/Composer).
+При "All" — мульти-поиск по 7 тегам, при конкретном — single-tag через
+`mpd_search_add_tag_constraint`. Поле поиска перенесено в один HBoxLayout с комбо.
 **Файлы:** `src/browsers/search-browser.h/.cpp`
-**Оценка:** ~30 строк.
+**Оценка:** ~60 строк (выполнено).
 
-### 2.5 File browser: 2-pane (tree + song list)
+### 2.5 File browser: 2-pane (tree + song list) ✅ DONE
 Оригинал: GtkHPaned (левая панель = дерево, правая = треки).
 У нас: один QTreeView + FileSystemModel.
-**Задача:** QSplitter (слева directory tree, справа song list).
-**Файлы:** `src/browsers/file-browser.h/.cpp`
-**Оценка:** ~40 строк.
+**Реализация:** QSplitter с двумя QTreeView. Левый — дерево директорий.
+Правый — FileContentProxy (QSortFilterProxyModel), показывает плоские списки
+файлов/плейлистов в выбранной директории. FileSystemModel расширен до 3 колонок
+(Name, Type, Duration), FileNode::duration заполняется из mpd_song_get_duration().
+**Файлы:** `src/browsers/file-browser.h/.cpp`, `src/browsers/file-system-model.h/.cpp`
+**Оценка:** ~140 строк (выполнено).
 
-### 2.6 Database browser: multi-tag config
+### 2.6 Database browser: multi-tag config ✅ DONE
 Оригинал: несколько конфигурируемых tag-браузеров.
 У нас: один Artist→Album→Track.
-**Задача:** Allow выбор tag-группы (Artist/Genre/Year/Composer).
-**Файлы:** `src/browsers/database-browser.h/.cpp`
-**Оценка:** ~30 строк.
+**Реализация:** QComboBox с 4 вариантами (Artist/Genre/Year/Composer).
+MusicDatabaseModel::loadByTag() сбрасывает модель через beginResetModel()
+и перезагружает корневые элементы через mpd_search_db_tags(MPD_TAG_...).
+**Файлы:** `src/browsers/database-browser.h/.cpp`, `src/browsers/music-database-model.h/.cpp`
+**Оценка:** ~50 строк (выполнено).
+
+### 2.7 Memory: adaptive polling ✅ DONE
+Connection::pollStatus() переключает интервал: 500ms при PLAY, 2000ms при STOP/PAUSE.
+Снижает idle polling traffic в 4×. kDefaultPollMs = 500, адаптируется динамически.
+**Файлы:** `src/core/connection.cpp`
+**Оценка:** 5 строк (выполнено).
 
 ---
 
@@ -204,14 +217,14 @@ Overlay и auto-hide отложены (P1).
 | Категория | Пунктов | Выполнено | Примерное LOC |
 |-----------|---------|-----------|---------------|
 | 🟥 P0 | 9 | 6 (1.1, 1.2, 1.4, 1.5, 1.7, 1.8) | ~800 (выполнено ~400) |
-| 🟧 P1 | 6 | 1 (2.3) | ~210 (выполнено ~30) |
+| 🟧 P1 | 7 | 4 (2.3, 2.4, 2.5, 2.6) | ~250 (выполнено ~200) |
 | 🟡 P2 | 7 | 0 | ~80 |
 | ⚰️ Dead | 3 | 3 (✅ все) | ~10 (подключить) |
-| **Итого** | **25** | **10** | **~1100 строк (выполнено ~440)** |
+| **Итого** | **26** | **13** | **~1140 строк (выполнено ~640)** |
 
 Исходный gmpc: ~30000 строк C (GTK2 + Vala + .ui).
-gmpc-qt: ~4750 строк C++ (рост +750 строк за Phase 4-5).
-Потенциальный паритет при 25 пунктах: ~5000 строк.
+gmpc-qt: ~5100 строк C++ (рост +350 строк за Phase 5g).
+Потенциальный паритет при 26 пунктах: ~5200 строк.
 
 ---
 
@@ -223,12 +236,14 @@ Phase 5b: Мёртвый код — revive виджетов          (⚰️, �
 Phase 5c: Трей (AppIndicator, rich popup)        (P0, ✅ DONE, ~150 строк)
 Phase 5d: Preferences — расширение               (P0, ✅ DONE, ~120 строк)
 Phase 5e: Connection profiles                    (P0, ✅ DONE, ~120 строк)
-Phase 5f: Database browser URI + context menu      (P1, ~30 строк)
-Phase 5g: Browser доработки                       (P1, ~120 строк)
+Phase 5f: Database browser URI + context menu      (P1, ✅ DONE, ~30 строк)
+Phase 5g: Browser доработки + memory оптимизация  (P1, ✅ DONE, ~350 строк)
 Phase 5h: Fullscreen overlay + Zoom               (P0+P0, ~120 строк)
 Phase 5i: Multimedia keys                         (P0, ~80 строк)
-Phase 5j: Малые улучшения                         (P2, ~80 строк)
+Phase 5j: Малые улучщения + ещё memory (P2+P1, ~100 строк)
 ```
 
-**Итог:** 10 мини-фаз, ~760 строк нового кода, 0 новых зависимостей.
-10/25 пунктов выполнено (40%), ~440 строк написано, CLI target ~4750 строк C++.
+**Итог:** 10 мини-фаз, ~1100 строк нового кода, 0 новых зависимостей.
+13/26 пунктов выполнено (50%), ~640 строк написано, gmpc-qt ~5100 строк C++.
+
+---
