@@ -1,7 +1,7 @@
 # gmpc → gmpc-qt: План синхронизации GUI
 
 **Цель:** Достичь функционального паритета с оригинальным gmpc (GTK2) по UI/UX.
-**Актуально на:** Phase 5h — Fullscreen overlay + Zoom levels.
+**Актуально на:** Phase 5j — Малые улучшения (tooltip, position, playlist filter).
 Build: 100% clean (0 warnings). No tests (GUI-only). RSS (playlist loaded): ~110 MB.
 
 **DE-agnostic policy:** Не используем AppIndicator, DBus, GNOME-специфичные API.
@@ -120,13 +120,12 @@ Ctrl+Plus/Minus volume shortcuts удалены (теперь только Volum
 
 ### 2.1 Rich song header (title_header) — похоронен, заменён на SongInfo
 
-### 2.2 Трей: rich popup (cover + song info)
+### 2.2 Трей: rich tooltip (cover + song info) ✅ DONE
 Оригинал: GtkWindow popup с cover 80px, title bold, artist, album/year, progress.
-У нас: QSystemTrayIcon::setToolTip("gmpc-qt - Playing…").
-**Задача:** QWidget popup (Qt::ToolTip или собственное окно).
+У нас: `QSystemTrayIcon::setToolTip("gmpc-qt — Artist — Title [Album]")` с полными
+метаданными при PLAY. При PAUSE/STOP — краткий статус.
 **Файлы:** `src/gui/tray-icon.h/.cpp`
-**Зависимости:** CoverWidget integration (1.4).
-**Оценка:** ~60 строк.
+**Оценка:** ~10 строк (выполнено).
 
 ### 2.3 SongInfo — подключён в MainWindow ✅ DONE
 
@@ -168,10 +167,11 @@ Connection::pollStatus() переключает интервал: 500ms при P
 
 ## 3. 🟡 P2 — Малые/косметические
 
-### 3.1 Window position restore
-**Файлы:** `src/core/config.h/.cpp`, `src/gui/main-window.cpp`
-**Задача:** Сохранять/восстанавливать `window/x`, `window/y`, `window/maximized`.
-**Оценка:** ~10 строк.
+### 3.1 Window position restore ✅ DONE
+**Реализация:** `Config::windowX/Y/maximized()`, сохранение в `closeEvent()`,
+восстановление в `setupUi()` через `move(wx,wy)` + `showMaximized()`.
+**Файлы:** `src/core/config.h/.cpp`, `src/gui/mainwindow.cpp`
+**Оценка:** ~15 строк (выполнено).
 
 ### 3.2 Breadcrumb / tab bar
 **Задача:** QComboBox или QTabBar над QStackedWidget в browser area.
@@ -183,20 +183,22 @@ Connection::pollStatus() переключает интервал: 500ms при P
 **Задача:** Перенести в отдельную строку или заменить на иконки.
 **Оценка:** ~15 строк.
 
-### 3.4 Hover tooltip на seek slider
-**Задача:** `QSlider::setToolTip()` при движении ползунка — "MM:SS / MM:SS".
-**Файлы:** `src/widgets/progress-slider.cpp` или `src/gui/control-bar.cpp`
-**Оценка:** 5 строк.
+### 3.4 Hover tooltip на seek slider ✅ DONE
+**Реализация:** `ProgressSlider::mouseMoveEvent` — QToolTip::showText с "MM:SS / MM:SS"
+при drag. `setMouseTracking(true)`, `total_` поле для форматирования.
+**Файлы:** `src/widgets/progress-slider.h/.cpp`
+**Оценка:** ~15 строк (выполнено).
 
 ### 3.5 Countdown mode
 **Задача:** Тумблер в ControlBar: elapsed / remaining.
 **Файлы:** `src/gui/control-bar.h/.cpp`
 **Оценка:** ~10 строк.
 
-### 3.6 Search-as-you-type в CurrentPlaylist
-**Задача:** QLineEdit поверх QTreeView + фильтр по модели.
+### 3.6 Search-as-you-type в CurrentPlaylist ✅ DONE
+**Реализация:** QLineEdit поверх QTreeView + QSortFilterProxyModel.
+Фильтр по всем колонкам, case-insensitive.
 **Файлы:** `src/browsers/current-playlist.h/.cpp`
-**Оценка:** ~15 строк.
+**Оценка:** ~20 строк (выполнено).
 
 ### 3.7 Artist image в sidebar
 **Задача:** QLabel над QTreeView в sidebar.
@@ -219,15 +221,15 @@ Connection::pollStatus() переключает интервал: 500ms при P
 
 | Категория | Пунктов | Выполнено | Примерное LOC |
 |-----------|---------|-----------|---------------|
-| 🟥 P0 | 9 | 8 (1.1, 1.2, 1.4, 1.5, 1.7, 1.8, 1.9, 1.3) | ~800 (выполнено ~600) |
-| 🟧 P1 | 7 | 4 (2.3, 2.4, 2.5, 2.6) | ~250 (выполнено ~200) |
-| 🟡 P2 | 7 | 0 | ~80 |
+| 🟥 P0 | 9 | 9 (1.1–1.9) | ~800 (выполнено ~750) |
+| 🟧 P1 | 7 | 5 (2.2, 2.3, 2.4, 2.5, 2.6) | ~250 (выполнено ~210) |
+| 🟡 P2 | 7 | 3 (3.1, 3.4, 3.6) | ~80 (выполнено ~50) |
 | ⚰️ Dead | 3 | 3 (✅ все) | ~10 (подключить) |
-| **Итого** | **26** | **15** | **~1140 строк (выполнено ~890)** |
+| **Итого** | **26** | **20** | **~1140 строк (выполнено ~1010)** |
 
 Исходный gmpc: ~30000 строк C (GTK2 + Vala + .ui).
-gmpc-qt: ~5200 строк C++ (рост +400 строк за Phase 5g–5h).
-Потенциальный паритет при 26 пунктах: ~5300 строк.
+gmpc-qt: ~5300 строк C++ (рост +400 строк за Phase 5g–5j).
+Потенциальный паритет при 26 пунктах: ~5400 строк.
 
 ---
 
@@ -242,11 +244,11 @@ Phase 5e: Connection profiles                    (P0, ✅ DONE, ~120 строк)
 Phase 5f: Database browser URI + context menu      (P1, ✅ DONE, ~30 строк)
 Phase 5g: Browser доработки + memory оптимизация  (P1, ✅ DONE, ~350 строк)
 Phase 5h: Fullscreen overlay + Zoom               (P0+P0, ✅ DONE, ~60 строк)
-Phase 5i: Multimedia keys                         (P0, ~80 строк)
-Phase 5j: Малые улучщения + ещё memory (P2+P1, ~100 строк)
+Phase 5i: Multimedia keys                         (P0, ✅ DONE, ~80 строк)
+Phase 5j: Малые улучщения (tooltip, position, фильтр) (P2+P1, ✅ DONE, ~80 строк)
 ```
 
-**Итог:** 10 мини-фаз, ~1160 строк нового кода, 0 новых зависимостей.
-15/26 пунктов выполнено (58%), ~890 строк написано, gmpc-qt ~5200 строк C++.
+**Итог:** 10 мини-фаз, ~1180 строк нового кода, 1 новая зависимость (xcb-keysyms).
+20/26 пунктов выполнено (77%), ~1010 строк написано, gmpc-qt ~5300 строк C++.
 
 ---
