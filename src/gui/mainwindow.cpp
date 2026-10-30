@@ -108,6 +108,8 @@ void MainWindow::setupUi()
     // Start hidden if configured
     if (cfg.startHidden())
         hide();
+    else
+        show();
 }
 
 void MainWindow::setupMenuBar()
