@@ -86,5 +86,49 @@ bool Config::trayEnabled() const
 void Config::setTrayEnabled(bool v)
     { s_.setValue("tray/enabled", v); }
 
+// ── Profiles ──────────────────────────────────────────────────────────────
+QList<ConnectionProfile> Config::profiles() const
+{
+    QList<ConnectionProfile> list;
+    const int count = s_.value("profiles/count", 0).toInt();
+    for (int i = 0; i < count; ++i) {
+        const QString prefix = QStringLiteral("profiles/%1/").arg(i);
+        ConnectionProfile p;
+        p.name        = s_.value(prefix + "name").toString();
+        p.host        = s_.value(prefix + "host", "localhost").toString();
+        p.port        = s_.value(prefix + "port", 6600).toInt();
+        p.password    = s_.value(prefix + "password", "").toString();
+        p.socketPath  = s_.value(prefix + "socket", "").toString();
+        p.autoConnect = s_.value(prefix + "autoConnect", true).toBool();
+        list.append(p);
+    }
+    return list;
+}
+
+void Config::setProfiles(const QList<ConnectionProfile> &list)
+{
+    // Remove old keys
+    const int oldCount = s_.value("profiles/count", 0).toInt();
+    for (int i = 0; i < oldCount; ++i)
+        s_.remove(QStringLiteral("profiles/%1").arg(i));
+
+    s_.setValue("profiles/count", list.size());
+    for (int i = 0; i < list.size(); ++i) {
+        const auto &p = list[i];
+        const QString prefix = QStringLiteral("profiles/%1/").arg(i);
+        s_.setValue(prefix + "name",        p.name);
+        s_.setValue(prefix + "host",        p.host);
+        s_.setValue(prefix + "port",        p.port);
+        s_.setValue(prefix + "password",    p.password);
+        s_.setValue(prefix + "socket",      p.socketPath);
+        s_.setValue(prefix + "autoConnect", p.autoConnect);
+    }
+}
+
+QString Config::activeProfile() const
+    { return s_.value("profiles/active", "").toString(); }
+void Config::setActiveProfile(const QString &name)
+    { s_.setValue("profiles/active", name); }
+
 void Config::sync()
     { s_.sync(); }

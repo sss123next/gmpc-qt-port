@@ -10,6 +10,17 @@
 
 #include <QSettings>
 #include <QString>
+#include <QList>
+
+/// One saved connection profile.
+struct ConnectionProfile {
+    QString name;
+    QString host     = QStringLiteral("localhost");
+    int     port     = 6600;
+    QString password;
+    QString socketPath;   ///< Unix socket; non-empty overrides host:port.
+    bool    autoConnect = true;
+};
 
 /// Singleton holding all persistent user preferences.
 class Config {
@@ -59,6 +70,17 @@ public:
     // ── Tray ─────────────────────────────────────────────────────────
     bool trayEnabled() const;
     void setTrayEnabled(bool v);
+
+    // ── Profiles ─────────────────────────────────────────────────────
+    /** @brief All saved connection profiles (read from QSettings). */
+    QList<ConnectionProfile> profiles() const;
+
+    /** @brief Save all profiles (replaces the full list). */
+    void setProfiles(const QList<ConnectionProfile> &list);
+
+    /** @brief Name of the currently active profile (empty = manual). */
+    QString activeProfile() const;
+    void setActiveProfile(const QString &name);
 
     /// Flush pending changes to disk.
     void sync();

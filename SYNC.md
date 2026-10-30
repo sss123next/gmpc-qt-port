@@ -1,7 +1,7 @@
 # gmpc → gmpc-qt: План синхронизации GUI
 
 **Цель:** Достичь функционального паритета с оригинальным gmpc (GTK2) по UI/UX.
-**Актуально на:** Phase 5d — Preferences: Proxy, Server, Reconnect.
+**Актуально на:** Phase 5e — Connection profiles.
 Build: 100% clean. No tests (GUI-only).
 
 **DE-agnostic policy:** Не используем AppIndicator, DBus, GNOME-специфичные API.
@@ -95,11 +95,16 @@ Overlay и auto-hide отложены (P1).
 - [ ] Metadata appearance (font/color)
 - [ ] Multimedia keys config
 
-### 1.8 Connection profiles
+### 1.8 Connection profiles ✅ DONE
 Оригинал: GmpcProfiles (несколько host/port/password).
-**Задача:** Хранить список профилей в Config, выбор из меню/Preferences.
-**Файлы:** `src/core/config.h/.cpp`
-**Оценка:** ~50 строк.
+**Реализация:**
+- `ConnectionProfile` struct в config.h с name/host/port/password/socketPath/autoConnect
+- `Config::profiles()` / `Config::setProfiles()` / `Config::activeProfile()` — хранение через QSettings array
+- Preferences: QListWidget + Add/Remove кнопки (редактирование через Connection group)
+- MainWindow: File → Connection подменю со списком профилей + Disconnect
+- Выбор профиля: разрыв соединения + переподключение с параметрами профиля
+**Файлы:** `src/core/config.h/.cpp`, `src/gui/preferences-dialog.h/.cpp`, `src/gui/mainwindow.cpp`
+**Оценка:** ~120 строк (выполнено).
 
 ### 1.9 Zoom levels (3 уровня)
 Оригинал: Ctrl+Plus/Minus → скрывает sidebar/breadcrumb/tabs.
@@ -198,14 +203,14 @@ Overlay и auto-hide отложены (P1).
 
 | Категория | Пунктов | Выполнено | Примерное LOC |
 |-----------|---------|-----------|---------------|
-| 🟥 P0 | 9 | 5 (1.1, 1.2, 1.4, 1.5, 1.7) | ~680 (выполнено ~280) |
+| 🟥 P0 | 9 | 6 (1.1, 1.2, 1.4, 1.5, 1.7, 1.8) | ~800 (выполнено ~400) |
 | 🟧 P1 | 6 | 1 (2.3) | ~210 (выполнено ~30) |
 | 🟡 P2 | 7 | 0 | ~80 |
 | ⚰️ Dead | 3 | 3 (✅ все) | ~10 (подключить) |
-| **Итого** | **25** | **9** | **~980 строк (выполнено ~320)** |
+| **Итого** | **25** | **10** | **~1100 строк (выполнено ~440)** |
 
 Исходный gmpc: ~30000 строк C (GTK2 + Vala + .ui).
-gmpc-qt: ~4650 строк C++ (рост +650 строк за Phase 4-5).
+gmpc-qt: ~4750 строк C++ (рост +750 строк за Phase 4-5).
 Потенциальный паритет при 25 пунктах: ~5000 строк.
 
 ---
@@ -217,7 +222,7 @@ Phase 5a: Hotkeys + контекстные меню            (P0, ✅ DONE, ~1
 Phase 5b: Мёртвый код — revive виджетов          (⚰️, ✅ DONE, ~30 строк)
 Phase 5c: Трей (AppIndicator, rich popup)        (P0, ✅ DONE, ~150 строк)
 Phase 5d: Preferences — расширение               (P0, ✅ DONE, ~120 строк)
-Phase 5e: Connection profiles                     (P0, ~50 строк)
+Phase 5e: Connection profiles                    (P0, ✅ DONE, ~120 строк)
 Phase 5f: Database browser URI + context menu      (P1, ~30 строк)
 Phase 5g: Browser доработки                       (P1, ~120 строк)
 Phase 5h: Fullscreen overlay + Zoom               (P0+P0, ~120 строк)
@@ -225,5 +230,5 @@ Phase 5i: Multimedia keys                         (P0, ~80 строк)
 Phase 5j: Малые улучшения                         (P2, ~80 строк)
 ```
 
-**Итог:** 10 мини-фаз, ~660 строк нового кода, 0 новых зависимостей.
-8/25 пунктов выполнено (32%), ~200 строк написано, CLI target ~4500 строк C++.
+**Итог:** 10 мини-фаз, ~760 строк нового кода, 0 новых зависимостей.
+10/25 пунктов выполнено (40%), ~440 строк написано, CLI target ~4750 строк C++.

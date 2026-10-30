@@ -14,8 +14,11 @@
 #include <QSpinBox>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QListWidget>
+#include <QPushButton>
 #include <QDialogButtonBox>
 #include <QGroupBox>
+#include "core/config.h"
 
 /// Modal settings dialog bound to Config.
 class PreferencesDialog : public QDialog {
@@ -58,6 +61,12 @@ private:
 
     // Tray group
     QCheckBox    *trayEnabled_;
+
+    // Profiles group
+    QListWidget  *profileList_;
+    QPushButton  *addProfileBtn_;
+    QPushButton  *removeProfileBtn_;
+    QList<ConnectionProfile> profiles_;    ///< working copy until accept()
 
     QDialogButtonBox *buttons_;
 };

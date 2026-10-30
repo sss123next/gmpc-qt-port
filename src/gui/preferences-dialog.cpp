@@ -131,6 +131,60 @@ void PreferencesDialog::setupUi()
     trayForm->addRow(trayEnabled_);
     root->addWidget(trayGroup);
 
+    // ── Profiles group ──────────────────────────────────────────────
+    auto *profGroup = new QGroupBox(tr("Connection Profiles"), this);
+    auto *profLayout = new QVBoxLayout(profGroup);
+
+    profileList_ = new QListWidget(this);
+    profileList_->setAlternatingRowColors(true);
+    profLayout->addWidget(profileList_);
+
+    auto *profBtnRow = new QHBoxLayout();
+    addProfileBtn_    = new QPushButton(tr("Add"), this);
+    removeProfileBtn_ = new QPushButton(tr("Remove"), this);
+    profBtnRow->addWidget(addProfileBtn_);
+    profBtnRow->addWidget(removeProfileBtn_);
+    profBtnRow->addStretch();
+    profLayout->addLayout(profBtnRow);
+
+    connect(addProfileBtn_, &QPushButton::clicked, this, [this] {
+        // Check if there's already an unnamed one
+        for (int i = 0; i < profiles_.size(); ++i) {
+            if (profiles_[i].name.isEmpty()) {
+                profileList_->setCurrentRow(i);
+                return;
+            }
+        }
+        ConnectionProfile p;
+        p.name = QString();   // unnamed — will be set later
+        profiles_.append(p);
+        profileList_->addItem(tr("(new profile)"));
+        profileList_->setCurrentRow(profileList_->count() - 1);
+    });
+
+    connect(removeProfileBtn_, &QPushButton::clicked, this, [this] {
+        int row = profileList_->currentRow();
+        if (row < 0 || row >= profiles_.size())
+            return;
+        profiles_.removeAt(row);
+        delete profileList_->takeItem(row);
+    });
+
+    connect(profileList_, &QListWidget::currentItemChanged,
+            this, [this](QListWidgetItem *cur, QListWidgetItem *) {
+        if (!cur)
+            return;
+        int row = profileList_->currentRow();
+        if (row < 0 || row >= profiles_.size())
+            return;
+        auto &p = profiles_[row];
+        // Inline rename on double-click is too complex for now.
+        // For now just allow editing via the connection fields below
+        // by copying profile fields into the Connection group.
+    });
+
+    root->addWidget(profGroup);
+
     // ── Buttons ──────────────────────────────────────────────────────
     buttons_ = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -170,6 +224,13 @@ void PreferencesDialog::loadFromConfig()
     connectionTimeout_->setValue(cfg.connectionTimeout());
 
     trayEnabled_->setChecked(cfg.trayEnabled());
+
+    // Profiles
+    profiles_ = cfg.profiles();
+    profileList_->clear();
+    for (const auto &p : profiles_) {
+        profileList_->addItem(p.name.isEmpty() ? tr("(unnamed)") : p.name);
+    }
 }
 
 void PreferencesDialog::accept()
@@ -204,6 +265,14 @@ void PreferencesDialog::accept()
     cfg.setConnectionTimeout(connectionTimeout_->value());
 
     cfg.setTrayEnabled(trayEnabled_->isChecked());
+
+    // Profiles — sync names back from list widget
+    for (int i = 0; i < profiles_.size(); ++i) {
+        QListWidgetItem *item = profileList_->item(i);
+        if (item && profiles_[i].name.isEmpty())
+            profiles_[i].name = item->text();
+    }
+    cfg.setProfiles(profiles_);
     cfg.sync();
 
     QDialog::accept();

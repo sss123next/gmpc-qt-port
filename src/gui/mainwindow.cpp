@@ -115,6 +115,55 @@ void MainWindow::setupMenuBar()
     auto *file = menuBar()->addMenu(tr("&File"));
     file->addAction(tr("&Preferences..."), this, &MainWindow::showPreferences);
     file->addSeparator();
+
+    // ── Connection profiles submenu ──────────────────────────────────
+    auto *profileMenu = file->addMenu(tr("Connection"));
+    connect(profileMenu, &QMenu::aboutToShow, this, [this, profileMenu] {
+        profileMenu->clear();
+        auto &cfg = Config::instance();
+        const auto profiles = cfg.profiles();
+        const QString active = cfg.activeProfile();
+
+        for (const auto &p : profiles) {
+            QString label = p.name;
+            if (label == active)
+                label.prepend(QStringLiteral("✓ "));
+            QAction *act = profileMenu->addAction(label);
+            act->setCheckable(true);
+            act->setChecked(label == active);
+            act->setData(p.name);
+        }
+
+        profileMenu->addSeparator();
+
+        QAction *disconnect = profileMenu->addAction(tr("Disconnect"));
+        connect(disconnect, &QAction::triggered, this, [this] {
+            conn_->disconnect();
+        });
+    });
+
+    connect(profileMenu, &QMenu::triggered, this, [this](QAction *act) {
+        const QString name = act->data().toString();
+        if (name.isEmpty())
+            return;
+
+        auto &cfg = Config::instance();
+        const auto profiles = cfg.profiles();
+        for (const auto &p : profiles) {
+            if (p.name == name) {
+                cfg.setActiveProfile(name);
+                conn_->disconnect();
+                if (!p.socketPath.isEmpty()) {
+                    conn_->connectToServer(p.socketPath, 0, p.password);
+                } else {
+                    conn_->connectToServer(p.host, p.port, p.password);
+                }
+                break;
+            }
+        }
+    });
+
+    file->addSeparator();
     file->addAction(tr("&Quit"), QKeySequence::Quit, qApp, &QApplication::quit);
 
     auto *view = menuBar()->addMenu(tr("&View"));
