@@ -27,14 +27,14 @@
 | widgets::CoverWidget | ✅ DONE | setCover/clear/fetchCover via MetadataManager; 4 tests |
 | metadata::CacheSqlite | ✅ DONE | SQLite key-value cache with upsert + cleanup |
 | metadata::MetadataManager | ✅ DONE | Orchestrator: CoverProvider + LrcLibProvider + CacheSqlite; 2 tests |
-| metadata::CoverProvider | ✅ DONE | Cascading pipeline MB → Last.FM → Deezer; injectable AsyncDownload; 3 tests |
+| metadata::CoverProvider | ✅ DONE | Cascading pipeline MB → Last.FM → Deezer → Discogs; injectable AsyncDownload; 3 tests |
 | providers::LastFM | ✅ DONE | API album.getInfo, extracts largest cover URL |
 | providers::MusicBrainz | ✅ DONE | MusicBrainz → Cover Art Archive, keyless |
-| providers::Discogs | 🟡 SKELETON | Live API, needs OAuth — postponed |
+| providers::Discogs | ✅ DONE | Search API + token (опция); 4-й каскад; Config+Prefs |
 | providers::LrcLib | ✅ DONE | LRCLIB, keyless, plain + synced lyrics |
 | tools::AsyncDownload | ✅ DONE | QNetworkAccessManager-based HTTP, get(QUrl) + get(QNetworkRequest) |
 | tools::Log | ✅ DONE | LOG_DEBUG/INFO/WARN/ERROR macros + file output |
-| tests | ✅ DONE | doctest + trompeloeil, **106** test cases (**16** suites, 100% passing) |
+| tests | ✅ DONE | doctest + trompeloeil, **109** test cases (**17** suites, 100% passing) |
 | Build (CMake + Nix flake) | ✅ DONE | Compiles, links, tests pass |
 
 ## Cover-art pipeline
@@ -44,12 +44,15 @@ MusicBrainz (CAA) ─── первичный, без ключа, беспла�
     ↓ (не найдено)
 Last.FM ───────────── резерв, требует бесплатный API-ключ (album.getInfo)
     ↓ (не найдено)
-Deezer ────────────── резерв, без ключа, поиск по артисту/альбому (TODO)
+Deezer ────────────── резерв, без ключа, поиск по артисту/альбому
+    ↓ (не найдено)
+Discogs ───────────── 4-й резерв, опциональный Personal Access Token
 ```
 
 - MusicBrainz: 2-фазный — поиск release MBID → Cover Art Archive `/release/{mbid}/front`
 - Last.FM: `album.getInfo`, выбирает самое большое изображение из массива `image`
-- Deezer: пока не реализован (API жив, без ключа, JSON с `album.cover_big`)
+- Deezer: безключевой `search/album`, берёт `cover_big` из первого совпадения
+- Discogs: `database/search?q=ARTIST+ALBUM&type=release`, берёт `cover_image` из первого результата; без токена лимит 25 req/min, с токеном 60 req/min
 
 **Мёртвые/исключённые:** LyrDB, ChartLyrics — оба мертвы. Гугл Images убрать — нелегально.
 
@@ -102,13 +105,13 @@ lyrics.ovh ────────── резерв, без ключа, то�
 - [x] DeezerProvider — безключевой REST API (альбомный поиск по артисту/названию)
 - [x] CacheSqlite — SQLite key-value кэш (upsert)
 - [x] Тесты: CacheSqlite (6 unit), CoverProvider (3 skipped*), DeezerProvider (2 smoke), MetadataManager (2 integration), CoverWidget (4 unit)
-- [ ] Discogs провайдер — OAuth (отложен)
+- [x] Discogs провайдер — 4-й каскад обложек; опциональный Personal Access Token (Config + Preferences)
 
 ### Фаза 5 — Полировка
-- [ ] lyrics.ovh (резервный lyrics)
-- [ ] Горячие клавиши
-- [ ] DBus управление (MPRIS)
-- [ ] rawCommand() — нормальный парсинг ответа
+- [x] lyrics.ovh (резервный lyrics)
+- [x] Горячие клавиши
+- [x] DBus управление (MPRIS)
+- [x] rawCommand() — нормальный парсинг ответа
 
 ## Практики и рекомендации
 
