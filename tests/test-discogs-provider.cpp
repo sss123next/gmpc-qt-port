@@ -1,4 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
 #include <QCoreApplication>
@@ -15,14 +15,13 @@
  * Default test: no token = unauthenticated mode (25 req/min).
  *
  * For a real integration test, set DISCOGS_TEST_TOKEN env var.
+ *
+ * fetchCover() starts real HTTP traffic that outlives the case, hence the
+ * explicit main() and the drains — see test-network-drain.h.
  */
 
 #include "providers/discogs.h"
-
-static int argc = 1;
-static char arg0[] = "gmpc-qt-test";
-static char *argv = arg0;
-static QCoreApplication app(argc, &argv);
+#include "test-network-drain.h"
 
 TEST_CASE("DiscogsProvider construction with empty token")
 {
@@ -35,8 +34,9 @@ TEST_CASE("DiscogsProvider smoke — nonexistent artist")
     DiscogsProvider prov(QString(), nullptr);
     bool gotNotFound = false;
     bool gotError = false;
-    QObject::connect(&prov, &DiscogsProvider::notFound, [&]() { gotNotFound = true; });
-    QObject::connect(&prov, &DiscogsProvider::error, [&](const QString &) { gotError = true; });
+    QObject ctx;
+    QObject::connect(&prov, &DiscogsProvider::notFound, &ctx, [&]() { gotNotFound = true; });
+    QObject::connect(&prov, &DiscogsProvider::error, &ctx, [&](const QString &) { gotError = true; });
 
     prov.fetchCover("zzz_nonexistent_artist_9876", "zzz_nonexistent_album_5432");
 
@@ -44,6 +44,7 @@ TEST_CASE("DiscogsProvider smoke — nonexistent artist")
     // If network is down or rate-limited, either notFound or error will fire.
     // Test passes either way — we just verify the async flow completes sanely.
     CHECK(true);
+    waitForIdle();
 }
 
 TEST_CASE("DiscogsProvider with token from env")
@@ -57,12 +58,25 @@ TEST_CASE("DiscogsProvider with token from env")
     DiscogsProvider prov(QString::fromLatin1(envToken), nullptr);
     bool gotCover = false;
     bool gotNotFound = false;
-    QObject::connect(&prov, &DiscogsProvider::coverFound, [&](const QByteArray &) { gotCover = true; });
-    QObject::connect(&prov, &DiscogsProvider::notFound, [&]() { gotNotFound = true; });
+    QObject ctx;
+    QObject::connect(&prov, &DiscogsProvider::coverFound, &ctx, [&](const QByteArray &) { gotCover = true; });
+    QObject::connect(&prov, &DiscogsProvider::notFound, &ctx, [&]() { gotNotFound = true; });
 
     // Known release that should exist
     prov.fetchCover("The Beatles", "Abbey Road");
 
     // Test is async — we just verify setup doesn't crash
     CHECK(true);
+    waitForIdle();
+}
+
+int main(int argc, char *argv[])
+{
+    doctest::Context ctx(argc, argv);
+    QCoreApplication app(argc, argv);
+    int result = ctx.run();
+    // Flush whatever the cases left in flight while the application — and the
+    // network manager's worker thread — are still alive.
+    waitForIdle(kDrainMs);
+    return result;
 }

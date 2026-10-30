@@ -1,4 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
 #include <QCoreApplication>
@@ -18,10 +18,14 @@
  * Instead we test the cascade logic at the MetadataManager integration level
  * and verify DeezerProvider via injected real requests.
  * Unit coverage of the cascading chain is covered by CacheSqlite + CoverWidget.
+ *
+ * fetchCover() starts real HTTP traffic that outlives the case, hence the
+ * explicit main() and the drains — see test-network-drain.h.
  */
 
 #include "metadata/cover-provider.h"
 #include "tools/async-download.h"
+#include "test-network-drain.h"
 
 // ── JSON helpers ────────────────────────────────────────────────────────────
 
@@ -49,12 +53,6 @@ static QByteArray dzJson(const QString &coverBig) {
     return QJsonDocument(root).toJson(QJsonDocument::Compact);
 }
 
-static int argc = 1;
-static char arg0[] = "gmpc-qt-test";
-static char *argv = arg0;
-static QCoreApplication app(argc, &argv);
-static QObject ctx;
-
 // ══════════════════════════════════════════════════════════════════════════════
 // CoverProvider cache test (no mock — uses real cache)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -71,6 +69,7 @@ TEST_CASE("CoverProvider cache path — second call returns cached")
     // But we CAN verify that CoverProvider doesn't crash.
     CoverProvider prov("", "", tmp.path());
     bool emitted = false;
+    QObject ctx;
     QObject::connect(&prov, &CoverProvider::notFound, &ctx, [&]() { emitted = true; });
     prov.fetchCover("Some Artist", "Some Album");
 
@@ -80,6 +79,7 @@ TEST_CASE("CoverProvider cache path — second call returns cached")
     // This is not suitable for unit testing.
     // Skip — CoverProvider unit testing requires DI which needs virtual get().
     CHECK_MESSAGE(true, "CoverProvider requires AsyncDownload injection — tested via integration");
+    waitForIdle();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -98,9 +98,22 @@ TEST_CASE("DeezerProvider smoke test")
     // Real HTTP call may fail, that's fine.
     DeezerProvider prov;
     bool called = false;
+    QObject ctx;
     QObject::connect(&prov, &DeezerProvider::notFound, &ctx, [&]() { called = true; });
     QObject::connect(&prov, &DeezerProvider::error, &ctx, [&](const QString &) { called = true; });
     prov.fetchCover("Nonexistent Artist For Unit Test", "Nonexistent Album");
     // If it times out or completes, test still passes (we just verify no crash)
     CHECK(true);
+    waitForIdle();
+}
+
+int main(int argc, char *argv[])
+{
+    doctest::Context ctx(argc, argv);
+    QCoreApplication app(argc, argv);
+    int result = ctx.run();
+    // Flush whatever the cases left in flight while the application — and the
+    // network manager's worker thread — are still alive.
+    waitForIdle(kDrainMs);
+    return result;
 }

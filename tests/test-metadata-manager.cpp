@@ -1,4 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
 #include <QCoreApplication>
@@ -13,16 +13,13 @@
  * MetadataManager creates its own CoverProvider and LrcLibProvider internally.
  * We test the API integration: cache hit path, signal forwarding, etc.
  * Full network mocking of sub-providers is done via CoverProvider/DeezerProvider tests.
+ *
+ * requestCover()/requestLyrics() start real HTTP traffic that outlives the case,
+ * hence the explicit main() and the drains — see test-network-drain.h.
  */
 
 #include "metadata/metadata-manager.h"
-
-static int argc = 1;
-static char arg0[] = "gmpc-qt-test";
-static char *argv = arg0;
-static QCoreApplication app(argc, &argv);
-
-static QObject ctx;
+#include "test-network-drain.h"
 
 TEST_CASE("MetadataManager cover cache hit")
 {
@@ -33,6 +30,7 @@ TEST_CASE("MetadataManager cover cache hit")
 
     bool gotCover = false;
     QByteArray gotData;
+    QObject ctx;
     QObject::connect(&mm, &MetadataManager::coverReady, &ctx,
             [&](const QString &, const QString &, const QByteArray &d) {
                 gotCover = true;
@@ -58,6 +56,7 @@ TEST_CASE("MetadataManager cover cache hit")
     // No crash is success
 
     CHECK(true);
+    waitForIdle();
 }
 
 TEST_CASE("MetadataManager construction does not crash")
@@ -67,4 +66,15 @@ TEST_CASE("MetadataManager construction does not crash")
 
     MetadataManager mm(tmp.path(), "test_key", nullptr);
     CHECK(true);  // constructed without error
+}
+
+int main(int argc, char *argv[])
+{
+    doctest::Context ctx(argc, argv);
+    QCoreApplication app(argc, argv);
+    int result = ctx.run();
+    // Flush whatever the cases left in flight while the application — and the
+    // network manager's worker thread — are still alive.
+    waitForIdle(kDrainMs);
+    return result;
 }
