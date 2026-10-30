@@ -104,5 +104,8 @@ private:
                                  std::function<QString(QModelIndex)> getUri);
 
     bool fullscreen_ = false; ///< Whether the window is fullscreen.
+
+    // Cached song-id to avoid redundant cover/songinfo updates.
+    int lastSongId_ = -1;
 };
 

@@ -1,13 +1,22 @@
 #include "cache-sqlite.h"
 #include <QDebug>
+#include <QDir>
+#include <QFileInfo>
 
 CacheSqlite::CacheSqlite(const QString &path)
 {
+    // Ensure the parent directory exists — QStandardPaths doesn't create it.
+    QDir().mkpath(QFileInfo(path).absolutePath());
+
     if (sqlite3_open(path.toUtf8().constData(), &db_) != SQLITE_OK) {
         qWarning() << "Failed to open metadata cache:" << path;
         db_ = nullptr;
         return;
     }
+    // Limit page cache to ~2 MB and use in-memory journal to reduce heap.
+    sqlite3_exec(db_, "PRAGMA cache_size=-512", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "PRAGMA journal_mode=MEMORY", nullptr, nullptr, nullptr);
+
     const char *sql = R"(
         CREATE TABLE IF NOT EXISTS cache (
             key   TEXT PRIMARY KEY,

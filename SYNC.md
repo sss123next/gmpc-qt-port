@@ -1,7 +1,7 @@
 # gmpc → gmpc-qt: План синхронизации GUI
 
 **Цель:** Достичь функционального паритета с оригинальным gmpc (GTK2) по UI/UX.
-**Актуально на:** Phase 5b (DONE) — keyboard shortcuts + context menus for Search/File browsers.  
+**Актуально на:** Phase 5b — keyboard shortcuts, context menus, memory optimization (RSS 100→49 MB).
 Build: 100% clean. Tests: 16/16 pass.
 
 ---

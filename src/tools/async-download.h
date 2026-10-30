@@ -36,6 +36,8 @@ private slots:
     void onFinished();
 
 private:
+    /// Shared QNetworkAccessManager — one instance for all HTTP downloads.
+    static QNetworkAccessManager *sharedManager();
     QNetworkAccessManager *mgr_;
     QNetworkReply *current_ = nullptr;
     Callback cb_;

@@ -16,6 +16,7 @@
 #include <QPushButton>
 #include <QSlider>
 #include <QLabel>
+#include <QIcon>
 #include "core/connection.h"
 
 class MpdCommands;
@@ -44,5 +45,6 @@ private:
     QPushButton *repeatBtn_, *randomBtn_, *singleBtn_, *consumeBtn_;
     QSlider *seekSlider_;
     QLabel *timeLabel_;
+    QIcon playIcon_, pauseIcon_; ///< Pre-created to avoid standardIcon() per tick.
 };
 

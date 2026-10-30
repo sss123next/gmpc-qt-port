@@ -5,9 +5,15 @@
 
 #include "async-download.h"
 
+QNetworkAccessManager *AsyncDownload::sharedManager()
+{
+    static QNetworkAccessManager *mgr = new QNetworkAccessManager();
+    return mgr;
+}
+
 AsyncDownload::AsyncDownload(QObject *parent)
     : QObject(parent)
-    , mgr_(new QNetworkAccessManager(this))
+    , mgr_(sharedManager())
 {}
 
 void AsyncDownload::get(const QUrl &url, Callback cb)

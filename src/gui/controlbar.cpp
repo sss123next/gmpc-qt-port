@@ -11,6 +11,10 @@ ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
                        VolumeWidget *vol, QWidget *parent)
     : QWidget(parent), cmds_(cmds)
 {
+    // Pre-create icons once to avoid standardIcon() call on every status tick.
+    playIcon_  = style()->standardIcon(QStyle::SP_MediaPlay);
+    pauseIcon_ = style()->standardIcon(QStyle::SP_MediaPause);
+
     auto *lay = new QHBoxLayout(this);
     lay->setContentsMargins(4, 4, 4, 4);
 
@@ -20,7 +24,7 @@ ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
     connect(prevBtn_, &QPushButton::clicked, cmds_, &MpdCommands::previous);
 
     playBtn_ = new QPushButton(this);
-    playBtn_->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
+    playBtn_->setIcon(playIcon_);
     playBtn_->setCheckable(true);
     connect(playBtn_, &QPushButton::clicked, cmds_, &MpdCommands::togglePause);
 
@@ -78,9 +82,7 @@ ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
 void ControlBar::updateStatus(const Connection::Status &s)
 {
     playBtn_->setChecked(s.state == MPD_STATE_PLAY);
-    playBtn_->setIcon(style()->standardIcon(
-        s.state == MPD_STATE_PLAY ? QStyle::SP_MediaPause
-                                      : QStyle::SP_MediaPlay));
+    playBtn_->setIcon(s.state == MPD_STATE_PLAY ? pauseIcon_ : playIcon_);
 
     if (s.totalDuration > 0) {
         seekSlider_->setRange(0, static_cast<int>(s.totalDuration));

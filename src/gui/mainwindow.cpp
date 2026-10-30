@@ -223,7 +223,11 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     statusBar_->updateStatus(s);
     trayIcon_->updateStatus(s);
 
-    // Update SongInfo, CoverWidget, and VolumeWidget from the current song
+    // Only update song-dependent widgets when the song actually changes.
+    if (s.songId == lastSongId_)
+        return;
+    lastSongId_ = s.songId;
+
     const SongEntry *song = playlistModel_->currentSong();
     songInfo_->showSong(song);
     if (song && !song->artist.isEmpty() && !song->album.isEmpty()) {
