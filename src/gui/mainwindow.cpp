@@ -224,9 +224,11 @@ void MainWindow::setupCentralArea()
             return idx.data(FileSystemModel::UriRole).toString();
         });
 
-    // DatabaseBrowser: MusicDatabaseModel::data doesn't carry URI yet.
-    // Only enable for album/track level items (row 2+ at level 1).
-    // Currently tracks have no URI stored — skip for now.
+    // DatabaseBrowser: MusicDatabaseModel now carries URI via MusicDbRoles::UriRole
+    setupBrowserContextMenu(databaseBrowser_->treeView(),
+        [](const QModelIndex &idx) -> QString {
+            return idx.data(MusicDbRoles::UriRole).toString();
+        });
 
     // CurrentPlaylist: already playing — context menu not critical.
 }

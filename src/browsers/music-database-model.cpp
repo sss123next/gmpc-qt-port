@@ -149,13 +149,14 @@ void MusicDatabaseModel::loadTracks(const QModelIndex &idx)
         return;
     }
 
-    struct TrackEntry { QString title; int duration; };
+    struct TrackEntry { QString title; QString uri; int duration; };
     QVector<TrackEntry> tracks;
 
     while (auto *song = mpd_recv_song(conn_->raw())) {
         TrackEntry e;
         e.title = QString::fromUtf8(
             mpd_song_get_tag(song, MPD_TAG_TITLE, 0));
+        e.uri = QString::fromUtf8(mpd_song_get_uri(song));
         e.duration = mpd_song_get_duration(song);
         tracks.append(e);
         mpd_song_free(song);
@@ -169,6 +170,7 @@ void MusicDatabaseModel::loadTracks(const QModelIndex &idx)
     for (const auto &t : tracks) {
         auto *node = new MusicDbItem{
             MusicDbItem::Track, t.title, {}, album};
+        node->uri = t.uri;
         album->children.append(node);
     }
     endInsertRows();
@@ -229,6 +231,9 @@ QVariant MusicDatabaseModel::data(const QModelIndex &index, int role) const
         return {};
 
     auto *item = static_cast<MusicDbItem *>(index.internalPointer());
+
+    if (role == MusicDbRoles::UriRole && item->type == MusicDbItem::Track)
+        return item->uri;
 
     if (index.column() == 0 && role == Qt::DisplayRole)
         return item->name;

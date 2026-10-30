@@ -17,6 +17,11 @@
 
 class Connection;
 
+/// Custom data roles exposed to views.
+namespace MusicDbRoles {
+    constexpr int UriRole = Qt::UserRole + 1;
+}
+
 /// A node in the music database tree.
 struct MusicDbItem {
     enum Type { Artist, Album, Track };
@@ -25,6 +30,7 @@ struct MusicDbItem {
     QString name;       ///< artist name, album title, or track title
     QList<MusicDbItem *> children;
     MusicDbItem *parent = nullptr;
+    QString uri;        ///< file URI (only for Track)
 
     ~MusicDbItem() { qDeleteAll(children); }
 };
