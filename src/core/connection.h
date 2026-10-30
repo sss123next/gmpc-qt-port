@@ -35,8 +35,13 @@ public:
     /** @brief Open a connection to an MPD server.
      *
      *  libmpdclient auto-detects Unix-domain sockets when \a host
-     *  starts with '/' (e.g. "/home/sss/.mpd/sock").  Otherwise TCP
-     *  is used.
+     *  starts with '/' or '@' (an abstract socket).  Otherwise TCP is used.
+     *
+     *  Passing an empty \a host, a non-positive \a port or a non-positive
+     *  \a timeoutMs leaves that setting unspecified, and libmpdclient then
+     *  consults MPD_HOST / MPD_PORT / MPD_TIMEOUT itself (host ultimately
+     *  defaulting to localhost).  Callers that must honour MPD_PASSWORD —
+     *  which the library ignores — resolve it first via MpdResolvedSettings.
      *
      *  @param host      Hostname / IP or Unix socket path.
      *  @param port      TCP port (ignored for Unix sockets; 0 = default).
@@ -47,9 +52,10 @@ public:
      *  On success the polling timer is started and signal connected() fires.
      *  On failure errorOccurred() fires and false is returned.
      */
-    bool connectToServer(const QString &host, int port = 6600,
+    bool connectToServer(const QString &host = QString(),
+                         int port = 0,
                          const QString &password = QString(),
-                         int timeoutMs = 5000);
+                         int timeoutMs = 0);
 
     /// Close the MPD connection and stop the polling timer.
     void disconnect();

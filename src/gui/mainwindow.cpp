@@ -8,6 +8,7 @@
 #include "core/mpd-commands.h"
 #include "core/playlist-model.h"
 #include "core/config.h"
+#include "core/mpd-env.h"
 
 #include "metadata/metadata-manager.h"
 #include "widgets/cover-widget.h"
@@ -262,11 +263,11 @@ void MainWindow::setupMenuBar()
             if (p.name == name) {
                 cfg.setActiveProfile(name);
                 conn_->disconnect();
-                if (!p.socketPath.isEmpty()) {
-                    conn_->connectToServer(p.socketPath, 0, p.password);
-                } else {
-                    conn_->connectToServer(p.host, p.port, p.password);
-                }
+                // A profile is an explicit target, so its host/port/password
+                // stay put; only the timeout may come from MPD_TIMEOUT.
+                connectWith(MpdResolvedSettings::fromConfig(
+                    p.host, p.port, p.password, p.socketPath,
+                    cfg.connectionTimeout(), false));
                 break;
             }
         }
@@ -384,6 +385,9 @@ void MainWindow::connectSignals()
     connect(conn_, &Connection::connected, this, &MainWindow::onConnected);
     connect(conn_, &Connection::disconnected, this, &MainWindow::onDisconnected);
     connect(conn_, &Connection::statusChanged, this, &MainWindow::onStatusChanged);
+    connect(conn_, &Connection::errorOccurred, this, [this](const QString &msg) {
+        statusBar_->showMessage(tr("MPD: %1").arg(msg), 8000);
+    });
 
     connect(sidebar_->selectionModel(), &QItemSelectionModel::currentChanged,
             this, [this](const QModelIndex &idx) {
@@ -397,12 +401,16 @@ void MainWindow::tryAutoConnect()
     auto &cfg = Config::instance();
     if (!cfg.autoConnect()) return;
 
-    const QString sock = cfg.socketPath();
-    if (!sock.isEmpty()) {
-        conn_->connectToServer(sock, 0, cfg.password());
-    } else {
-        conn_->connectToServer(cfg.host(), cfg.port(), cfg.password());
-    }
+    // Precedence saved settings > MPD_* > library defaults; Config keeps
+    // raw values so an unset field is distinguishable from a saved one.
+    connectWith(MpdResolvedSettings::fromConfig(
+        cfg.host(), cfg.port(), cfg.password(), cfg.socketPath(),
+        cfg.connectionTimeout()));
+}
+
+void MainWindow::connectWith(const MpdResolvedSettings &r)
+{
+    conn_->connectToServer(r.host(), r.port(), r.password(), r.timeoutMs());
 }
 
 void MainWindow::onConnected()

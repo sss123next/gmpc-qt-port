@@ -324,7 +324,7 @@ void PreferencesDialog::loadFromConfig()
     } else {
         connectionMode_->setCurrentIndex(0);  // TCP
         host_->setText(cfg.host());
-        port_->setValue(cfg.port());
+        port_->setValue(cfg.port() > 0 ? cfg.port() : 6600);
     }
 
     password_->setText(cfg.password());
@@ -341,7 +341,8 @@ void PreferencesDialog::loadFromConfig()
     // Server
     musicDirectory_->setText(cfg.musicDirectory());
     reconnectDelay_->setValue(cfg.reconnectDelay());
-    connectionTimeout_->setValue(cfg.connectionTimeout());
+    connectionTimeout_->setValue(cfg.connectionTimeout() > 0
+                                 ? cfg.connectionTimeout() : 5000);
 
     trayEnabled_->setChecked(cfg.trayEnabled());
 

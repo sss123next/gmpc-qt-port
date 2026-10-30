@@ -11,22 +11,22 @@ Config::Config()
 {}
 
 QString Config::host() const
-    { return s_.value("connection/host", "localhost").toString(); }
+    { return s_.value("connection/host").toString().trimmed(); }
 void Config::setHost(const QString &h)
     { s_.setValue("connection/host", h); }
 
 int Config::port() const
-    { return s_.value("connection/port", 6600).toInt(); }
+    { return s_.value("connection/port").toInt(); }
 void Config::setPort(int p)
     { s_.setValue("connection/port", p); }
 
 QString Config::password() const
-    { return s_.value("connection/password", "").toString(); }
+    { return s_.value("connection/password").toString(); }
 void Config::setPassword(const QString &p)
     { s_.setValue("connection/password", p); }
 
 QString Config::socketPath() const
-    { return s_.value("connection/socket", "").toString(); }
+    { return s_.value("connection/socket").toString().trimmed(); }
 void Config::setSocketPath(const QString &p)
     { s_.setValue("connection/socket", p); }
 
@@ -87,7 +87,7 @@ int Config::reconnectDelay() const
 void Config::setReconnectDelay(int ms)
     { s_.setValue("server/reconnectDelay", ms); }
 int Config::connectionTimeout() const
-    { return s_.value("server/connectionTimeout", 5000).toInt(); }
+    { return s_.value("server/connectionTimeout").toInt(); }
 void Config::setConnectionTimeout(int ms)
     { s_.setValue("server/connectionTimeout", ms); }
 

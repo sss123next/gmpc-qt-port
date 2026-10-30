@@ -92,8 +92,10 @@ TEST_CASE("Config default values")
     removeConfigFile();
     clearSettings();
     auto &cfg = Config::instance();
-    CHECK_EQ(cfg.host(), QString("localhost"));
-    CHECK_EQ(cfg.port(), 6600);
+    // Unset, not "localhost"/6600: mpd-env resolves those (or MPD_HOST)
+    // at connect time so the saved settings stay distinguishable.
+    CHECK(cfg.host().isEmpty());
+    CHECK_EQ(cfg.port(), 0);
     CHECK_EQ(cfg.password(), QString());
 }
 
@@ -147,7 +149,7 @@ TEST_CASE("Default values unchanged after construction")
     auto &cfg = Config::instance();
     // These should still be defaults (or last-set values from prior tests).
     // We test that the getters return a string and don't crash.
-    CHECK(!cfg.host().isEmpty());
+    // host() is deliberately empty when nothing was ever saved.
     CHECK_GT(cfg.port(), 0);
 }
 
@@ -290,7 +292,9 @@ TEST_CASE("Server defaults")
     auto &cfg = Config::instance();
     CHECK(cfg.musicDirectory().isEmpty());
     CHECK_EQ(cfg.reconnectDelay(), 2000);
-    CHECK_EQ(cfg.connectionTimeout(), 5000);
+    // Unset rather than 5000: mpd-env resolves MPD_TIMEOUT / the default
+    // at connect time, mirroring host() and port().
+    CHECK_EQ(cfg.connectionTimeout(), 0);
 }
 
 TEST_CASE("Server round-trip")

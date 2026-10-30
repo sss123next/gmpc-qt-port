@@ -25,6 +25,7 @@ endfunction()
 add_library(testcore OBJECT
     ${CMAKE_SOURCE_DIR}/src/core/config.cpp
     ${CMAKE_SOURCE_DIR}/src/core/connection.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/mpd-env.cpp
     ${CMAKE_SOURCE_DIR}/src/core/playlist-model.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/music-database-model.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/file-system-model.cpp
@@ -195,3 +196,11 @@ target_link_libraries(test-discogs-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Netw
     doctest::doctest)
 target_include_directories(test-discogs-provider PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-discogs-provider COMMAND test-discogs-provider)
+
+# ── MPD_* environment variable test ───────────────────────────────────────
+
+add_executable(test-mpd-env test-mpd-env.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/mpd-env.cpp)
+target_link_libraries(test-mpd-env PRIVATE Qt6::Core doctest::doctest)
+target_include_directories(test-mpd-env PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-mpd-env COMMAND test-mpd-env)

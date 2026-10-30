@@ -36,6 +36,7 @@ class CoverWidget;
 class SongInfo;
 class VolumeWidget;
 class MprisPlayer;
+struct MpdResolvedSettings;
 
 /// Top-level window composing all UI panels.
 class MainWindow : public QMainWindow {
@@ -89,6 +90,8 @@ private:
     void setupBrowserTabs();
     void connectSignals();
     void tryAutoConnect();
+    /// Opens the connection described by already-resolved settings.
+    void connectWith(const MpdResolvedSettings &r);
 
     Connection *conn_;
     MpdCommands *cmds_;

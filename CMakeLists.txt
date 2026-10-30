@@ -24,6 +24,8 @@ set(CORE_SOURCES
     src/core/mpd-commands.h
     src/core/config.cpp
     src/core/config.h
+    src/core/mpd-env.cpp
+    src/core/mpd-env.h
     src/core/playlist-model.cpp
     src/core/playlist-model.h
 )

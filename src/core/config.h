@@ -50,6 +50,9 @@ public:
     static Config &instance();
 
     // ── Connection ──────────────────────────────────────────────────
+    // Raw saved values only: an empty host or a zero port means "unset" and
+    // is resolved from MPD_HOST/MPD_PORT at connect time (see mpd-env.h),
+    // never folded in here.
     QString host() const;
     void setHost(const QString &h);
     int port() const;

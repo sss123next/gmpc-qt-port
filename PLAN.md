@@ -34,7 +34,8 @@
 | providers::LrcLib | ✅ DONE | LRCLIB, keyless, plain + synced lyrics |
 | tools::AsyncDownload | ✅ DONE | QNetworkAccessManager-based HTTP, get(QUrl) + get(QNetworkRequest) |
 | tools::Log | ✅ DONE | LOG_DEBUG/INFO/WARN/ERROR macros + file output |
-| tests | ✅ DONE | doctest + trompeloeil, **109** test cases (**17** suites, 100% passing) |
+| core::MpdEnv | ✅ DONE | `MPD_HOST`/`MPD_PORT`/`MPD_PASSWORD`/`MPD_TIMEOUT`; приоритет сохранённое > env > default; `pw@host`, Unix/abstract сокет, `[::1]:port`, сек/`ms` |
+| tests | ✅ DONE | doctest + trompeloeil, **172** test cases (**18** suites) |
 | Build (CMake + Nix flake) | ✅ DONE | Compiles, links, tests pass |
 
 ## Cover-art pipeline

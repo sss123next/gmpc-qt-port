@@ -56,8 +56,9 @@ bool Connection::connectToServer(const QString &host, int port,
         }
     }
 
-    LOG_INFO("Connected to MPD at %s:%d",
-             qPrintable(host), port);
+    LOG_INFO("Connected to MPD at %s (port %d)",
+             host.isEmpty() ? "<from environment>"
+                            : qPrintable(host), port);
     pollTimer_->start();
     emit connected();
     return true;
