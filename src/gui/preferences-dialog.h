@@ -45,5 +45,8 @@ private:
     // Window group
     QCheckBox    *startHidden_;
 
+    // Tray group
+    QCheckBox    *trayEnabled_;
+
     QDialogButtonBox *buttons_;
 };

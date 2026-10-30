@@ -101,8 +101,13 @@ void MainWindow::setupUi()
 
     setCentralWidget(central);
 
-    // Tray icon
-    trayIcon_ = new TrayIcon(conn_, cmds_, this);
+    // Tray icon (mainWindow = this for show/hide toggle)
+    trayIcon_ = new TrayIcon(conn_, cmds_, this, this);
+    trayIcon_->setVisible(cfg.trayEnabled());
+
+    // Start hidden if configured
+    if (cfg.startHidden())
+        hide();
 }
 
 void MainWindow::setupMenuBar()
@@ -221,14 +226,14 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
 {
     controlBar_->updateStatus(s);
     statusBar_->updateStatus(s);
-    trayIcon_->updateStatus(s);
+    const SongEntry *song = playlistModel_->currentSong();
+    trayIcon_->updateStatus(s, song);
 
     // Only update song-dependent widgets when the song actually changes.
     if (s.songId == lastSongId_)
         return;
     lastSongId_ = s.songId;
 
-    const SongEntry *song = playlistModel_->currentSong();
     songInfo_->showSong(song);
     if (song && !song->artist.isEmpty() && !song->album.isEmpty()) {
         coverWidget_->fetchCover(song->artist, song->album);

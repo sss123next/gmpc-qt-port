@@ -1,0 +1,33 @@
+# Doxyfile 1.12 — gmpc-qt
+# Run: cmake -B build && cmake --build build --target doc
+# or:  doxygen Doxyfile.in
+
+PROJECT_NAME           = "gmpc-qt"
+PROJECT_NUMBER         = 0.1.0
+OUTPUT_DIRECTORY       = /home/sss/git/gmpc-qt/build-tests/docs/doxygen
+INPUT                  = src
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.hpp *.cpp *.cc
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_ANON_NSPACES   = NO
+CASE_SENSE_NAMES       = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+USE_MDFILE_AS_MAINPAGE = README.md
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_NO_PARAMDOC       = NO
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+SORT_MEMBER_DOCS       = YES
+HAVE_DOT               = YES
+UML_LOOK               = YES
+UML_LIMIT_NUM_FIELDS   = 50
+TEMPLATE_RELATIONS     = YES
+DOT_GRAPH_MAX_NODES    = 50
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO

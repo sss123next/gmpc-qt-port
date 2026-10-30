@@ -1,8 +1,13 @@
 # gmpc → gmpc-qt: План синхронизации GUI
 
 **Цель:** Достичь функционального паритета с оригинальным gmpc (GTK2) по UI/UX.
-**Актуально на:** Phase 5b — keyboard shortcuts, context menus, memory optimization (RSS 100→49 MB).
+**Актуально на:** Phase 5c — tray icon, memory optimization, preferences.
 Build: 100% clean. Tests: 16/16 pass.
+
+**DE-agnostic policy:** Не используем AppIndicator, DBus, GNOME-специфичные API.
+Всё через `QSystemTrayIcon` — работает во всех X11-треях (tray2, waybar, polybar, stalonetray)
+и минималистичных DE (awesome, hyprland, i3, sway, XFCE, LXQt).
+GNOME без расширения AppIndicator — их проблемы.
 
 ---
 
@@ -42,17 +47,16 @@ Build: 100% clean. Tests: 16/16 pass.
 **Зависимости:** новые методы `addUri`, `playPos`, `clearQueue` в MpdCommands.
 **Оценка:** ~80 строк (выполнено).
 
-### 1.3 Tray icon — полноценный
+### 1.3 Tray icon — полноценный ✅ DONE
 Оригинал: gmpc-tray-icon2.c (~1200 строк, AppIndicator + StatusIcon, rich popup).
-**Файлы:** `src/gui/tray-icon.h/.cpp`
-**Подзадачи:**
-- [ ] AppIndicator backend (важно для GNOME)
-- [ ] Меню: Stop, Connect/Disconnect, Show/Hide
-- [ ] Rich popup: cover art 80px + song info + mini progress
-- [ ] Scroll → volume, middle-click → play/pause
-- [ ] Preference page: enable/disable, appindicator mode
-**Зависимости:** CoverWidget integration (1.4).
-**Оценка:** ~150 строк.
+**Реализация:** `TrayIcon` через `QSystemTrayIcon`. Rich tooltip с названием трека.
+Меню: Show/Hide, Play/Pause, Stop, Next, Previous, Quit.
+Preference: enable/disable в Preferences.
+`MainWindow`: `startHidden` и `trayEnabled` учитываются при старте.
+**DE-agnostic:** без AppIndicator, работает во всех X11-треях.
+**Файлы:** `src/gui/trayicon.h/.cpp`, `src/gui/preferences-dialog.h/.cpp`,
+`src/core/config.h/.cpp`
+**Оценка:** ~150 строк (выполнено).
 
 ### 1.4 Cover art + SongInfo + VolumeWidget в MainWindow ✅ DONE
 Оригинал: `metaimage_album_art` в `hbox_playlist_player` (верх).

@@ -1,0 +1,23 @@
+test-log 0 0
+test-config 0 0
+test-playlist-model 0 0
+test-db-browser 0 0
+test-file-browser 0 0
+test-search-browser 0 0
+test-playlist-editor 0 0
+test-volume-widget 0 0
+test-progress-slider 0 0
+test-song-info 0 0
+test-cover-widget 0 0
+---
+test-log
+test-config
+test-playlist-model
+test-db-browser
+test-file-browser
+test-search-browser
+test-playlist-editor
+test-volume-widget
+test-progress-slider
+test-song-info
+test-cover-widget

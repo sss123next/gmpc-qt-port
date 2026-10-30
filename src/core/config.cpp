@@ -52,5 +52,10 @@ bool Config::stopOnExit() const
 void Config::setStopOnExit(bool v)
     { s_.setValue("playback/stopOnExit", v); }
 
+bool Config::trayEnabled() const
+    { return s_.value("tray/enabled", true).toBool(); }
+void Config::setTrayEnabled(bool v)
+    { s_.setValue("tray/enabled", v); }
+
 void Config::sync()
     { s_.sync(); }

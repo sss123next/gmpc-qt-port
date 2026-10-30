@@ -77,6 +77,13 @@ void PreferencesDialog::setupUi()
     winForm->addRow(startHidden_);
     root->addWidget(winGroup);
 
+    // ── Tray group ───────────────────────────────────────────────────
+    auto *trayGroup = new QGroupBox(tr("Tray Icon"), this);
+    auto *trayForm = new QFormLayout(trayGroup);
+    trayEnabled_ = new QCheckBox(tr("Enable system tray icon"), this);
+    trayForm->addRow(trayEnabled_);
+    root->addWidget(trayGroup);
+
     // ── Buttons ──────────────────────────────────────────────────────
     buttons_ = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -103,6 +110,7 @@ void PreferencesDialog::loadFromConfig()
     autoConnect_->setChecked(cfg.autoConnect());
     stopOnExit_->setChecked(cfg.stopOnExit());
     startHidden_->setChecked(cfg.startHidden());
+    trayEnabled_->setChecked(cfg.trayEnabled());
 }
 
 void PreferencesDialog::accept()
@@ -125,6 +133,7 @@ void PreferencesDialog::accept()
     cfg.setAutoConnect(autoConnect_->isChecked());
     cfg.setStopOnExit(stopOnExit_->isChecked());
     cfg.setStartHidden(startHidden_->isChecked());
+    cfg.setTrayEnabled(trayEnabled_->isChecked());
     cfg.sync();
 
     QDialog::accept();

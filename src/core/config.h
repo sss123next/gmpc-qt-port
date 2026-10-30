@@ -40,6 +40,10 @@ public:
     bool stopOnExit() const;
     void setStopOnExit(bool v);
 
+    // ── Tray ─────────────────────────────────────────────────────────
+    bool trayEnabled() const;
+    void setTrayEnabled(bool v);
+
     /// Flush pending changes to disk.
     void sync();
 
