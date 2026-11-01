@@ -25,7 +25,9 @@ endfunction()
 add_library(testcore OBJECT
     ${CMAKE_SOURCE_DIR}/src/core/config.cpp
     ${CMAKE_SOURCE_DIR}/src/core/connection.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/mpd-error.cpp
     ${CMAKE_SOURCE_DIR}/src/core/mpd-env.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/search-engine.cpp
     ${CMAKE_SOURCE_DIR}/src/core/playlist-model.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/music-database-model.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/file-system-model.cpp
@@ -110,7 +112,7 @@ add_test(NAME test-volume-widget COMMAND test-volume-widget)
 
 add_executable(test-progress-slider test-progress-slider.cpp
     ${CMAKE_SOURCE_DIR}/src/widgets/progress-slider.cpp)
-target_link_libraries(test-progress-slider PRIVATE Qt6::Widgets doctest::doctest)
+target_link_libraries(test-progress-slider PRIVATE Qt6::Widgets Qt6::Test doctest::doctest)
 target_include_directories(test-progress-slider PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-progress-slider COMMAND test-progress-slider)
 
@@ -204,3 +206,28 @@ add_executable(test-mpd-env test-mpd-env.cpp
 target_link_libraries(test-mpd-env PRIVATE Qt6::Core doctest::doctest)
 target_include_directories(test-mpd-env PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-mpd-env COMMAND test-mpd-env)
+
+# ── Browser lifecycle (enable on connect / activate on show) ────────────────
+
+add_executable(test-browser-stack test-browser-stack.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/browser-stack.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/browser-widget.h)
+target_link_libraries(test-browser-stack PRIVATE Qt6::Widgets doctest::doctest)
+target_include_directories(test-browser-stack PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-browser-stack COMMAND test-browser-stack)
+
+# ── Ошибки libmpdclient и имена путей MPD ────────────────────────────────────
+
+add_executable(test-mpd-error test-mpd-error.cpp)
+target_link_libraries(test-mpd-error PRIVATE testcore Qt6::Widgets Qt6::Test
+    doctest::doctest PkgConfig::LIBMPDCLIENT)
+target_include_directories(test-mpd-error PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-mpd-error COMMAND test-mpd-error)
+
+# ── Движок поиска (сборка шагов протокола, отмена устаревших ответов) ───────
+
+add_executable(test-search-engine test-search-engine.cpp)
+target_link_libraries(test-search-engine PRIVATE testcore Qt6::Widgets Qt6::Test
+    doctest::doctest PkgConfig::LIBMPDCLIENT)
+target_include_directories(test-search-engine PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-search-engine COMMAND test-search-engine)

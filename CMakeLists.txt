@@ -20,12 +20,16 @@ pkg_check_modules(XCB_KEYSYMS REQUIRED IMPORTED_TARGET xcb-keysyms)
 set(CORE_SOURCES
     src/core/connection.cpp
     src/core/connection.h
+    src/core/mpd-error.cpp
+    src/core/mpd-error.h
     src/core/mpd-commands.cpp
     src/core/mpd-commands.h
     src/core/config.cpp
     src/core/config.h
     src/core/mpd-env.cpp
     src/core/mpd-env.h
+    src/core/search-engine.cpp
+    src/core/search-engine.h
     src/core/playlist-model.cpp
     src/core/playlist-model.h
 )
@@ -33,6 +37,8 @@ set(CORE_SOURCES
 set(GUI_SOURCES
     src/gui/mainwindow.cpp
     src/gui/mainwindow.h
+    src/gui/browser-stack.cpp
+    src/gui/browser-stack.h
     src/gui/controlbar.cpp
     src/gui/controlbar.h
     src/gui/statusbar.cpp

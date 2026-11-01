@@ -1,6 +1,7 @@
 #include "controlbar.h"
 #include "core/mpd-commands.h"
 #include "widgets/cover-widget.h"
+#include "widgets/progress-slider.h"
 #include "widgets/song-info.h"
 #include "widgets/volume-widget.h"
 
@@ -37,9 +38,11 @@ ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
     connect(nextBtn_, &QPushButton::clicked, cmds_, &MpdCommands::next);
 
     // — Seek slider + time —
-    seekSlider_ = new QSlider(Qt::Horizontal, this);
-    seekSlider_->setRange(0, 0);
+    seekSlider_ = new ProgressSlider(Qt::Horizontal, this);
     seekSlider_->setMaximumWidth(300);
+    // Сигнал уже в секундах → прямо в seekcur (MpdCommands::seek).
+    connect(seekSlider_, &ProgressSlider::seekRequested,
+            cmds_, &MpdCommands::seek);
 
     timeLabel_ = new QLabel("0:00 / 0:00", this);
 
@@ -108,10 +111,10 @@ void ControlBar::updateStatus(const Connection::Status &s)
     playBtn_->setChecked(s.state == MPD_STATE_PLAY);
     playBtn_->setIcon(s.state == MPD_STATE_PLAY ? pauseIcon_ : playIcon_);
 
-    if (s.totalDuration > 0) {
-        seekSlider_->setRange(0, static_cast<int>(s.totalDuration));
-        seekSlider_->setValue(static_cast<int>(s.elapsed));
-    }
+    // Шкала слайдера — промилле, поэтому позиция задаётся парой (elapsed, total):
+    // внутри ProgressSlider деление уже сделано и на время перетаскивания значение
+    // из polling не применяется.
+    seekSlider_->setPosition(s.elapsed, s.totalDuration);
 
     const int elapsed = static_cast<int>(s.elapsed);
     const int total   = static_cast<int>(s.totalDuration);

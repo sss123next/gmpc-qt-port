@@ -26,6 +26,7 @@ class PlaylistModel;
 class ControlBar;
 class StatusBar;
 class TrayIcon;
+class BrowserStack;
 class DatabaseBrowser;
 class CurrentPlaylist;
 class FileBrowser;
@@ -104,6 +105,7 @@ private:
     QTreeView *sidebar_;              ///< Category tree (sidebar).
     QTabBar *tabBar_;                 ///< Breadcrumb tabs above central stack.
     QStackedWidget *centralStack_;    ///< Right panel stacked browsers.
+    BrowserStack *browserStack_;      ///< Enable/activate lifecycle of the browsers.
 
     // Browsers
     CurrentPlaylist *currentPlaylist_;
@@ -149,5 +151,7 @@ protected:
 
     // Cached song-id to avoid redundant cover/songinfo updates.
     int lastSongId_ = -1;
+    /// Last volume applied to the widget, so a drag is not fought by polling.
+    int lastVolume_ = -1;
 };
 

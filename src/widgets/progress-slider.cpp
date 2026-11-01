@@ -55,6 +55,8 @@ void ProgressSlider::mouseReleaseEvent(QMouseEvent *event)
 {
     seeking_ = false;
     QSlider::mouseReleaseEvent(event);
-    if (maximum() > 0)
-        emit seekRequested(value());
+    // Значение шкалы — промилле; наружу идут секунды, иначе seekcur получил бы
+    // «1000 секунд» вместо конца трека.
+    if (maximum() > 0 && total_ > 0)
+        emit seekRequested(static_cast<int>(total_ * value() / maximum() + 0.5f));
 }

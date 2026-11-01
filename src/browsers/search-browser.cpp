@@ -6,20 +6,18 @@
 #include "search-browser.h"
 #include "core/connection.h"
 
-#include <mpd/search.h>
-#include <mpd/song.h>
-#include <mpd/tag.h>
-
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QLabel>
 #include <QLineEdit>
+#include <QTimer>
 #include <QTreeView>
 #include <QVBoxLayout>
 
 // ── Search field combo ──────────────────────────────────────────────────────
 
-/// Indices into the field combo — maps to MPD_TAG or "all".
+/// Индексы элементов комбополя поиска (порядок addItem() в конструкторе).
 enum SearchField {
     FieldAll = 0,
     FieldArtist,
@@ -30,16 +28,16 @@ enum SearchField {
     FieldCount
 };
 
-/// Return the MPD_TAG for a specific field, or MPD_TAG_COUNT for "all".
-static enum mpd_tag_type fieldToTag(int field)
+/// Поле запроса по индексу комбполя: «All fields» = any-tag, а не семь AND-тегов.
+static SearchQuery::Field searchFieldForIndex(int index)
 {
-    switch (field) {
-    case FieldArtist:  return MPD_TAG_ARTIST;
-    case FieldAlbum:   return MPD_TAG_ALBUM;
-    case FieldTitle:   return MPD_TAG_TITLE;
-    case FieldGenre:   return MPD_TAG_GENRE;
-    case FieldComposer: return MPD_TAG_COMPOSER;
-    default:           return MPD_TAG_COUNT; // "all"
+    switch (index) {
+    case FieldArtist:   return SearchQuery::Field::Artist;
+    case FieldAlbum:    return SearchQuery::Field::Album;
+    case FieldTitle:    return SearchQuery::Field::Title;
+    case FieldGenre:    return SearchQuery::Field::Genre;
+    case FieldComposer: return SearchQuery::Field::Composer;
+    default:            return SearchQuery::Field::Any;
     }
 }
 
@@ -121,10 +119,13 @@ const SearchResultItem *SearchResultModel::resultAt(int row) const
 SearchBrowser::SearchBrowser(Connection *conn, QWidget *parent)
     : BrowserWidget(parent)
     , conn_(conn)
+    , engine_(new SearchEngine(this))
+    , debounceTimer_(new QTimer(this))
     , model_(new SearchResultModel(this))
     , view_(new QTreeView(this))
     , searchEdit_(new QLineEdit(this))
     , fieldCombo_(new QComboBox(this))
+    , countLabel_(new QLabel(this))
 {
     auto *lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
@@ -140,8 +141,30 @@ SearchBrowser::SearchBrowser(Connection *conn, QWidget *parent)
     fieldCombo_->setCurrentIndex(FieldAll);
 
     searchEdit_->setPlaceholderText(tr("Search songs\u2026"));
+
+    // Дебаунс: печатать по буквам с запросом за ~2 с нельзя, поэтому ищем только
+    // после паузы. Enter и смена поля ищут сразу (таймер при этом гасится).
+    debounceTimer_->setSingleShot(true);
+    debounceTimer_->setInterval(kDebounceMs);
+    connect(debounceTimer_, &QTimer::timeout, this, &SearchBrowser::executeSearch);
+    connect(searchEdit_, &QLineEdit::textChanged, this, &SearchBrowser::scheduleSearch);
     connect(searchEdit_, &QLineEdit::returnPressed,
             this, &SearchBrowser::executeSearch);
+    connect(fieldCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SearchBrowser::onFieldChanged);
+
+    // Ответы движка приходят из worker-потока через queued connection; устаревшие
+    // (отменённые) SearchEngine отфильтровывает сам.
+    connect(engine_, &SearchEngine::resultsReady, this,
+            [this](quint64 /*requestId*/, const QVector<SearchHit> &hits, int total,
+                   const QString &error) {
+        if (!error.isEmpty()) {
+            model_->setResults({});
+            showStatusText(tr("Search failed: %1").arg(error));
+            return;
+        }
+        applyResults(hits, total);
+    });
 
     topRow->addWidget(fieldCombo_);
     topRow->addWidget(searchEdit_, 1);
@@ -153,89 +176,125 @@ SearchBrowser::SearchBrowser(Connection *conn, QWidget *parent)
     view_->header()->setStretchLastSection(true);
     view_->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
+    countLabel_->setText(tr("Type to search"));
+
     lay->addLayout(topRow);
     lay->addWidget(view_);
+    lay->addWidget(countLabel_);
+}
 
-    setEnabled(false); // disabled until connected
+SearchBrowser::~SearchBrowser()
+{
+    // Worker-поток может быть ещё в чтении ответа — отменяем до того, как виджет
+    // перестанет принимать его сигналы.
+    engine_->cancel();
+}
+
+void SearchBrowser::scheduleSearch()
+{
+    if (!currentQuery().isValid()) {
+        // Пустой ввод убирает старые строки сразу: ждать дебаунс ради запроса,
+        // который сервер всё равно не получит, смысла нет.
+        debounceTimer_->stop();
+        executeSearch();
+        return;
+    }
+    debounceTimer_->start(kDebounceMs);
+}
+
+SearchQuery SearchBrowser::currentQuery() const
+{
+    SearchQuery q;
+    q.term = searchEdit_->text().trimmed();
+    q.field = searchFieldForIndex(fieldCombo_->currentIndex());
+    return q;
+}
+
+void SearchBrowser::showStatusText(const QString &text)
+{
+    countLabel_->setText(text);
 }
 
 void SearchBrowser::onConnectionChanged(bool connected)
 {
     setEnabled(connected);
+    if (!conn_)
+        return;
+
+    if (!connected) {
+        debounceTimer_->stop();
+        engine_->cancel();
+        model_->setResults({});
+        showStatusText(tr("Disconnected"));
+        return;
+    }
+
+    // Поиск ходит своим соединением (libmpdclient: один handle обслуживает один
+    // поток), поэтому берём настройки того, с которым уже подключились.
+    SearchEngine::Endpoint endpoint;
+    endpoint.host = conn_->host();
+    endpoint.port = conn_->port();
+    endpoint.password = conn_->password();
+    endpoint.timeoutMs = conn_->timeoutMs();
+    engine_->setEndpoint(endpoint);
+}
+
+void SearchBrowser::onDeactivate()
+{
+    // Ответ ушедшего экрана не нужен никому, а стоит он до двух секунд скана базы.
+    debounceTimer_->stop();
+    engine_->cancel();
 }
 
 void SearchBrowser::executeSearch()
 {
-    const QString query = searchEdit_->text().trimmed();
-    if (query.isEmpty())
+    debounceTimer_->stop();
+
+    const SearchQuery query = currentQuery();
+    if (!query.isValid()) {
+        // Пустой запрос сервер оплачивает полным обходом базы, а результатов в нём
+        // ровно ноль. Зачем платить — просто очищаем экран.
+        model_->setResults({});
+        showStatusText(tr("Type to search"));
         return;
-
-    if (!conn_ || !conn_->isConnected())
-        return;
-
-    const int fieldIndex = fieldCombo_->currentIndex();
-    const enum mpd_tag_type tag = fieldToTag(fieldIndex);
-
-    if (!mpd_search_db_songs(conn_->raw(), false))
-        return;
-
-    if (tag != MPD_TAG_COUNT) {
-        // Single-tag search
-        if (!mpd_search_add_tag_constraint(
-                conn_->raw(), MPD_OPERATOR_DEFAULT,
-                tag, query.toUtf8().constData()) ||
-            !mpd_search_commit(conn_->raw()))
-        {
-            mpd_search_cancel(conn_->raw());
-            return;
-        }
-    } else {
-        // "All fields" — search across all known tags
-        bool ok = true;
-        for (auto t : {
-            MPD_TAG_ARTIST, MPD_TAG_ALBUM_ARTIST,
-            MPD_TAG_TITLE,  MPD_TAG_ALBUM,
-            MPD_TAG_GENRE,  MPD_TAG_COMPOSER,
-            MPD_TAG_PERFORMER,
-        }) {
-            if (!mpd_search_add_tag_constraint(
-                    conn_->raw(), MPD_OPERATOR_DEFAULT,
-                    t, query.toUtf8().constData())) {
-                ok = false;
-                break;
-            }
-        }
-        if (!ok || !mpd_search_commit(conn_->raw())) {
-            mpd_search_cancel(conn_->raw());
-            return;
-        }
     }
 
-    // Collect results
-    QVector<SearchResultItem> results;
-    while (auto *song = mpd_recv_song(conn_->raw())) {
+    engine_->search(query);   // предыдущий запрос движок отменяет сам
+}
+
+void SearchBrowser::applyResults(const QVector<SearchHit> &hits, int total)
+{
+    QVector<SearchResultItem> rows;
+    rows.reserve(hits.size());
+    for (const SearchHit &hit : hits) {
         SearchResultItem item;
-        item.uri    = QString::fromUtf8(mpd_song_get_uri(song));
-        item.artist = QString::fromUtf8(
-            mpd_song_get_tag(song, MPD_TAG_ARTIST, 0));
-        item.title  = QString::fromUtf8(
-            mpd_song_get_tag(song, MPD_TAG_TITLE, 0));
-        item.album  = QString::fromUtf8(
-            mpd_song_get_tag(song, MPD_TAG_ALBUM, 0));
-        item.genre  = QString::fromUtf8(
-            mpd_song_get_tag(song, MPD_TAG_GENRE, 0));
-        item.duration = mpd_song_get_duration(song);
-        results.append(item);
-
-        mpd_song_free(song);
+        item.uri      = hit.uri;
+        item.artist   = hit.artist;
+        item.title    = hit.title;
+        item.album    = hit.album;
+        item.genre    = hit.genre;
+        item.duration = hit.duration;
+        rows.append(item);
     }
+    model_->setResults(rows);
 
-    model_->setResults(results);
+    if (total > static_cast<int>(rows.size())) {
+        // Окно заполнено целиком — за ним ещё есть совпадения, сколько именно
+        // сказал searchcount.
+        showStatusText(tr("%1 of %2 matches")
+                           .arg(static_cast<qlonglong>(rows.size()))
+                           .arg(total));
+    } else {
+        showStatusText(tr("%n match(es)", "", static_cast<int>(rows.size())));
+    }
 }
 
 void SearchBrowser::onFieldChanged(int index)
 {
+    // Смена поля меняет смысл уже набранного текста, поэтому ищем сразу, не дожидаясь
+    // конца дебаунса.
     Q_UNUSED(index);
-    // Re-focus the search input for immediate typing
     searchEdit_->setFocus();
+    if (currentQuery().isValid())
+        executeSearch();
 }

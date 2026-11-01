@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "browser-stack.h"
 #include "controlbar.h"
 #include "statusbar.h"
 #include "trayicon.h"
@@ -313,6 +314,7 @@ void MainWindow::setupSidebarLabel()
 void MainWindow::setupCentralArea()
 {
     centralStack_ = new QStackedWidget(this);
+    browserStack_ = new BrowserStack(centralStack_, this);
 
     currentPlaylist_ = new CurrentPlaylist(conn_, playlistModel_, this);
     databaseBrowser_ = new DatabaseBrowser(conn_, this);
@@ -320,13 +322,16 @@ void MainWindow::setupCentralArea()
     searchBrowser_   = new SearchBrowser(conn_, this);
     playlistEditor_  = new PlaylistEditor(conn_, this);
 
-    centralStack_->addWidget(currentPlaylist_);
-    centralStack_->addWidget(databaseBrowser_);
-    centralStack_->addWidget(fileBrowser_);
-    centralStack_->addWidget(searchBrowser_);
-    centralStack_->addWidget(playlistEditor_);
+    // Order here defines the stack index and must match setupSidebar() and
+    // setupBrowserTabs(), which both address pages by row number.
+    browserStack_->addBrowser(currentPlaylist_);
+    browserStack_->addBrowser(databaseBrowser_);
+    browserStack_->addBrowser(fileBrowser_);
+    browserStack_->addBrowser(searchBrowser_);
+    browserStack_->addBrowser(playlistEditor_);
 
-    centralStack_->setCurrentWidget(currentPlaylist_);
+    // Browsers start disabled; onConnected() hands them the connection.
+    browserStack_->setConnected(conn_->isConnected());
 
     // ── Context menus for browsers that expose URI via data roles ──────
     // SearchBrowser: SearchResultItem::uri
@@ -368,7 +373,7 @@ void MainWindow::setupBrowserTabs()
 
     connect(tabBar_, &QTabBar::currentChanged, this, [this](int idx) {
         if (idx >= 0)
-            centralStack_->setCurrentIndex(idx);
+            browserStack_->setActiveIndex(idx);
     });
 
     connect(centralStack_, &QStackedWidget::currentChanged, this, [this](int idx) {
@@ -388,11 +393,16 @@ void MainWindow::connectSignals()
     connect(conn_, &Connection::errorOccurred, this, [this](const QString &msg) {
         statusBar_->showMessage(tr("MPD: %1").arg(msg), 8000);
     });
+    // Текст уже содержит контекст команды («lsinfo: …»), соединение при этом живое —
+    // показываем как временное сообщение, не меняя индикатор подключения.
+    connect(conn_, &Connection::commandFailed, this, [this](const QString &msg) {
+        statusBar_->showMessage(tr("MPD: %1").arg(msg), 8000);
+    });
 
     connect(sidebar_->selectionModel(), &QItemSelectionModel::currentChanged,
             this, [this](const QModelIndex &idx) {
         if (!idx.isValid()) return;
-        centralStack_->setCurrentIndex(idx.row());
+        browserStack_->setActiveIndex(idx.row());
     });
 }
 
@@ -416,12 +426,16 @@ void MainWindow::connectWith(const MpdResolvedSettings &r)
 void MainWindow::onConnected()
 {
     statusBar_->showConnected();
-    playlistModel_->loadFromConnection(conn_->raw());
+    playlistModel_->loadFromConnection(*conn_);
+    browserStack_->setConnected(true);
 }
 
 void MainWindow::onDisconnected()
 {
     statusBar_->showDisconnected();
+    browserStack_->setConnected(false);
+    lastSongId_ = -1;
+    songInfo_->clear();
     playlistModel_->clear();
 }
 
@@ -429,19 +443,31 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
 {
     controlBar_->updateStatus(s);
     statusBar_->updateStatus(s);
+
+    // Volume used to be applied only when the song changed, so a change from
+    // another client or MPRIS never reached the widget.  Applying it on every
+    // status tick is safe because we skip values already shown.
+    if (s.volume >= 0 && s.volume != lastVolume_) {
+        lastVolume_ = s.volume;
+        volumeWidget_->setVolume(s.volume);
+    }
+
+    // MPD alone decides which track plays: `songid` survives queue edits while
+    // positions shift, so pass both and let the model resolve them.
+    playlistModel_->setCurrentSong(s.songId, s.songPos);
     const SongEntry *song = playlistModel_->currentSong();
     trayIcon_->updateStatus(s, song);
 
     // Only update song-dependent widgets when the song actually changes.
-    if (s.songId == lastSongId_)
+    const int songId = song ? song->id : -1;
+    if (songId == lastSongId_)
         return;
-    lastSongId_ = s.songId;
+    lastSongId_ = songId;
 
     songInfo_->showSong(song);
     if (song && !song->artist.isEmpty() && !song->album.isEmpty()) {
         coverWidget_->fetchCover(song->artist, song->album);
     }
-    volumeWidget_->setVolume(s.volume);
 }
 
 void MainWindow::showPreferences()

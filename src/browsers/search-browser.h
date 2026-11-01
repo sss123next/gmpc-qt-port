@@ -3,16 +3,24 @@
 /**
  * @file search-browser.h
  * @brief MPD search browser — QLineEdit + QTreeView with search results.
+ *
+ * Сам запрос живёт в SearchEngine (worker-поток со своим mpd_connection): поиск
+ * без совпадений стоит серверу ~2 с полного скана базы, поэтому он не имеет права
+ * выполняться в GUI-потоке. Отсюда дебаунс ввода и окно в 200 трэков вместо
+ * «всей базы».
  */
 
 #include "browser-widget.h"
+#include "core/search-engine.h"
 
 #include <QAbstractTableModel>
 #include <QVector>
 
 class Connection;
 class QComboBox;
+class QLabel;
 class QLineEdit;
+class QTimer;
 class QTreeView;
 
 // ── Search result model ─────────────────────────────────────────────────────
@@ -62,11 +70,12 @@ class SearchBrowser : public BrowserWidget {
     Q_OBJECT
 public:
     explicit SearchBrowser(Connection *conn, QWidget *parent = nullptr);
-    ~SearchBrowser() override = default;
+    ~SearchBrowser() override;
 
     // BrowserWidget interface
     void onActivate() override {}
-    void onDeactivate() override {}
+    /// Уходя с экрана, бросаем незавершённый поиск: его ответ уже не нужен.
+    void onDeactivate() override;
     void onConnectionChanged(bool connected) override;
     QString title() const override { return tr("Search"); }
     QString iconName() const override { return QStringLiteral("edit-find"); }
@@ -74,15 +83,34 @@ public:
     /// The embedded tree view (for context menu setup).
     QTreeView *treeView() const { return view_; }
 
+    /// Движок поиска — свой worker-поток и соединение; нужен тестам и настройке.
+    SearchEngine *engine() const { return engine_; }
+
 private slots:
+    /** @brief Немедленный поиск (Enter, смена поля).
+     *  Пустой ввод очищает результат: запрос «на пустое место» стоит серверу
+     *  полный обход базы (~2 с), слать его нельзя.
+     */
     void executeSearch();
     /// Called when the search field combo changes.
     void onFieldChanged(int index);
 
 private:
+    /// Перезапускает дебаунс-таймер — поиск уходит в движок только после паузы ввода.
+    void scheduleSearch();
+    SearchQuery currentQuery() const;
+    void applyResults(const QVector<SearchHit> &hits, int total);
+    void showStatusText(const QString &text);
+
     Connection *conn_;
+    SearchEngine *engine_;
+    QTimer *debounceTimer_;
     SearchResultModel *model_;
     QTreeView *view_;
     QLineEdit *searchEdit_;
     QComboBox *fieldCombo_;
+    QLabel *countLabel_;
+
+    /// Дебаунс ввода: редкий запрос стоит ~2 с, печатать по буквам с таким ценником нельзя.
+    static constexpr int kDebounceMs = 300;
 };

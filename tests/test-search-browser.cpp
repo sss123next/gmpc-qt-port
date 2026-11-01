@@ -10,6 +10,7 @@
  */
 
 #include <QApplication>
+#include <QLabel>
 #include <QLineEdit>
 #include <QTreeView>
 
@@ -120,8 +121,8 @@ TEST_CASE("SearchBrowser is a BrowserWidget subclass")
     SearchBrowser browser(&conn);
     CHECK(browser.title() == "Search");
 
-    // Default state: disabled until connected
-    CHECK_FALSE(browser.isEnabled());
+    // Enabled state is owned by BrowserStack, so a bare browser starts enabled.
+    CHECK(browser.isEnabled());
 }
 
 TEST_CASE("SearchBrowser contains QLineEdit and QTreeView")
@@ -153,3 +154,107 @@ TEST_CASE("SearchBrowser icon name is correct")
     SearchBrowser browser(&conn);
     CHECK(browser.iconName() == "edit-find");
 }
+
+// ── Поиск через движок (B3): запрос вне GUI-потока, результат из сигнала ─────
+
+namespace {
+
+/// Подписывает в модель ровно то, что прислал бы worker.
+SearchHit makeHit(const QString &uri, const QString &artist, const QString &title)
+{
+    SearchHit h;
+    h.uri = uri;
+    h.artist = artist;
+    h.title = title;
+    h.album = "Album";
+    h.genre = "Rock";
+    h.duration = 200;
+    return h;
+}
+
+QLabel *countLabel(SearchBrowser &browser)
+{
+    auto labels = browser.findChildren<QLabel *>();
+    return labels.isEmpty() ? nullptr : labels.first();
+}
+
+} // namespace
+
+TEST_CASE("SearchBrowser starts with an empty result and a hint")
+{
+    MockConnection conn;
+    SearchBrowser browser(&conn);
+    auto *view = browser.treeView();
+    REQUIRE(view->model() != nullptr);
+    CHECK_EQ(view->model()->rowCount({}), 0);
+
+    QLabel *label = countLabel(browser);
+    REQUIRE(label != nullptr);
+    CHECK_FALSE(label->text().isEmpty());
+}
+
+TEST_CASE("results arriving from the worker fill the model and the counter")
+{
+    MockConnection conn;
+    SearchBrowser browser(&conn);
+    auto *model = browser.treeView()->model();
+
+    // total > числа строк — значит за окном ещё есть совпадения (searchcount).
+    Q_EMIT browser.engine()->resultsReady(1, {makeHit("/a.mp3", "A", "T1"),
+                                             makeHit("/b.mp3", "B", "T2")},
+                                         5700, QString());
+
+    CHECK_EQ(model->rowCount({}), 2);
+    CHECK_EQ(model->data(model->index(0, SearchResultModel::ColArtist)).toString(),
+             "A");
+    CHECK_EQ(model->data(model->index(1, SearchResultModel::ColTitle)).toString(),
+             "T2");
+
+    QLabel *label = countLabel(browser);
+    REQUIRE(label != nullptr);
+    CHECK(label->text().contains("5700"));
+}
+
+TEST_CASE("an engine error clears stale rows and reports the reason")
+{
+    MockConnection conn;
+    SearchBrowser browser(&conn);
+    auto *model = browser.treeView()->model();
+
+    Q_EMIT browser.engine()->resultsReady(1, {makeHit("/a.mp3", "A", "T")}, 1,
+                                         QString());
+    REQUIRE_EQ(model->rowCount({}), 1);
+
+    Q_EMIT browser.engine()->resultsReady(2, {}, -1, QStringLiteral("boom"));
+    CHECK_EQ(model->rowCount({}), 0);
+    CHECK(countLabel(browser)->text().contains("boom"));
+}
+
+TEST_CASE("empty input never reaches the engine and clears the screen") {
+    MockConnection conn;
+    SearchBrowser browser(&conn);
+    auto *model = browser.treeView()->model();
+    auto *edit = browser.findChild<QLineEdit *>();
+    REQUIRE(edit != nullptr);
+
+    Q_EMIT browser.engine()->resultsReady(1, {makeHit("/a.mp3", "A", "T")}, 1,
+                                         QString());
+    REQUIRE_EQ(model->rowCount({}), 1);
+
+    // Пробел — не запрос: сервер обошёл бы базу целиком ради нуля строк.
+    edit->setText("   ");
+    QCoreApplication::processEvents();
+    CHECK_EQ(model->rowCount({}), 0);
+}
+
+TEST_CASE("leaving the screen cancels the pending search")
+{
+    MockConnection conn;
+    SearchBrowser browser(&conn);
+    auto *edit = browser.findChild<QLineEdit *>();
+    edit->setText("рамок");   // ставит дебаунс-таймер в ожидание
+
+    browser.onDeactivate();   // не должно ни крашнуться, ни оставить запроса
+    CHECK_EQ(browser.treeView()->model()->rowCount({}), 0);
+}
+

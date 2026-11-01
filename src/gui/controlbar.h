@@ -14,13 +14,13 @@
 
 #include <QWidget>
 #include <QPushButton>
-#include <QSlider>
 #include <QLabel>
 #include <QIcon>
 #include "core/connection.h"
 
 class MpdCommands;
 class CoverWidget;
+class ProgressSlider;
 class SongInfo;
 class VolumeWidget;
 
@@ -44,7 +44,7 @@ private:
     QPushButton *playBtn_, *stopBtn_, *prevBtn_, *nextBtn_;
     QPushButton *repeatBtn_, *randomBtn_, *singleBtn_, *consumeBtn_;
     QPushButton *countdownBtn_;
-    QSlider *seekSlider_;
+    ProgressSlider *seekSlider_;   ///< Прогресс + перемотка (сигнал в секундах)
     QLabel *timeLabel_;
     QIcon playIcon_, pauseIcon_; ///< Pre-created to avoid standardIcon() per tick.
     bool countdown_ = false;     ///< Show remaining time instead of elapsed.
