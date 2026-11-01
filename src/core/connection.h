@@ -60,8 +60,61 @@ public:
     /// Close the MPD connection and stop the polling timer.
     void disconnect();
 
-    /// @returns true if conn_ is non-null and has no error.
+    /** @returns true, если соединение открыто и не сброшено в error-state.
+     *
+     *  Намеренно не зависит от mpd_connection_get_error(): одиночная неудачная
+     *  команда — это ошибка команды, а не потеря соединения (см. consumeError()).
+     */
     bool isConnected() const;
+
+    // -- параметры последнего подключения ------------------------------------
+
+    /** @name Настройки, с которыми было открыто соединение.
+     *
+     *  libmpdclient не даёт второе соединение из первого, а поиску нужен свой
+     *  handle (одно соединение обслуживает один поток). Значения — ровно те, что
+     *  передавались в connectToServer(); разрешение MPD_HOST/MPD_PASSWORD до вызова
+     *  остаётся за вызывающим (см. MpdResolvedSettings), поэтому host пустым здесь
+     *  не бывает после успешного подключения.
+     */
+    ///@{
+    const QString &host() const { return host_; }
+    int port() const { return port_; }
+    const QString &password() const { return password_; }
+    int timeoutMs() const { return timeoutMs_; }
+    ///@}
+
+    // -- ошибки команд -------------------------------------------------------
+
+    /** @brief Завершает текущий ответ MPD и выходит из error-state.
+     *  @param context Имя команды для сообщения и лога (может быть nullptr).
+     *  @returns текст ошибки или пустую строку, если ошибки не было.
+     *
+     *  Обязателен после любой неудачной mpd_send_… / mpd_run_…: libmpdclient
+     *  оставляет соединение в error-state, и все последующие команды падают с
+     *  «Cannot send a new command while receiving another response». Командная
+     *  ошибка (ACK сервера) испускает commandFailed() и соединение сохраняет;
+     *  фатальная — закрывает его и запускает переподключение с экспоненциальной
+     *  задержкой.
+     */
+    QString consumeError(const char *context = nullptr);
+
+    /** Завершает ответ MPD и снимает error-state в деструкторе, поэтому работает
+     *  и при выходе из блока по return/`goto`. mpd_response_finish() безопасен на
+     *  уже прочитанном или не начатом ответе (замерено: возвращает true, не блокирует). */
+    class ResponseScope {
+    public:
+        ResponseScope(Connection &conn, const char *context)
+            : conn_(conn), context_(context) {}
+        ~ResponseScope() { conn_.consumeError(context_); }
+
+        ResponseScope(const ResponseScope &) = delete;
+        ResponseScope &operator=(const ResponseScope &) = delete;
+
+    private:
+        Connection &conn_;
+        const char *context_;
+    };
 
     // -- status --------------------------------------------------------------
 
@@ -127,14 +180,44 @@ signals:
     /// Emitted on connection errors.
     void errorOccurred(const QString &message);
 
+    /** @brief MPD отклонил команду (ACK сервера или некорректные аргументы).
+     *
+     *  Соединение при этом остаётся подключённым — экран не надо переводить в
+     *  «офлайн», достаточно показать сообщение.
+     */
+    void commandFailed(const QString &message);
+
 private slots:
     /// Timer callback — fetches status and emits statusChanged if different.
     void pollStatus();
 
+    /// Повторная попытка подключиться после потери соединения.
+    void tryReconnect();
+
 private:
+    /** Закрывает соединение, испускает disconnected() и планирует попытку заново. */
+    void dropAndReconnect();
+
+    /// Ставит single-shot таймер переподключения с удвоенной задержкой.
+    void scheduleReconnect();
+
     mpd_connection *conn_ = nullptr;
     QTimer *pollTimer_ = nullptr;
     Status lastStatus_;
+
+    // Настройки последнего connectToServer() — для автопереподключения.
+    QString host_;
+    int port_ = 0;
+    QString password_;
+    int timeoutMs_ = 0;
+
+    bool connected_ = false;       ///< соединение установлено успешно
+    bool autoReconnecting_ = false;///< идём на reconnect (не сбрасывать задержку)
+    QTimer *reconnectTimer_ = nullptr;
+    int reconnectDelayMs_ = 0;     ///< 0 = переподключение не запланировано
+
+    static constexpr int kReconnectBaseMs = 1000;
+    static constexpr int kReconnectMaxMs = 30000;
 };
 
 Q_DECLARE_METATYPE(Connection::Status)
