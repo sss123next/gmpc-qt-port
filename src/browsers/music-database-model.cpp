@@ -34,6 +34,8 @@ void MusicDatabaseModel::loadArtists()
     if (!conn_ || !conn_->isConnected())
         return;
 
+    Connection::ResponseScope scope(*conn_, "listartists");
+
     if (!mpd_search_db_tags(conn_->raw(), MPD_TAG_ARTIST))
         return;
 
@@ -69,6 +71,8 @@ void MusicDatabaseModel::loadByTag(enum mpd_tag_type tag)
     qDeleteAll(root_->children);
     root_->children.clear();
     endResetModel();
+
+    Connection::ResponseScope scope(*conn_, "listtags");
 
     if (!mpd_search_db_tags(conn_->raw(), tag))
         return;
@@ -109,6 +113,8 @@ void MusicDatabaseModel::loadAlbums(const QModelIndex &idx)
 
     if (!conn_ || !conn_->isConnected())
         return;
+
+    Connection::ResponseScope scope(*conn_, "listalbums");
 
     const QByteArray artistName = artist->name.toUtf8();
 
@@ -163,6 +169,8 @@ void MusicDatabaseModel::loadTracks(const QModelIndex &idx)
 
     if (!conn_ || !conn_->isConnected())
         return;
+
+    Connection::ResponseScope scope(*conn_, "searchalbum");
 
     const QByteArray artistName = artist->name.toUtf8();
     const QByteArray albumName  = album->name.toUtf8();

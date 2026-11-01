@@ -14,12 +14,21 @@
 
 class Connection;
 
+/** @brief Отображаемое имя для пути, возвращённого MPD: последний компонент.
+ *
+ *  lsinfo отдаёт относительные к music_directory пути целиком
+ *  («humor/karcev»), поэтому узел дерева хранит путь ровно как его вернул MPD, а
+ *  показывает basename — как g_path_get_basename() в оригинальном gmpc.
+ *  Хвостовые «/» в имя не входят; путь из одних слэшей даёт пустую строку.
+ */
+[[nodiscard]] QString mpdBasename(const QString &path);
+
 /// A node in the MPD file-system tree.
 struct FileNode {
     enum Type { Directory, Song, Playlist, Root };
     Type type;
     QString name;
-    QString path;     ///< full virtual path (empty for root)
+    QString path;     ///< путь относительно music_directory, как его вернул MPD
     FileNode *parent = nullptr;
     QVector<FileNode *> children;
     unsigned duration = 0; ///< seconds (only for Song)

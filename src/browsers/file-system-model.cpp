@@ -12,6 +12,18 @@
 #include <mpd/playlist.h>
 #include <mpd/database.h>
 
+QString mpdBasename(const QString &path)
+{
+    int end = path.size();
+    while (end > 0 && path.at(end - 1) == QLatin1Char('/'))
+        --end;                    // хвостовые слэши в имя не входят
+    if (end == 0)
+        return {};
+
+    const int slash = path.lastIndexOf(QLatin1Char('/'), end - 1);
+    return path.mid(slash + 1, end - slash - 1);   // slash < 0 → от начала пути
+}
+
 FileSystemModel::FileSystemModel(Connection *conn, QObject *parent)
     : QAbstractItemModel(parent)
     , conn_(conn)
@@ -159,11 +171,13 @@ void FileSystemModel::loadDirectory(FileNode *node)
 
     const QByteArray path = node->path.toUtf8();
 
-    // send the listmeta command
-    if (!mpd_send_list_meta(conn_->raw(), path.constData()))
-        return; // error, bail
+    // Ответ MPD обязан быть дочитан или завершён, иначе соединение останется в
+    // error-state и все последующие команды упадут с «Cannot send a new command».
+    Connection::ResponseScope scope(*conn_, "lsinfo");
 
-    // collect all children into a temp array first, then bulk-insert
+    if (!mpd_send_list_meta(conn_->raw(), path.constData()))
+        return;
+
     struct Entry { FileNode::Type type; QString name; QString path; unsigned duration; };
     QVector<Entry> entries;
 
@@ -171,30 +185,21 @@ void FileSystemModel::loadDirectory(FileNode *node)
         switch (mpd_entity_get_type(entity)) {
         case MPD_ENTITY_TYPE_DIRECTORY: {
             auto *dir = mpd_entity_get_directory(entity);
-            const QString name = QString::fromUtf8(mpd_directory_get_path(dir));
-            const QString full = node->path.isEmpty()
-                ? name
-                : node->path + QLatin1Char('/') + name;
-            entries.append({FileNode::Directory, name, full, 0});
+            const QString full = QString::fromUtf8(mpd_directory_get_path(dir));
+            entries.append({FileNode::Directory, mpdBasename(full), full, 0});
             break;
         }
         case MPD_ENTITY_TYPE_SONG: {
             auto *song = mpd_entity_get_song(entity);
-            const QString name = QString::fromUtf8(mpd_song_get_uri(song));
-            const QString full = node->path.isEmpty()
-                ? name
-                : node->path + QLatin1Char('/') + name;
-            entries.append({FileNode::Song, name, full,
+            const QString full = QString::fromUtf8(mpd_song_get_uri(song));
+            entries.append({FileNode::Song, mpdBasename(full), full,
                             mpd_song_get_duration(song)});
             break;
         }
         case MPD_ENTITY_TYPE_PLAYLIST: {
             auto *pl = mpd_entity_get_playlist(entity);
-            const QString name = QString::fromUtf8(mpd_playlist_get_path(pl));
-            const QString full = node->path.isEmpty()
-                ? name
-                : node->path + QLatin1Char('/') + name;
-            entries.append({FileNode::Playlist, name, full, 0});
+            const QString full = QString::fromUtf8(mpd_playlist_get_path(pl));
+            entries.append({FileNode::Playlist, mpdBasename(full), full, 0});
             break;
         }
         default:

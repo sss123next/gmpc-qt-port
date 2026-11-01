@@ -52,8 +52,6 @@ DatabaseBrowser::DatabaseBrowser(Connection *conn, QWidget *parent)
     view_->setHeaderHidden(false);
     view_->setExpandsOnDoubleClick(true);
     lay->addWidget(view_, 1);
-
-    setEnabled(false);
 }
 
 DatabaseBrowser::~DatabaseBrowser() = default;

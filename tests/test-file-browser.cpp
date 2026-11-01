@@ -110,8 +110,8 @@ TEST_CASE("FileBrowser is a BrowserWidget subclass")
     MockConnection conn;
     FileBrowser browser(&conn);
     CHECK(browser.title() == "Files");
-    // Default state: disabled until connected
-    CHECK_FALSE(browser.isEnabled());
+    // A browser no longer disables itself: BrowserStack gates it on connection.
+    CHECK(browser.isEnabled());
 }
 
 TEST_CASE("FileBrowser contains a QTreeView")

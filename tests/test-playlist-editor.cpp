@@ -38,8 +38,8 @@ TEST_CASE("PlaylistEditor is a BrowserWidget subclass")
     PlaylistEditor editor(&conn);
     CHECK(editor.title() == "Playlists");
 
-    // Default state: disabled until connected
-    CHECK_FALSE(editor.isEnabled());
+    // BrowserStack decides enabled state from the connection, not the widget.
+    CHECK(editor.isEnabled());
 }
 
 TEST_CASE("PlaylistEditor contains two QListWidgets")

@@ -88,8 +88,6 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
     connect(leftView_->selectionModel(),
             &QItemSelectionModel::currentChanged,
             this, &FileBrowser::onLeftSelectionChanged);
-
-    setEnabled(false);
 }
 
 FileBrowser::~FileBrowser() = default;

@@ -76,7 +76,6 @@ PlaylistEditor::PlaylistEditor(Connection *conn, QWidget *parent)
     connect(loadBtn_, &QPushButton::clicked,
             this, &PlaylistEditor::onLoadPlaylist);
 
-    setEnabled(false);
     updateButtonStates();
 }
 
@@ -119,11 +118,14 @@ void PlaylistEditor::onNewPlaylist()
     // don't want side effects.  Instead add a dummy song?  MPD
     // requires at least one song to create a playlist.  We'll try
     // to save an empty queue and catch the error silently.
-    if (!mpd_run_save(conn_->raw(), name.trimmed().toUtf8().constData())) {
-        // If it fails (e.g. no queue), show an error
+    mpd_run_save(conn_->raw(), name.trimmed().toUtf8().constData());
+    // consumeError() обязателен и при успехе: он завершает ответ. При неудаче —
+    // выводит соединение из error-state, иначе встанут все последующие команды.
+    const QString detail = conn_->consumeError("save");
+    if (!detail.isEmpty()) {
         QMessageBox::warning(this, tr("Error"),
                              tr("Could not create playlist. "
-                                "Make sure the queue is not empty."));
+                                "Make sure the queue is not empty.\n%1").arg(detail));
     }
 
     refreshPlaylists();
@@ -145,6 +147,7 @@ void PlaylistEditor::onRenamePlaylist()
     mpd_run_rename(conn_->raw(),
                    cur->text().toUtf8().constData(),
                    newName.trimmed().toUtf8().constData());
+    conn_->consumeError("rename");
     refreshPlaylists();
 }
 
@@ -161,6 +164,7 @@ void PlaylistEditor::onDeletePlaylist()
         return;
 
     mpd_run_rm(conn_->raw(), cur->text().toUtf8().constData());
+    conn_->consumeError("rm");
     refreshPlaylists();
 }
 
@@ -170,6 +174,7 @@ void PlaylistEditor::onLoadPlaylist()
     if (!cur) return;
 
     mpd_run_load(conn_->raw(), cur->text().toUtf8().constData());
+    conn_->consumeError("load");
 }
 
 // ── Private ─────────────────────────────────────────────────────────────────
@@ -184,17 +189,20 @@ void PlaylistEditor::refreshPlaylists()
         return;
     }
 
-    if (!mpd_send_list_playlists(conn_->raw()))
-        goto done;
+    {
+        // Ответ должен быть завершён на любой ветке — раньше `goto done`
+        // пропускал mpd_response_finish() и соединение оставалось в error-state.
+        Connection::ResponseScope scope(*conn_, "listplaylists");
 
-    while (auto *pl = mpd_recv_playlist(conn_->raw())) {
-        playlistList_->addItem(
-            QString::fromUtf8(mpd_playlist_get_path(pl)));
-        mpd_playlist_free(pl);
+        if (mpd_send_list_playlists(conn_->raw())) {
+            while (auto *pl = mpd_recv_playlist(conn_->raw())) {
+                playlistList_->addItem(
+                    QString::fromUtf8(mpd_playlist_get_path(pl)));
+                mpd_playlist_free(pl);
+            }
+        }
     }
-    mpd_response_finish(conn_->raw());
 
-done:
     playlistList_->blockSignals(false);
     contentsList_->clear();
     updateButtonStates();
@@ -206,6 +214,8 @@ void PlaylistEditor::refreshContents(const QString &playlistName)
 
     if (!conn_ || !conn_->isConnected())
         return;
+
+    Connection::ResponseScope scope(*conn_, "listplaylist");
 
     if (!mpd_send_list_playlist_meta(
             conn_->raw(), playlistName.toUtf8().constData()))
@@ -230,7 +240,6 @@ void PlaylistEditor::refreshContents(const QString &playlistName)
         }
         mpd_entity_free(entity);
     }
-    mpd_response_finish(conn_->raw());
 }
 
 void PlaylistEditor::updateButtonStates()

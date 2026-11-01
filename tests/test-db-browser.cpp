@@ -135,8 +135,9 @@ TEST_CASE("DatabaseBrowser is a BrowserWidget subclass")
     DatabaseBrowser browser(&conn);
     CHECK(browser.title() == "Database");
 
-    // Default state: should be disabled until connected
-    CHECK(browser.isEnabled() == false);
+    // A browser used to disable itself in its constructor and was then never
+    // enabled again; BrowserStack owns that state now.
+    CHECK(browser.isEnabled());
 }
 
 TEST_CASE("DatabaseBrowser contains a QTreeView")
@@ -171,9 +172,11 @@ TEST_CASE("DatabaseBrowser onActivate safe when disconnected")
     ALLOW_CALL(conn, isConnected()).RETURN(false);
 
     DatabaseBrowser browser(&conn);
-    // onActivate checks isConnected before calling loadArtists internally
+    // Must not touch MPD while disconnected: the tree stays empty and nothing crashes.
     browser.onActivate();
-    CHECK_FALSE(browser.isEnabled());
+    auto *view = browser.findChild<QTreeView *>();
+    REQUIRE(view != nullptr);
+    CHECK_EQ(view->model()->rowCount({}), 0);
 }
 
 TEST_CASE("DatabaseBrowser onConnectionChanged(true) enables and loads")
