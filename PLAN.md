@@ -9,35 +9,38 @@
 
 | Component | Status | Проверено / чем именно плохо |
 |-----------|--------|------------------------------|
-| core::Connection | 🟡 | Только polling (500/2000 мс), `idle` нет. `songPos` читается (`connection.cpp:97`) и **нигде не используется**. Ошибка любой команды оставляет соединение в error-state → `isConnected()` лжёт, UI «отваливается» навсегда (Блокер B5) |
+| core::Connection | 🟡 | Только polling (500/2000 мс), `idle` нет. Ошибки команд разбираются (`consumeError()` + RAII `ResponseScope`), reconnect с экспоненциальной задержкой, `commandFailed` отделён от `disconnected` — B5 закрыт. С 6.5 отдаёт параметры последнего подключения (`host()/port()/password()/timeoutMs()`) — второму соединению (поиск) их больше неоткуда взять |
 | core::MpdCommands | 🟡 | Транспорт/режимы/громкость работают, seek исправлен в 5r. Нет delete/move/clear для очереди, crossfade, outputs; `volumeUp/Down` делают лишний `fetchStatus()` |
-| core::PlaylistModel | 🔴 | **`currentSong()` возвращает `songs_[0]`** (`playlist-model.cpp:114`) — не текущий трэк. Очередь грузится ровно один раз при коннекте (единственный вызов — `mainwindow.cpp:419`); на живой базе 65 279 позиций это **914,6 мс блокировки GUI-потока** |
+| core::PlaylistModel | 🟡 | Текущий трэк разрешается по `songid` с fallback на позицию (6.2), сигнал `currentSongChanged`. Очередь грузится ровно один раз при коннекте; на живой базе 65 279 позиций это **914,6 мс блокировки GUI-потока** |
 | core::Config / MpdEnv | 🟡 | Конфиг и профили работают. В `MpdEnv` нет fallback'ов `$XDG_RUNTIME_DIR/mpd/socket` и `/run/mpd/socket`; `lastIndexOf('@')` ломает пароль, содержащий `@` |
-| gui::MainWindow | 🟡 | Каркас есть. Браузеры **никогда не вызывают** `onActivate()`/`onConnectionChanged()` — в `src/` ноль вызовов → 4 экрана навсегда `setEnabled(false)`. `sidebarLabel_` мёртв (не обновляется). «Song Info» в контекстном меню = заглушка (`mainwindow.cpp:635`) |
-| gui::ControlBar | 🔴 | **`seekSlider_` ни к чему не подключён** (`controlbar.cpp:40,112`) — перемотка из UI невозможна. Готовый `widgets/ProgressSlider` (сигнал seek + 6 тестов) в UI не используется |
+| core::SearchEngine | ✅ | Новый движок поиска (6.5): чистая сборка шагов протокола (`makeSearchSteps()` / `makeCountSteps()`), worker-поток с собственным `mpd_connection`, отмена по номеру запроса, бросок чтения на границе трэка. 13 юнит-кейсов + интеграционный прогон при заданном `GMPC_QT_TEST_MPD` |
+| gui::MainWindow | 🟡 | Каркас есть, lifecycle браузеров подключён через `BrowserStack` (6.1). Ошибки команд (`Connection::commandFailed`) идут в статус-бар временным сообщением, индикатор подключения не трогая. `sidebarLabel_` мёртв (не обновляется). «Song Info» в контекстном меню = заглушка (`mainwindow.cpp:635`) |
+| gui::ControlBar | 🟡 | Перемотка подключена (6.6): `ProgressSlider` вместо голого `QSlider`, `seekRequested(секунды) → MpdCommands::seek` (`seekcur`). Прогресс задаётся парой `setPosition(elapsed, total)`, на время drag polling его не перебивает. Остаток: нет keyboard-перемотки и отображения буферизации |
 | gui::StatusBar / TrayIcon | 🟡 | Работают, но тултип трея получает тот же неверный «текущий» трэк |
 | gui::PreferencesDialog | ✅ | 12 групп (connection/proxy/server/tray/playlist/metadata/MM keys/profiles…) — самый цельный экран |
 | browsers::CurrentPlaylist | 🔴 | Только фильтр + просмотр. Нет double-click, контекстного меню, DnD-переупорядочивания, удаления, clear/save. Модель `QAbstractListModel` → **одна колонка** «artist — title» вместо # / Artist / Title / Album / Time |
 | browsers::DatabaseBrowser | 🔴 | Макет: у модели нет `canFetchMore()`/`fetchMore()`, а `loadAlbums()` (`music-database-model.cpp:97`) и `loadTracks()` (:147) **не вызываются нигде** → дереву неоткуда взять альбомы и трэки. Колонка «Year» всегда пуста |
-| browsers::FileBrowser | 🔴 | Дерево останавливается на первом уровне: MPD отдаёт **полные относительные пути**, модель склеивает `parent + name` повторно (`file-system-model.cpp:177,186,196`) → «humor/humor/karcev» → ACK `No such directory`. Оригинал использует `g_path_get_basename()` (`playlist3-file-browser.c:462`) |
-| browsers::SearchBrowser | 🔴 | «All fields» = 7 ограничений через AND (`search-browser.cpp:195-205`) → **0 результатов** (замер №4). Правильный any-tag даёт данные, но **2857 мс в GUI-потоке**. Поиск только по Enter; `fieldCombo_` ни к чему не подключён (`onFieldChanged` — мёртвый код) |
-| browsers::PlaylistEditor | 🔴 | Никогда не включается. «New» = `mpd_run_save()` текущей очереди (не пустой плейлист). Нет удаления/перемещения трэков, DnD, контекстного меню, «load and play»; ошибки MPD проглатываются |
-| widgets::SongInfo / CoverWidget | 🔴 | Код корректен, но кормится от `currentSong()` → показывают **не тот трэк** (замер №7); обложка ищется для неверной пары artist/album |
+| browsers::FileBrowser | 🟡 | Дерево спускается: путь хранится как его вернул MPD, показывается `mpdBasename()` (6.3). Осталось: ленивая загрузка только по раскрытию (`fetchMore` есть, но не тестировалась на реальной базе), колонки/иконки, double-click «воспроизвести» |
+| browsers::SearchBrowser | 🟡 | 6.5: поиск идёт в `core::SearchEngine` (worker-поток, своё соединение), «All fields» = один any-tag, окно + сортировка, счётчик «N из M совпадений», дебаунс 300 мс, `fieldCombo_` подключён (`onFieldChanged`). Остаток: нет double-click «добавить в очередь» (7.3) и пагинации окна (движок её поддерживает через `SearchQuery::offset`) |
+| browsers::PlaylistEditor | 🟡 | Включается (6.1), список и содержимое загружаются, ошибки MPD больше не проглатываются и не вешают соединение (6.4): `save` показывает текст ACK в `QMessageBox`, `rename/rm/load` разбираются через `consumeError()`. «New» по-прежнему = `mpd_run_save()` текущей очереди (не пустой плейлист). Нет удаления/перемещения трэков, DnD, контекстного меню, «load and play» |
+| widgets::SongInfo / CoverWidget | 🟡 | Кормятся от `currentSongChanged` (6.2), то есть от `songid` MPD, а не от `songs_[0]`. Целостные метаданные всё ещё берутся строкой из очереди, а не `mpd_run_current_song()` |
 | widgets::VolumeWidget | ✅ | Работает |
-| widgets::ProgressSlider | 🔴 | Мёртвый код: 6 тестов, ноль использований в UI |
+| widgets::ProgressSlider | ✅ | Используется в `ControlBar` (6.6): шкала в промилле, tooltip с временем, `seekRequested` в секундах; 10 тестов, включая «drag ⇒ секунды» и «polling не перебивает drag» |
 | metadata::CacheSqlite / MetadataManager / CoverProvider | 🟡 | Каскад обложек работает; вход — неверная пара artist/album; lyrics-выходы менеджера не потребляются UI |
 | providers::* | 🟡 | Провайдеры обложек подключены. **LrcLib и lyrics.ovh не имеют ни одного потребителя в UI** — показать текст песни негде |
 | mpris::MprisPlayer | ✅ | 5r: имена интерфейсов, trackid, абсолютный/относительный seek подтверждены busctl. Минус: `Metadata` без title/artist/album → внешние плеер-клиенты показывают пусто |
 | tools::AsyncDownload / Log | ✅ | Используются провайдерами |
-| tests | 🟡 | **172 кейса / 18 сьютов — зелёные** (прогнано: `ctest` 100 %, 21,85 с). Но проверяют заголовки колонок и существование виджетов: ни одного теста на wiring браузеров, lazy-loading путей, seek, текущий трэк |
+| tests | 🟡 | **21 сьют — зелёные** (`ctest` 100 %). Добавлены `test-browser-stack` (wiring жизненного цикла), `test-mpd-error` (классификация ошибок libmpdclient, `mpdBasename()`, инертность `ResponseScope`) и `test-search-engine` (сборка поискового запроса + отмена; 13 кейсов / 71 ассерт). Первый интеграционный прогон против живого MPD включается переменной `GMPC_QT_TEST_MPD=/home/sss/.mpd/sock`. Не хватает: fake-соединение для поведенческих тестов браузеров, ленивая загрузка дерева, lazy-модель БД |
 | Build (CMake + Nix flake) | ✅ | Сборка и тесты воспроизводятся только внутри `nix develop` |
 
-## Проверено на живом MPD (2026-10-31)
+## Проверено на живом MPD (2026-10-31, дополнено 2026-11-01)
 
 Окружение: MPD **0.25.0** через unix-сокет (`MPD_HOST=/home/sss/.mpd/sock`), база по `countall`: 1827
 артистов / 4462 альбома / 64 854 трэка (`search db artist` при этом отдаёт 1828 записи), очередь
 **65 279** позиций. Проверяли временным зондом на libmpdclient
-2.24 (те же вызовы, что делает наш код) и прямым протоколом через `nc -U`; зонд удалён из дерева.
+2.24 (те же вызовы, что делает наш код) и прямым протоколом через `nc -U`. Зонды Phase 6 (`build/b3_probe.c`
+— окно/сортировки/цена пустого запроса, `build/b3_count_probe.c` — ограничения `searchcount`) лежат в
+gitignored `build/` и служат источником замеров №8–№9.
 
 | # | Что проверялось | Результат | Вывод |
 |---|-----------------|-----------|-------|
@@ -50,10 +53,95 @@
 | 5 | `mpd_send_list_playlists()` (наш `PlaylistEditor`) | 1 плейлист | Работает; экрана не видно только из-за отсутствующего wiring |
 | 6 | error-state после одной неудачной команды (путь без `clear_error`) | `isConnected() == false`; следующий `mpd_run_status()` → NULL, «Cannot send a new command while receiving another response», **и все последующие тоже** | Любая ошибка в браузере клинит общее соединение: статус-бар «отключено», UI мёртв до переподключения |
 | 7 | текущий трэк: `status`/`currentsong` против нашей `currentSong()` | MPD: `state=pause song=4522 songid=85565`, файл — соната C.P.E. Bach; `playlistinfo 0` → `humor/karcev/Karcev_Roman-Allo,_Grisha.opus` | UI показывает **Карцева вместо Баха**: SongInfo, обложка и тултип трея берут позицию 0 |
+| 8 | цена any-tag поиска: окно и сортировка (`build/b3_probe.c`, 2026-11-01) | без окна — вся база: 63 165 трэков за **752 мс**; `window 0:200` — ровно 200 записей за **158 мс**; то же + `sort ArtistSort` — **250 мс**; второй `sort_tag()` → ACK «Unknown filter type»; запрос **без единого совпадения** — **~2,05 с**, повторы того же термина не быстрее | окно обязательно (иначе вся база), сортировка ровно одна, пустой результат дороже полного ⇒ дебаунс в UI и поиск вне GUI-потока; пустые `ArtistSort` сортируются первыми |
+| 9 | что принимает `searchcount` (`build/b3_count_probe.c`, 2026-11-01) | только тег-ограничители: `songs=63165`, `playtime=18368566`, `finish=1`. С `sort` **или** `window` → **ошибка 9 / ACK 2 «Unknown filter type»**, при этом соединение выживает (`status` после счётчика успешен, ошибка 0) | для счётчика нужна отдельная сборка шагов без sort/window — `makeCountSteps()`; error-state лечится `clear_error()`, переподключение не нужно |
+
+## Документация: libmpdclient 2.24 и протокол MPD 0.25 (загружено 2026-10-31)
+
+Источники: заголовки установленной библиотеки (`/nix/store/*-libmpdclient-2.24/include/mpd`, первоисточник
+для нашего API), `musicpd.org/doc/libmpdclient` (doxygen, уровень 2 — exa), `mpd.readthedocs.io/en/latest/protocol.html`
+и `client.html` (уровень 1 — SearXNG + чтение страниц), переписка `mpd-devel` с формулировками мейнтейнера,
+`MPD src/protocol/Ack.hxx`. Shell наружу не ходит (DNS недоступен) → вся загрузка шла через MCP-инструменты.
+Всё это лежит в KB проекта: **`research/libmpdclient-2.24`** (+ `::errors`, `::idle-loop`, `::search-filters`,
+`::search-count`, `::queue-plchanges`, `::binary-artwork`, `::connection-setup`) и **`research/mpd-client-best-practices`**
+(+ `::db-discipline`, `::state-sync`).
+
+Поправки к собственным утверждениям плана:
+
+* Библиотека — **libmpdclient 2.24**, а не «0.24»; `OK MPD 0.25.0` в приветствии — версия **протокола**,
+  номер демона по соединению узнать нельзя (только `commands`, `tagtypes available`, `protocol available`).
+* **`mpd_error_is_fatal()` в libmpdclient не существует** (проверено grep по заголовкам 2.24). Фатальность
+  определяет возвращаемое значение `mpd_connection_clear_error()`: `false` = восстановить нельзя
+  (`CLOSED`, `OOM`, `TIMEOUT`, `SYSTEM`, `RESOLVER`, `MALFORMED`) → переподключение; `true` = ошибка
+  командная (`MPD_SERVER_*`, `ARGUMENT`, `STATE`) → соединение живое, чиним и работаем дальше. Это ровно то,
+  что нужно B5 вместо выдуманной функции.
+* Коды серверных ошибок берём из `enum mpd_server_error` (`mpd/protocol.h`): `NOT_LIST=1`, `ARG=2`,
+  `PASSWORD=3`, `PERMISSION=4`, `UNKNOWN_CMD=5`, `NO_EXIST=50`, `PLAYLIST_MAX=51`, `SYSTEM=52`,
+  `PLAYLIST_LOAD=53`, `UPDATE_ALREADY=54`, `PLAYER_SYNC=55`, `EXIST=56` (наш «No such directory» = 50).
+  Формат серверного ответа: `ACK [err@listNum] {cmd} text`; дополнительно доступны
+  `mpd_connection_get_server_error()`, `_server_error_location()`, `get_system_error()` (errno).
+* Инкрементальное обновление очереди — **`mpd_send_queue_changes_meta(conn, queueVersion)`** (`plchanges`) и
+  `mpd_send_queue_changes_brief()` + `mpd_recv_queue_change_brief()` (`plchangesposid`, только pos+id);
+  имени `mpd_send_pl_changes` в API нет. Удалённые **в хвосте** очереди обнаруживаются сравнением
+  `playlistlength` из `status` — доки подчёркивают это отдельно, иначе «исчезнувшие» треки не видны.
+
+Правила, которые меняют архитектуру (привязка к блокерам):
+
+* **B5 / error-state.** Любая неудачная команда оставляет соединение в error-state, и все последующие падают
+  с «Cannot send a new command while receiving another response», пока не вызваны `mpd_response_finish()` или
+  `mpd_connection_clear_error()`. Значит: RAII-обёртка на каждую отправку + разбор `clear_error()` (см. выше) →
+  при `true` только сигнал «ошибка команды», при `false` — разрыв и реконнект. `isConnected()` обязана
+  перестать быть `error == SUCCESS`.
+* **6.7 / idle.** Канонический паттерн от мейнтейнера: `mpd_send_idle()` → зарегистрировать fd из
+  `mpd_connection_get_fd()` в событийном цикле (в Qt — `QSocketNotifier`) → по готовности `mpd_recv_idle()`,
+  обработать, снова `idle`; перед своей командой — `mpd_run_noidle()`, разобрать накопленные события, затем
+  команды и возврат в idle. Отдельный поток с блокирующим `mpd_run_idle` **не нужен** (он потребовал бы второго
+  соединения и породил бы гонку за него). События накапливаются, пока клиент не в idle, — потерянных нет; если
+  событие уже произошло, следующий `idle` вернётся немедленно. `mpd_recv_idle()` возвращает 0 и при ошибке,
+  и когда событий нет → различать только по `mpd_connection_get_error()`.
+* **B3 / поиск.** Фильтр 0.21+: `(TAG == 'V')`, `!=`, `contains`, `starts_with`, `=~` (PCRE), `file`,
+  `base 'DIR'`, `modified-since`, `added-since` (0.24), `(!E)`, `(A AND B)`; спец-тег `any` = все теги →
+  `mpd_search_add_any_tag_constraint()`. Обязательные модификаторы для нашей базы в 65k трэков:
+  **`window START:END`** (страницы), `sort` (`ArtistSort`/`AlbumSort`, `-` = убыв.), `group`; «N найдено» —
+  `count`/`searchcount` вместо выгрузки. `find` регистрозависимый, `search` нет (+ICU-нормализация и
+  `strip_diacritics`). Экранирование кавычек на протоколе двойное → фильтры только через libmpdclient, никогда
+  через `rawCommand`.
+* **B2 / текущий трэк.** Целостный текущий трэк берётся из `mpd_run_current_song()`, а не сканированием очереди;
+  в `status` есть `songid`/`nextsongid`, `elapsed` (высокая точность) и `duration` (0.20), поле **`error`** —
+  текст ошибки воспроизведения от сервера (сейчас игнорируется полностью). MPD вправе **опускать** строки без
+  значения → дефолты «неизвестно» в парсере обязательны. Прогресс интерполируем локально таймером между
+  событиями, а не поллингом `status`.
+* **B6 / перемотка.** `mpd_send_seek_current(conn, seconds, relative)` → `seekcur` (или `mpd_run_seek_id_float`
+  по songid — устойчивее к правкам очереди). Позиции/адресация: документация прямо велит использовать ids;
+  позиция нестабильна by design; аргумент позиции с префиксом `+`/`-` задаёт смещение относительно текущего трека.
+* **B4 / Files.** Прямая цитата протокольных доков про `listall`/`listallinfo`: «Do not use this command. Do not
+  manage a client-side copy of MPD's database… query MPD whenever you need something» → ленивое дерево через
+  `lsinfo` по раскрытию узла, пути из ответа используем как есть (они уже относительные к `music_directory`),
+  отображаем basename. `lsinfo ""` возвращает stored playlists — поведение помечено устаревшим, плейлисты только
+  через `listplaylists`.
+* **Обложки.** Два разных механизма: `albumart URI OFFSET` ищет в папке трека `cover.png/jpg/jxl/webp`
+  (ответ `file:`, `size:`), `readpicture URI OFFSET` читает встроенную картинку (ID3v2 APIC, ответ `size:`,
+  `type:` MIME); отсутствие картинки — **успешный пустой** ответ. Чанк по умолчанию 8192 байта, буфер обязан быть
+  не меньше чанка, размер настраивается `binarylimit` (0.22.4+). Читаем циклом по offset до `size`; `-1` из
+  `mpd_recv_albumart()` — ошибка → обязательный выход из error-state.
+* **Соединение.** `mpd_connection_new(host, …)` принимает **путь к unix-сокету** в `host` (порт тогда игнорируется),
+  NULL читает `MPD_HOST`/`MPD_PORT`/`MPD_TIMEOUT`; при `new_async()` таймаут по умолчанию 30 с; TCP keepalive
+  выключен по умолчанию (`mpd_connection_set_keepalive(true)`, с 2.10). Обёрток для маски тегов и протокольных
+  фич нет (`feature.h` даёт только имена/парсинг) → `tagtypes disable …` / `protocol available` через raw-команду;
+  маска тегов реально уменьшает ответы (кандидат на ускорение загрузки 65k очереди). Одно соединение = один поток:
+  библиотека не потокобезопасна, асинхронные вызовы через `mpd_connection_get_async()` запрещают синхронный API
+  до конца ответа.
+
+### Что из этого уже учтено в фазях
+
+`window`/`sort`/`count` — 6.5 и 7.6; `plchanges` + `playlistlength` — 7.2; idle через `QSocketNotifier` — 6.7;
+`seekcur`/`seekid_float` — 6.6; `binarylimit` и цикл по чанкам — раздел Cover-art pipeline; реконнект при
+фатальном `mpd_error` — B5 и 6.7.
 
 ## Блокеры (P0) — без этого приложение не является клиентом MPD
 
-* **B1. Жизненный цикл браузеров не подключён.** `BrowserWidget::onActivate()/onDeactivate()/
+* ✅ **B1. Жизненный цикл браузеров не подключён — исправлено (см. 6.1, `BrowserStack`).**
+  `BrowserWidget::onActivate()/onDeactivate()/
   onConnectionChanged()` объявлены и реализованы, но в `src/` нет ни одного вызова; все четыре экрана
   вызывают `setEnabled(false)` в конструкторе (`database-browser.cpp:56`, `file-browser.cpp:92`,
   `playlist-editor.cpp:79`, `search-browser.cpp:159`). Итог: Database / Files / Search / Playlist Editor
@@ -61,39 +149,57 @@
   *Фикс:* связать `Connection::connected/disconnected` с `onConnectionChanged()` у всех браузеров и
   вызывать `onActivate()/onDeactivate()` при смене страницы стека (сейчас там только `setCurrentIndex`) + тест на wiring.
 
-* **B2. «Текущий играющий трэк» — неверные данные.** `PlaylistModel::currentSong()` = `songs_[0]`
+* 🟡 **B2. «Текущий играющий трэк» — исправлено наполовину.** `PlaylistModel::currentSong()` = `songs_[0]`
   (`playlist-model.cpp:108-115`); `Connection::Status::songPos` читается, но не используется; `idle` /
   `currentsong` не запрашиваются. Следствие — SongInfo, обложка и трей врут (замер №7); MPRIS-`Metadata`
   по содержательной части пуст → те же жалобы извне.
   *Фикс:* один источник истины — `mpd_run_current_song()` (или `songPos` + индекс модели), обновление по
   смене `songId`, одна и та же структура для SongInfo / CoverWidget / TrayIcon / MPRIS.
+  *Сделано (6.2):* разрешение текущего трэка по `songid` с fallback на позицию, сигнал `currentSongChanged(int)`,
+  все потребители (SongInfo/CoverWidget/заголовок/tray/sidebar) кормятся от него.
+  *Остаток:* целостные метаданные брать `mpd_run_current_song()`, а не строкой из очереди; поле `error` из
+  `status` по-прежнему игнорируется.
 
 * **B3. Очередь не обновляется.** `loadFromConnection()` вызывается один раз (только `onConnected`), хотя
   `queueVersion` входит в условие изменения статуса. Добавление из контекстного меню, `OpenUri` из MPRIS,
   Next/Stop при single/consume — очередь в UI не меняется до переподключения. Плюс 914 мс на загрузке.
-  *Фикс:* инкрементальные обновления (`mpd_send_pl_changes` по `queueVersion`) + события (`idle: PLAYER |
-  MIXER | PLAYLIST`), дозагрузка вне GUI-потока, колонки очереди (# / Artist / Title / Album / Time).
+  *Фикс:* инкрементальные обновления (`mpd_send_queue_changes_meta(conn, queueVersion)` по `queueVersion`,
+  хвостовые удаления — через `playlistlength` из `status`) + события (`idle: PLAYER | MIXER | PLAYLIST`),
+  дозагрузка вне GUI-потока, колонки очереди (# / Artist / Title / Album / Time).
 
-* **B4. Files: дерево не спускается ниже корня.** Удвоение пути в `FileSystemModel::loadDirectory()`
-  (замер №3b); побочный эффект — неудачная команда вешает общее соединение (B5).
+* ✅ **B4. Files: дерево не спускается ниже корня — исправлено (см. 6.3).** Удвоение пути в
+  `FileSystemModel::loadDirectory()` (замер №3b); побочный эффект — неудачная команда вешает общее соединение (B5).
   *Фикс:* имя = basename, путь = ровно то, что вернул MPD; тесты на двухуровневый `lsinfo` с реальными ответами.
+  Проверено на живом MPD 2.24 (`build/b4_probe.c`): записи внутри `humor/` приходят как `humor/karcev`,
+  вне префикса родителя — ни одной; повторный `lsinfo` того же пути успешен.
 
-* **B5. Нет обработки ошибок libmpdclient.** Ни один браузер/модель не делает `mpd_response_finish()` /
-  `mpd_connection_clear_error()` после неудачи (аккуратен только `Connection::rawCommand()`). Замер №6:
-  одна ошибка → все команды падают с «Cannot send a new command…», `isConnected()` лжёт, `pollStatus()`
-  останавливает таймер и шлёт `disconnected()`.
-  *Фикс:* RAII-обёртка «отправить–прочитать–завершить», явная очистка ошибки, состояние «ошибка команды»
-  отдельно от «нет соединения», автопереподключение.
+* ✅ **B5. Нет обработки ошибок libmpdclient — исправлено (см. 6.4).** Ни один браузер/модель не делал
+  `mpd_response_finish()` / `mpd_connection_clear_error()` после неудачи (аккуратен был только
+  `Connection::rawCommand()`). Замер №6: одна ошибка → все команды падают с «Cannot send a new command…»,
+  `isConnected()` лжёт, `pollStatus()` останавливает таймер и шлёт `disconnected()`.
+  *Фикс:* RAII-обёртка «отправить–прочитать–завершить» (`Connection::ResponseScope` + макрос `RUN()` в
+  `MpdCommands`), явная очистка ошибки, состояние «ошибка команды» (`commandFailed`) отдельно от
+  «нет соединения». Критерий реконнекта — возвращаемое значение `mpd_connection_clear_error()`
+  (`false` → фатально: `CLOSED/OOM/TIMEOUT/SYSTEM/RESOLVER/MALFORMED` → новое соединение; `true` → командная
+  ошибка, соединение живое). `isConnected()` больше не `error == MPD_ERROR_SUCCESS`; текст —
+  `mpd_connection_get_error_message()` + `_get_server_error()`. Реконнект с экспоненциальной задержкой 1–30 с.
+  *Уточнение по замерам (`build/rf_probe.c`, `build/b4_probe.c`):* `send()` возвращает `true` даже при ACK —
+  ошибка всплывает при чтении; `MPD_ERROR_STATE` документацию не соблюдает (не лечится ничем, кроме нового
+  соединения) → в `classifyMpdError()` он `Reconnect`. Порядок строгой: finish → прочитать код и текст → clear.
 
-* **B6. Перемотка из интерфейса отсутствует.** `seekSlider_` не подключена, `ProgressSlider::seek` никуда
-  не приходит; работает только seek через MPRIS (5r).
-  *Фикс:* поставить `ProgressSlider`, подключить `sliderMoved → MpdCommands::seek`, подавить обратную связь
-  с polling на время перетаскивания.
+* ✅ **B6. Перемотка из интерфейса отсутствует — исправлено (см. 6.6).** `seekSlider_` не подключена,
+  `ProgressSlider::seekRequested` никуда не приходил; работал только seek через MPRIS (5r).
+  *Фикс:* в `ControlBar` стоит `ProgressSlider`, `seekRequested → MpdCommands::seek` (`seekcur`), прогресс —
+  через `setPosition(elapsed, total)`; на время перетаскивания polling значения не трогает.
+  Попутно найден баг единиц: релиз мыши эмитил значение промиллевой шкалы (0..1000) как секунды → `seekcur`
+  получил бы «1000 секунд» вместо конца трека; теперь наружу идут настоящие секунды.
 
 ## Баги и деградации (P1)
 
-* **Search «All fields» всегда пуст** — AND вместо any-tag (замеры №4). Плюс нет live-поиска по вводу
-  (только Enter), `fieldCombo_` не подключён, нет счётчика результатов и состояния «нет совпадений».
+* ✅ **Search «All fields» всегда пуст — исправлено (см. 6.5).** AND из семи тегов заменён одним any-tag,
+  запрос ушёл в worker-поток (`core::SearchEngine`), появились live-поиск с дебаунсом, подключение
+  `fieldCombo_` и счётчик «N из M совпадений» (замеры №4a, №8, №9). Остаток: double-click = добавить в
+  очередь (7.3) и пагинация окна в UI (7.6).
 * **Database: только один уровень.** Нет `canFetchMore()/fetchMore()`; колонка Year пуста; контекстное меню
   на артисте не показывается (`uri` пуст + родитель невалиден → ранний выход в `mainwindow.cpp`).
 * **Current Playlist: взаимодействие отсутствует полностью** — ни double-click (в оригинале `row-activated`
@@ -102,13 +208,16 @@
   ни DnD/переупорядочивания, ни удаления строки очереди (`Delete`), ни clear/save.
 * **Playlist Editor:** «New» создаёт плейлист из текущей очереди; содержимое — `QListWidget` без колонок,
   порядка и удаления строк; нет перетаскивания очереди в плейлист; `goto done` пропускает `response_finish`.
-* **Блокирующие вызовы в GUI-потоке:** поиск (2,9 с), загрузка очереди (0,9 с), любые `mpd_run_*` из
-  виджетов — нужен рабочий поток с очередью команд.
+* **Блокирующие вызовы в GUI-потоке:** загрузка очереди (0,9 с), любые `mpd_run_*` из виджетов — нужен
+  рабочий поток с очередью команд. Поиск с 6.5 больше не блокирует: он живёт в `core::SearchEngine`
+  (worker-поток + своё соединение).
 * **Только polling вместо `idle`:** до 2 с на смену состояния; single/consume/crossfade не отражаются
-  мгновенно; лишняя нагрузка при 65-тысячной очереди.
+  мгновенно; лишняя нагрузка при 65-тысячной очереди. Паттерн из доков: одно соединение, `mpd_send_idle()` +
+  fd из `mpd_connection_get_fd()` в `QSocketNotifier`, перед своей командой `mpd_run_noidle()`.
 * **MPRIS Metadata без title/artist/album** — часть жалобы «информация о трэке неверная» извне.
-* **Мёртвый код UI:** `sidebarLabel_`, `ProgressSlider`, `SearchBrowser::onFieldChanged`,
-  `PlaylistEditor::onActivate` (никто не зовёт).
+* **Мёртвый код UI:** `sidebarLabel_`,
+  `PlaylistEditor::onActivate` (никто не зовёт). С 6.5 больше не мёртв и `SearchBrowser::onFieldChanged`
+  — combo полей подключён к нему. `ProgressSlider` с 6.6 работает в `ControlBar`.
 
 ## Расхождения UI с оригиналом (`gmpc-orig/`)
 
@@ -117,7 +226,7 @@
 | Current playlist: `row-activated`, контекстное меню, выбираемые колонки, live-обновление очереди | `browsers/playlist3-current-playlist-browser.c`, `gmpc-mpddata-model-playlist.gob` | 🔴 только фильтр+чтение, 1 колонка, обновлений нет |
 | Database (tag browser): дерево тегов + список трэков справа, double-click, контекстное меню | `browsers/playlist3-tag2-browser.c:1029,1260` | 🔴 один уровень, ни одного действия |
 | Files: дерево каталогов + список файлов, `row-activated` в обеих панелях, корректные basename | `browsers/playlist3-file-browser.c:209,220,462` | 🔴 удвоение путей, нет double-click |
-| Find/Search: live-поиск, поле «any», таблица результатов, двойной клик | `browsers/playlist3-find2-browser.c:193`, `Tools/advanced-search.c` | 🔴 AND-баг, только Enter |
+| Find/Search: live-поиск, поле «any», таблица результатов, двойной клик | `browsers/playlist3-find2-browser.c:193`, `Tools/advanced-search.c` | 🟡 live-поиск с дебаунсом через worker (6.5), any-tag, окно + сортировка, счётчик; нет double-click и пагинации |
 | Playlist editor: дерево плейлистов + список с операциями, double-click = load | `browsers/playlist3-playlist-editor.c:1105` | 🟡 кнопки CRUD, экран выключен |
 | Now Playing (крупная обложка, теги) | `browsers/gmpc-nowplaying2.c` | 🔴 экрана нет |
 | Metadata/Info: биография, похожие артисты/трэки, текст песни, фон-обложка | `browsers/gmpc-metadata-browser2.c`, `Widgets/gmpc-metadata-*` | 🔴 экрана нет; LrcLib/lyrics.ovh некуда отдавать текст |
@@ -183,7 +292,7 @@ lyrics.ovh ────────── резерв, без ключа, то�
 
 ### Фаза 3 — Виджеты (DONE)
 - [x] VolumeWidget — кастомный контрол громкости (6 tests)
-- [x] ProgressSlider — кастомный слайдер прогресса (6 tests)
+- [x] ProgressSlider — кастомный слайдер прогресса (10 тестов; подключён в ControlBar в 6.6)
 - [x] SongInfo — отображение информации о треке (5 tests)
 - [x] CoverWidget — отображение обложки (4 tests; fetchCover() пока TODO)
 
@@ -211,13 +320,13 @@ lyrics.ovh ────────── резерв, без ключа, то�
 
 Порядок = порядок зависимостей: без 6.1 остальные пункты бессмысленны, потому что браузеры никогда не получают соединение и не активируются.
 
-- [ ] **6.1 Lifecycle браузеров** (**B1**): хранить список `BrowserPage`, вызывать `setEnabled(connected)` + `onConnectionChanged(conn)` по `connectionStateChanged`, `onActivate()` — по смене активной страницы (`currentChanged`). Убрать `setEnabled(false)` из конструкторов. *Тест:* fake-соединение → после «подключено» все 4 страницы enabled, модели загружены; переключение вкладки ⇒ ровно один `onActivate`.
-- [ ] **6.2 Единый источник истины о текущем треке** (**B2**): `Status::songPos`/`songid` → `PlaylistModel::currentSong()` по songid с fallback по pos; новый сигнал `currentSongChanged(const SongEntry*)`; все потребители (SongInfo, CoverWidget, заголовок окна, tray, sidebarLabel_, MPRIS Metadata) питаются только от него. *Тест:* очередь из 3 позиций при `song=1` → current == позиция 1; смена позиции ⇒ ровно один сигнал.
-- [ ] **6.3 Пути в дереве файлов** (**B4**): хранить полный путь и показывать basename, дочерние запросы слать по полному пути (в оригинале — `g_path_get_basename()`). *Тест:* fake-ответ `directory: a/b/c` → отображается `c`, дочерний запрос идёт с `a/b/c`.
-- [ ] **6.4 Выход из error-state** (**B5**): RAII-обёртка, вызывающая `mpd_response_finish()`/`mpd_connection_clear_error()` после каждой команды; ошибка → сигнал `commandFailed`, соединение остаётся подключённым; reconnect с экспоненциальной задержкой. *Тест:* команда с ACK ⇒ следующая команда успешна, состояние соединения не изменилось.
-- [ ] **6.5 Поиск на any-tag** (**B3 по семантике**): «All fields» → `mpd_search_add_any_tag_constraint`; запрос из worker-потока с отменой предыдущего (замер: 2857 ms на живой базе — в GUI-потоке это неприемлемо). *Тест:* одно ограничение возвращает непустой результат.
-- [ ] **6.6 Seek из GUI** (**B6**): `ProgressSlider::sliderMoved → seek(pos, seconds)`, убрать мёртвый дубль слайдера в ControlBar. *Тест:* drag ползунка ⇒ отправлен `seekid`.
-- [ ] **6.7 idle-цикл событий**: отдельный поток с `mpd_run_idle` (`PLAYER|MIXER|PLAYLIST|MODIFIER|DATABASE|UPDATE`) вместо поллинга 500/2000 ms; polling оставить fallback для удалённых хостов.
+- [x] **6.1 Lifecycle браузеров** (**B1**) — *сделано:* `src/gui/browser-stack.{h,cpp}` владеет списком страниц, включает их по `connected` и активирует по смене активной; `setEnabled(false)` из конструкторов убран. *Тест:* `tests/test-browser-stack.cpp` (9 кейсов: ровно один `onActivate`, отсутствие активации до подключения, однократный `onConnectionChanged`).
+- [x] **6.2 Единый источник истины о текущем треке** (**B2**) — *сделано:* `PlaylistModel::setCurrentSong(songId, songPos)` (поиск по id, fallback по pos, иначе «нет текущего»), сигнал `currentSongChanged(int)`, MainWindow кормит SongInfo/CoverWidget/заголовок/tray/sidebar только от него. *Тест:* `tests/test-playlist-model.cpp` (8 кейсов: id важнее позиции, отсутствие сигнала при повторной доставке того же трека). Остаток: запрашивать сам трэк через `mpd_run_current_song()`, а не только позицию из `status`.
+- [x] **6.3 Пути в дереве файлов** (**B4**) — *сделано:* `FileNode::path` хранит путь ровно как его вернул MPD (относительный к `music_directory`, целиком), отображается `mpdBasename(path)`; дочерний `lsinfo` идёт по этому же пути, неудача не оставляет узел «загруженным» и не вешает соединение (`ResponseScope`). *Тест:* `tests/test-mpd-error.cpp` —кейсы `mpdBasename()` (включая хвостовые `/`, путь из одних слэшей, пустую строку); эмпирически двухуровневый спуск проверен на живом MPD (`build/b4_probe.c`: 0 записей вне префикса родителя).
+- [x] **6.4 Выход из error-state** (**B5**) — *сделано:* `Connection::consumeError(context)` (finish → код и текст → clear) + RAII `Connection::ResponseScope`, обёрнуты все браузеры/модели и каждая команда `MpdCommands` (макрос `RUN()`); классификация в `src/core/mpd-error.{h,cpp}` (`None`/`KeepConnection`/`Reconnect`, `STATE` → Reconnect по замерам, вопреки заголовку); сигнал `commandFailed` отделён от `disconnected`; реконнект с экспоненциальной задержкой 1–30 с из сохранённых host/port/password. *Тест:* `tests/test-mpd-error.cpp` (таблица классификации, в т.ч. `STATE → Reconnect`; `ResponseScope` на неподключённом соединении не стреляет сигналами); эмпирически — ACK `NO_EXIST(50)` на `lsinfo`, после которого `status` успешен (`build/b4_probe.c`).
+- [x] **6.5 Поиск на any-tag** (**B3 по семантике**) — *сделано:* `src/core/search-engine.{h,cpp}`. Чистые `makeSearchSteps()` / `makeCountSteps()`: один any-tag вместо семи AND-тегов (замер №4a), ровно один `sort ArtistSort` (второй сервер отвергает ACK, замер №8) и окно `offset..offset+limit` с потолком 1000 — без него улетает вся база (752 мс). `SearchEngine` — worker-поток с **собственным** `mpd_connection` (одно соединение = один поток), отмена по номеру запроса, бросок чтения на границе трэка и закрытие соединения при брошенном ответе (`MPD_ERROR_STATE` не лечится); счётчик «N найдено» — вторым round-trip через `searchcount`, для которого собираются **только ограничители**: sort/window он не принимает, ACK 2 «Unknown filter type» (замер №9). Фильтр собран исключительно средствами libmpdclient. `SearchBrowser`: дебаунс 300 мс, Enter без дебаунса, `fieldCombo_ → onFieldChanged`, строка «N из M совпадений», немедленная очистка при пустом вводе, отмена при уходе с экрана и при смене сервера; endpoint берётся из геттеров `Connection` (6.5 же добавил `host()/port()/password()/timeoutMs()`). *Тест:* `tests/test-search-engine.cpp` — 13 кейсов / 71 ассерт (один any-tag, ровно один sort, окно всегда, `makeCountSteps` без sort/window, отмена и смена endpoint) + интеграционный прогон на живом MPD при `GMPC_QT_TEST_MPD=/home/sss/.mpd/sock`: «получено 20 из 63 165», повторный поиск после `cancel()` успешен; `tests/test-search-browser.cpp` — 17 кейсов (модель, счётчик, ошибка движка очищает строки, пустой ввод не уходит в движок). *Остаток:* double-click «добавить в очередь» — это 7.3; пагинация (`SearchQuery::offset`) движком поддерживается, но в UI не выведена (7.6).
+- [x] **6.6 Seek из GUI** (**B6**) — *сделано:* в `ControlBar` вместо голого `QSlider` стоит `ProgressSlider`, `seekRequested(int seconds) → MpdCommands::seek` (`seekcur` через `mpd_run_seek_current(MPD, s, false)`); прогресс задаётся `setPosition(elapsed, total)`, поэтому на время перетаскивания polling значения не меняет. Исправлен баг единиц: релиз мыши отдавал значение промиллевой шкалы как секунды. *Тест:* `tests/test-progress-slider.cpp` — «emits seekRequested in seconds on release» (250‰ от 120 с ⇒ 30), конец шкалы ⇒ полная длительность, отсутствие seek при неизвестной длительности, polling не перебивает drag. Сам connect() проверен только на этапе компиляции (new-style connect): отдельного теста `ControlBar → MpdCommands::seek` нет — для него нужен fake-транспорт (ср. 7.5).
+- [ ] **6.7 idle-цикл событий**: `mpd_send_idle()` (`PLAYER|MIXER|PLAYLIST|MODIFIER|DATABASE|UPDATE`), fd из `mpd_connection_get_fd()` в `QSocketNotifier`, по готовности `mpd_recv_idle(conn, false)` и возврат в idle; перед своей командой — `mpd_run_noidle()` с разбором накопленных событий. Отдельный поток **не нужен** (одно соединение = один поток); polling оставить fallback для удалённых хостов. Учесть: `mpd_recv_idle()` возвращает 0 и при ошибке → проверять `mpd_connection_get_error()`; сервер снимает таймауты, пока клиент в idle.
 
 ## Фаза 7 — Интерактив (текущий плейлист и браузеры)
 
@@ -226,7 +335,7 @@ lyrics.ovh ────────── резерв, без ключа, то�
 - [ ] **7.3 Двойной клик во всех браузерах** (`row-activated` в оригинале): БД — добавить группу/альбом/трек; Файлы — добавить каталог/файл; Поиск — добавить трек; Редактор — добавить/удалить позицию.
 - [ ] **7.4 Контекстные меню** для всех деревьев (добавить в очередь / заменить очередь / открыть папку / копировать путь), включая текущий плейлист, где их сейчас нет вовсе.
 - [ ] **7.5 Playlist Editor:** настоящий редактор — список позиций, add/remove/move/clear из дерева БД и Файлов, сохранение через `mpd_save_playlist`, загрузка через `loadPlaylist`. *Тест:* fake-соединение: New → Load → Add → Save отправляет ожидаемую последовательность команд.
-- [ ] **7.6 Живой поиск:** дебаунс 250–300 ms, Enter = добавить в очередь / «заменить очередь», история запросов (Ctrl+↑), счётчик найденного.
+- [ ] **7.6 Живой поиск:** дебаунс 250–300 ms, Enter = добавить в очередь / «заменить очередь», история запросов (Ctrl+↑), счётчик найденного. *Из этого сделано в 6.5:* дебаунс 300 мс и счётчик «N из M совпадений»; не хватает действий по Enter (сейчас — повтор поиска), истории запросов и пагинации окна.
 
 ## Фаза 8 — Недостающие экраны и функции
 
@@ -244,7 +353,7 @@ lyrics.ovh ────────── резерв, без ключа, то�
 
 - [ ] **Wiring-тесты lifecycle:** после подключения все браузеры enabled и вызван `onConnectionChanged`; смена вкладки → `onActivate`. Поймал бы B1, отсутствие загрузки очереди, B4.
 - [ ] **Поведенческие тесты на fake-соединении:** текущий трек = `songid` из status (B2); ACK-ошибка не оставляет соединение в error-state (B5).
-- [ ] **Интеграционные тесты против реального MPD** (`MPD_HOST`, отдельная служебная база, пропуск без сервера): lsinfo/дерево, any-tag поиск, plchanges.
+- [ ] **Интеграционные тесты против реального MPD** (`MPD_HOST`, отдельная служебная база, пропуск без сервера): lsinfo/дерево, any-tag поиск, plchanges. Начато в 6.5: `test-search-engine` пропускается без `GMPC_QT_TEST_MPD`, а с ним проверяет окно и счётчик на живой базе; для дерева и очереди таких тестов ещё нет.
 - [ ] **Запрет «пусто = зелёный»:** тест с ожидаемым непустым ответом обязан падать на пустом результате — иначе «0 песен» проходит как успех (именно так и произошло с поиском).
 
 ## Практики и рекомендации
