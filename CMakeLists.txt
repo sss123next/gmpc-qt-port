@@ -24,6 +24,8 @@ set(CORE_SOURCES
     src/core/mpd-error.h
     src/core/mpd-endpoint.cpp
     src/core/mpd-endpoint.h
+    src/core/idle-watcher.cpp
+    src/core/idle-watcher.h
     src/core/mpd-commands.cpp
     src/core/mpd-commands.h
     src/core/config.cpp

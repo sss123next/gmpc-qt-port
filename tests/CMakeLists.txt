@@ -27,6 +27,7 @@ add_library(testcore OBJECT
     ${CMAKE_SOURCE_DIR}/src/core/connection.cpp
     ${CMAKE_SOURCE_DIR}/src/core/mpd-error.cpp
     ${CMAKE_SOURCE_DIR}/src/core/mpd-endpoint.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/idle-watcher.cpp
     ${CMAKE_SOURCE_DIR}/src/core/mpd-env.cpp
     ${CMAKE_SOURCE_DIR}/src/core/search-engine.cpp
     ${CMAKE_SOURCE_DIR}/src/core/playlist-model.cpp
@@ -232,3 +233,11 @@ target_link_libraries(test-search-engine PRIVATE testcore Qt6::Widgets Qt6::Test
     doctest::doctest PkgConfig::LIBMPDCLIENT)
 target_include_directories(test-search-engine PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-search-engine COMMAND test-search-engine)
+
+# ── Слушатель событий idle (разбор маски, жизненный цикл, живое событие) ────
+
+add_executable(test-idle-watcher test-idle-watcher.cpp)
+target_link_libraries(test-idle-watcher PRIVATE testcore Qt6::Core Qt6::Test
+    doctest::doctest PkgConfig::LIBMPDCLIENT)
+target_include_directories(test-idle-watcher PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-idle-watcher COMMAND test-idle-watcher)
