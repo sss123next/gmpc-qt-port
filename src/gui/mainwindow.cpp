@@ -6,6 +6,7 @@
 #include "preferences-dialog.h"
 
 #include "core/connection.h"
+#include "core/idle-watcher.h"
 #include "core/mpd-commands.h"
 #include "core/playlist-model.h"
 #include "core/config.h"
@@ -120,6 +121,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , conn_(new Connection(this))
     , cmds_(new MpdCommands(conn_, this))
+    , idle_(new IdleWatcher(this))
     , playlistModel_(new PlaylistModel(this))
 {
     setupUi();
@@ -398,6 +400,25 @@ void MainWindow::connectSignals()
     connect(conn_, &Connection::commandFailed, this, [this](const QString &msg) {
         statusBar_->showMessage(tr("MPD: %1").arg(msg), 8000);
     });
+
+    // События MPD (6.7): слушатель держит своё соединение, поэтому статус можно
+    // забирать мгновенно, не дожидаясь тика таймера. Polling никуда не делся —
+    // он подстраховка, и Connection сам решает, как часто опрашивать, когда
+    // событий нет (setIdleWatched). Очередь перестроим инкрементально в 7.2:
+    // перезагружать 65 тыс. позиций на каждое событие `queue` нельзя, поэтому
+    // пока она обновляется по queueVersion из статуса. databaseChanged пока не за
+    // что цеплять — деревья браузеров от перестройки базы сами не меняются.
+    connect(conn_, &Connection::connected, this, [this] {
+        idle_->setEndpoint(MpdEndpoint{conn_->host(), conn_->port(),
+                                       conn_->password(), conn_->timeoutMs()});
+        idle_->start();
+    });
+    connect(conn_, &Connection::disconnected, this, [this] { idle_->stop(); });
+
+    connect(idle_, &IdleWatcher::playerChanged, conn_, &Connection::refreshNow);
+    connect(idle_, &IdleWatcher::mixerChanged, conn_, &Connection::refreshNow);
+    connect(idle_, &IdleWatcher::queueChanged, conn_, &Connection::refreshNow);
+    connect(idle_, &IdleWatcher::watchingChanged, conn_, &Connection::setIdleWatched);
 
     connect(sidebar_->selectionModel(), &QItemSelectionModel::currentChanged,
             this, [this](const QModelIndex &idx) {

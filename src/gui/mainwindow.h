@@ -38,6 +38,7 @@ class SongInfo;
 class VolumeWidget;
 class MprisPlayer;
 struct MpdResolvedSettings;
+class IdleWatcher;
 
 /// Top-level window composing all UI panels.
 class MainWindow : public QMainWindow {
@@ -96,6 +97,8 @@ private:
 
     Connection *conn_;
     MpdCommands *cmds_;
+    /// Слушатель событий MPD на отдельном соединении (см. core/idle-watcher.h).
+    IdleWatcher *idle_;
     PlaylistModel *playlistModel_;
     MetadataManager *metadataMgr_;
 
