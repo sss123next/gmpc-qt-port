@@ -150,31 +150,11 @@ private:
             return true;
 
         close();
-        const QByteArray host = endpoint.host.toUtf8();
-        conn_ = mpd_connection_new(host.constData(),
-                                   static_cast<unsigned>(endpoint.port),
-                                   static_cast<unsigned>(endpoint.timeoutMs));
-        if (!conn_) {
-            connectError_ = tr("поиск: не хватило памяти под соединение с MPD");
+        // Открытие общее у поиску и слушателю событий: password, проверка ошибки
+        // до get_error_message(), keepalive для TCP — всё внутри openMpdConnection().
+        conn_ = openMpdConnection(endpoint, &connectError_);
+        if (!conn_)
             return false;
-        }
-        if (mpd_connection_get_error(conn_) != MPD_ERROR_SUCCESS) {
-            // get_error_message() на соединении без ошибки утверждает ассертом.
-            connectError_ = QString::fromUtf8(mpd_connection_get_error_message(conn_));
-            close();
-            return false;
-        }
-
-        if (!endpoint.password.isEmpty()) {
-            QByteArray password = endpoint.password.toUtf8();
-            if (!mpd_run_password(conn_, password.data())) {
-                connectError_ = QString::fromUtf8(
-                    mpd_connection_get_error_message(conn_));
-                mpd_connection_clear_error(conn_);
-                close();
-                return false;
-            }
-        }
 
         endpoint_ = endpoint;
         connectError_.clear();

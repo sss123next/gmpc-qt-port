@@ -22,6 +22,8 @@ set(CORE_SOURCES
     src/core/connection.h
     src/core/mpd-error.cpp
     src/core/mpd-error.h
+    src/core/mpd-endpoint.cpp
+    src/core/mpd-endpoint.h
     src/core/mpd-commands.cpp
     src/core/mpd-commands.h
     src/core/config.cpp

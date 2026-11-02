@@ -23,6 +23,8 @@
 #include <QVector>
 #include <mpd/tag.h>
 
+#include "core/mpd-endpoint.h"
+
 #include <atomic>
 #include <memory>
 
@@ -99,22 +101,7 @@ class SearchEngine : public QObject {
     Q_OBJECT
 public:
     /// Настройки сервера для собственного соединения worker'а.
-    struct Endpoint {
-        QString host;
-        int port = 0;
-        QString password;
-        int timeoutMs = 0;
-
-        [[nodiscard]] bool isValid() const { return !host.isEmpty(); }
-        // Сравнение нужно worker'у: при сменившихся настройках старое соединение
-        // не переиспользуется.
-        bool operator==(const Endpoint &o) const
-        {
-            return host == o.host && port == o.port && password == o.password
-                && timeoutMs == o.timeoutMs;
-        }
-        bool operator!=(const Endpoint &o) const { return !(*this == o); }
-    };
+    using Endpoint = MpdEndpoint;
 
     explicit SearchEngine(QObject *parent = nullptr);
     /// Останавливает worker-поток и закрывает его соединение.

@@ -26,6 +26,7 @@ add_library(testcore OBJECT
     ${CMAKE_SOURCE_DIR}/src/core/config.cpp
     ${CMAKE_SOURCE_DIR}/src/core/connection.cpp
     ${CMAKE_SOURCE_DIR}/src/core/mpd-error.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/mpd-endpoint.cpp
     ${CMAKE_SOURCE_DIR}/src/core/mpd-env.cpp
     ${CMAKE_SOURCE_DIR}/src/core/search-engine.cpp
     ${CMAKE_SOURCE_DIR}/src/core/playlist-model.cpp
