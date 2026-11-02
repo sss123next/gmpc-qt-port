@@ -21,7 +21,7 @@
 class Connection : public QObject {
     Q_OBJECT
 public:
-    /// Default polling interval (ms).
+    /// Интервал опроса при воспроизведении и до первого полученного статуса (мс).
     static constexpr int kDefaultPollMs = 500;
 
     /** @brief Construct an unconnected Connection.
@@ -167,6 +167,26 @@ public:
      */
     mpd_connection *raw() const { return conn_; }
 
+    // -- опрос состояния -----------------------------------------------------
+
+    /** @brief Немедленно опросить статус, не дожидаясь следующего тика таймера.
+     *
+     *  Нужно слушателю событий (IdleWatcher): когда MPD сообщил `player` или
+     *  `mixer`, ждать очередного тика смысла нет — статус надо забрать сейчас.
+     *  Вне соединения это no-op; statusChanged() возникнет сам, если поля
+     *  действительно изменились.
+     */
+    void refreshNow();
+
+    /** @brief Сообщить, что события приходят из idle, а не только из таймера.
+     *
+     *  Пока слушатель жив, опрос — подстраховка на случай потерянного события, и
+     *  в простое достаточно одного тика раз в #kIdleWatchedPollMs. Как только
+     *  события отваливаются, интервал возвращается к #kStoppedPollMs: без idle
+     *  редкий тик означал бы молчаливое расхождение UI с сервером.
+     */
+    void setIdleWatched(bool watched);
+
 signals:
     /// Emitted after a successful connectToServer().
     void connected();
@@ -213,11 +233,19 @@ private:
 
     bool connected_ = false;       ///< соединение установлено успешно
     bool autoReconnecting_ = false;///< идём на reconnect (не сбрасывать задержку)
+    bool idleWatched_ = false;     ///< события приходят из IdleWatcher
     QTimer *reconnectTimer_ = nullptr;
     int reconnectDelayMs_ = 0;     ///< 0 = переподключение не запланировано
 
     static constexpr int kReconnectBaseMs = 1000;
     static constexpr int kReconnectMaxMs = 30000;
+
+    /// Интервалы опроса: kDefaultPollMs — при воспроизведении (прогресс-бару
+    /// нужны частые тики, idle о прошедших секундах не сообщает).
+    static constexpr int kStoppedPollMs = 2000;
+
+    /// Опрос в простое, пока события идут из idle: только подстраховка.
+    static constexpr int kIdleWatchedPollMs = 10000;
 };
 
 Q_DECLARE_METATYPE(Connection::Status)

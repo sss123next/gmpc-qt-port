@@ -223,12 +223,39 @@ void Connection::pollStatus()
         emit statusChanged(s);
     }
 
-    // Adaptive polling: faster while playing for smooth UI updates,
-    // slower when idle to reduce network chatter.
+    // Адаптивный шаг: при воспроизведении тики нужны прогресс-бару (idle о
+    // прошедших секундах не сообщает), в простое опрос — подстраховка, и пока
+    // события приходят из слушателя, достаточно редкого тика.
     if (s.state == MPD_STATE_PLAY)
-        pollTimer_->setInterval(500);
+        pollTimer_->setInterval(kDefaultPollMs);
     else
-        pollTimer_->setInterval(2000);
+        pollTimer_->setInterval(idleWatched_ ? kIdleWatchedPollMs : kStoppedPollMs);
+}
+
+void Connection::refreshNow()
+{
+    // Таймер не трогаем: pollStatus() сам выставит интервал по состоянию, а
+    // остановка превратила бы разовый опрос в прекращение опроса вообще.
+    if (!isConnected())
+        return;
+
+    pollStatus();
+}
+
+void Connection::setIdleWatched(bool watched)
+{
+    if (idleWatched_ == watched)
+        return;
+
+    idleWatched_ = watched;
+
+    // При потере событий интервал возвращаем сразу: ждать следующий редкий тик,
+    // чтобы начать опрашивать часто, — ровно тот промах, которого избегаем.
+    if (!watched && isConnected()) {
+        pollTimer_->setInterval(lastStatus_.state == MPD_STATE_PLAY ? kDefaultPollMs
+                                                                   : kStoppedPollMs);
+        refreshNow();   // всё, что случилось за время молчания слушателя
+    }
 }
 
 void Connection::dropAndReconnect()
