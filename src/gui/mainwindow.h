@@ -39,6 +39,7 @@ class VolumeWidget;
 class MprisPlayer;
 struct MpdResolvedSettings;
 class IdleWatcher;
+class QueueSync;
 
 /// Top-level window composing all UI panels.
 class MainWindow : public QMainWindow {
@@ -100,6 +101,8 @@ private:
     /// Слушатель событий MPD на отдельном соединении (см. core/idle-watcher.h).
     IdleWatcher *idle_;
     PlaylistModel *playlistModel_;
+    /// Зеркало очереди вне GUI-потока: listqueue целиком и дифф plchanges (7.2).
+    QueueSync *queueSync_;
     MetadataManager *metadataMgr_;
 
     // Browser navigation

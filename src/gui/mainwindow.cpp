@@ -9,6 +9,7 @@
 #include "core/idle-watcher.h"
 #include "core/mpd-commands.h"
 #include "core/playlist-model.h"
+#include "core/queue-sync.h"
 #include "core/config.h"
 #include "core/mpd-env.h"
 
@@ -123,6 +124,7 @@ MainWindow::MainWindow(QWidget *parent)
     , cmds_(new MpdCommands(conn_, this))
     , idle_(new IdleWatcher(this))
     , playlistModel_(new PlaylistModel(this))
+    , queueSync_(new QueueSync(this))
 {
     setupUi();
     connectSignals();
@@ -400,26 +402,65 @@ void MainWindow::connectSignals()
     // показываем как временное сообщение, не меняя индикатор подключения.
     connect(conn_, &Connection::commandFailed, this, [this](const QString &msg) {
         statusBar_->showMessage(tr("MPD: %1").arg(msg), 8000);
+        // Отказ команды означает, что локальная правка очереди (удаление, перенос) на
+        // сервере не состоялась. Дифф такого не увидит — версии-то очереди совпадают,
+        // поэтому нужен полный перечёт. Он редок и делается вне GUI-потока.
+        queueSync_->reload();
     });
 
     // События MPD (6.7): слушатель держит своё соединение, поэтому статус можно
     // забирать мгновенно, не дожидаясь тика таймера. Polling никуда не делся —
     // он подстраховка, и Connection сам решает, как часто опрашивать, когда
-    // событий нет (setIdleWatched). Очередь перестроим инкрементально в 7.2:
-    // перезагружать 65 тыс. позиций на каждое событие `queue` нельзя, поэтому
-    // пока она обновляется по queueVersion из статуса. databaseChanged пока не за
-    // что цеплять — деревья браузеров от перестройки базы сами не меняются.
+    // событий нет (setIdleWatched). databaseChanged пока не за что цеплять — деревья
+    // браузеров от перестройки базы сами не меняются.
     connect(conn_, &Connection::connected, this, [this] {
-        idle_->setEndpoint(MpdEndpoint{conn_->host(), conn_->port(),
-                                       conn_->password(), conn_->timeoutMs()});
+        const MpdEndpoint endpoint{conn_->host(), conn_->port(),
+                                   conn_->password(), conn_->timeoutMs()};
+        idle_->setEndpoint(endpoint);
         idle_->start();
+        // Очередь перечитывается в своём потоке: 65 тыс. позиций читаются ~914 мс, и в
+        // GUI-потоке это зависшее окно (замер — PLAN.md). Заодно здесь, а не в
+        // onConnected(): слот подключения зарегистрирован раньше этого обработчика, а
+        // без адреса задача на перечтение просто не поставилась бы.
+        queueSync_->setEndpoint(endpoint);
+        queueSync_->reload();
     });
-    connect(conn_, &Connection::disconnected, this, [this] { idle_->stop(); });
+    connect(conn_, &Connection::disconnected, this, [this] {
+        idle_->stop();
+        queueSync_->reset();   // версия очереди прежнего соединения больше не действительна
+    });
 
-    connect(idle_, &IdleWatcher::playerChanged, conn_, &Connection::refreshNow);
     connect(idle_, &IdleWatcher::mixerChanged, conn_, &Connection::refreshNow);
-    connect(idle_, &IdleWatcher::queueChanged, conn_, &Connection::refreshNow);
+    connect(idle_, &IdleWatcher::playerChanged, this, [this] {
+        conn_->refreshNow();
+        // Теги играющего трэка `update` меняет через подсистему player, а не queue: без
+        // этого диффа правка дошла бы только к следующему событию очереди. Лишний вызов
+        // дешёв — worker сам увидит, что версия очереди не менялась.
+        queueSync_->syncNow();
+    });
+    connect(idle_, &IdleWatcher::queueChanged, this, [this] {
+        conn_->refreshNow();   // длина очереди и songid живут в status
+        queueSync_->syncNow(); // а сама очередь — диффом plchanges, не listqueue
+    });
     connect(idle_, &IdleWatcher::watchingChanged, conn_, &Connection::setIdleWatched);
+
+    // Очередь (7.2): worker присылает либо новый список, либо теги изменившихся строк.
+    // Сбрасывать модель на обновлении тегов значит потерять выделение и прокрутку
+    // очереди без всякой причины — состав-то прежний.
+    connect(queueSync_, &QueueSync::queueReplaced, playlistModel_,
+            [this](const QList<SongEntry> &songs, quint32) {
+        playlistModel_->setSongs(songs);
+    });
+    connect(queueSync_, &QueueSync::tagsRefreshed, playlistModel_,
+            [this](const QList<SongEntry> &rows) {
+        playlistModel_->applyTagsRefreshed(rows);
+    });
+    connect(queueSync_, &QueueSync::syncFailed, this, [this](const QString &msg) {
+        // При разрыве соединения очередь не перечитать — о подключении уже сказал
+        // индикатор, вторым сообщением он только мешал бы.
+        if (conn_->isConnected())
+            statusBar_->showMessage(tr("Queue: %1").arg(msg), 8000);
+    });
 
     connect(sidebar_->selectionModel(), &QItemSelectionModel::currentChanged,
             this, [this](const QModelIndex &idx) {
@@ -448,7 +489,8 @@ void MainWindow::connectWith(const MpdResolvedSettings &r)
 void MainWindow::onConnected()
 {
     statusBar_->showConnected();
-    playlistModel_->loadFromConnection(*conn_);
+    // Очередь сюда приходит от QueueSync (см. connectSignals): перечитывать её здесь
+    // означало бы стоять в GUI-потоке все ~914 мс на 65 тыс. позиций.
     browserStack_->setConnected(true);
 }
 
