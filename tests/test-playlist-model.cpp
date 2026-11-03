@@ -12,6 +12,7 @@
 #include <QMimeData>
 #include <QModelIndex>
 #include <QSet>
+#include <QSignalSpy>
 #include <QSortFilterProxyModel>
 #include <QStringList>
 
@@ -549,4 +550,49 @@ TEST_CASE("rows survive a move and a removal in the same session")
     CHECK_EQ(idsInOrder(model), QList<int>{5, 1, 3, 4});
     CHECK_EQ(positionsInOrder(model), QList<int>{0, 1, 2, 3});
     CHECK_EQ(model.posForId(3), 2);
+}
+
+// ── Обновление тегов без перестройки очереди (plchanges) ─────────────────────
+
+TEST_CASE("a tag refresh rewrites one row and nothing else")
+{
+    PlaylistModel model;
+    model.setSongs(threeSongs());
+
+    QSignalSpy changed(&model, &PlaylistModel::dataChanged);
+    SongEntry fresh = makeSong(102, 1, "renamed");
+    fresh.album = QStringLiteral("new album");
+    model.applyTagsRefreshed({fresh});
+
+    CHECK_EQ(model.rowCount({}), 3);   // состав и порядок очереди прежние
+    CHECK_EQ(model.index(1, PlaylistModel::TitleColumn).data(Qt::DisplayRole).toString(),
+             QStringLiteral("renamed"));
+    CHECK_EQ(model.index(0, PlaylistModel::TitleColumn).data(Qt::DisplayRole).toString(),
+             QStringLiteral("first"));   // соседнюю строку правка не касалась
+
+    // Одно извещение на строку и сразу по всем колонкам: reset модели на такую правку
+    // сбросил бы выделение и прокрутку очереди без всякой причины.
+    REQUIRE(changed.size() == 1);
+    const QVariantList args = changed.takeFirst();
+    CHECK_EQ(args.at(0).toModelIndex().row(), 1);
+    CHECK_EQ(args.at(1).toModelIndex().row(), 1);
+    CHECK_EQ(args.at(0).toModelIndex().column(), PlaylistModel::TitleColumn);
+    CHECK_EQ(args.at(1).toModelIndex().column(), PlaylistModel::ColumnCount - 1);
+}
+
+TEST_CASE("a refresh that does not match its row is ignored")
+{
+    // Идентификатор — якорь строки. Если он другой, локальная копия описывает уже не ту
+    // очередь, и теги из диффа относятся к другому трэку.
+    PlaylistModel model;
+    model.setSongs(threeSongs());
+    QSignalSpy changed(&model, &PlaylistModel::dataChanged);
+
+    const SongEntry foreign = makeSong(777, 1, "foreign");   // строка 1 занята другим id
+    const SongEntry outside = makeSong(103, 9, "outside");   // позиции вне очереди нет
+    model.applyTagsRefreshed({foreign, outside});
+
+    CHECK_EQ(model.index(1, PlaylistModel::TitleColumn).data(Qt::DisplayRole).toString(),
+             QStringLiteral("second"));
+    CHECK(changed.isEmpty());
 }

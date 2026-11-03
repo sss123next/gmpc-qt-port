@@ -31,6 +31,8 @@ add_library(testcore OBJECT
     ${CMAKE_SOURCE_DIR}/src/core/mpd-env.cpp
     ${CMAKE_SOURCE_DIR}/src/core/search-engine.cpp
     ${CMAKE_SOURCE_DIR}/src/core/playlist-model.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/queue-diff.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/queue-sync.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/music-database-model.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/file-system-model.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/log.cpp
@@ -50,7 +52,7 @@ target_link_libraries(test-config PRIVATE testcore Qt6::Widgets doctest::doctest
 target_include_directories(test-config PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 add_executable(test-playlist-model test-playlist-model.cpp)
-target_link_libraries(test-playlist-model PRIVATE testcore Qt6::Widgets doctest::doctest)
+target_link_libraries(test-playlist-model PRIVATE testcore Qt6::Widgets Qt6::Test doctest::doctest)
 target_include_directories(test-playlist-model PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # ── Database browser test (uses trompeloeil mocks) ────────────────────────────
@@ -241,3 +243,14 @@ target_link_libraries(test-idle-watcher PRIVATE testcore Qt6::Core Qt6::Test
     doctest::doctest PkgConfig::LIBMPDCLIENT)
 target_include_directories(test-idle-watcher PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-idle-watcher COMMAND test-idle-watcher)
+
+# ── Слияние plchanges и синхронизатор очереди ────────────────────────────────
+# Чистые кейсы проходят без сервера; интеграционные включаются переменной
+# GMPC_QT_TEST_MPD (сокет), а мутационная — дополнительно GMPC_QT_TEST_MPD_MUTATE
+# и требует одноразового сервера: она добавляет и удаляет трэки.
+
+add_executable(test-queue-diff test-queue-diff.cpp)
+target_link_libraries(test-queue-diff PRIVATE testcore Qt6::Core Qt6::Test
+    doctest::doctest PkgConfig::LIBMPDCLIENT)
+target_include_directories(test-queue-diff PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-queue-diff COMMAND test-queue-diff)
