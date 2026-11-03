@@ -58,6 +58,28 @@ public slots:
     /** @brief Clear the entire queue (current playlist). */
     void clearQueue();
 
+    /** @brief Удалить из очереди треки по их идентификаторам.
+     *  @param ids  songid'ы; отрицательные пропускаются.
+     *
+     *  Идентификаторы, а не позиции: очередь могла сдвинуться, пока пользователь
+     *  выбирал строки (другой клиент, consume-режим).
+     */
+    void removeSongIds(const QList<int> &ids);
+
+    /** @brief Переместить блок строк очереди на новую позицию.
+     *  @param fromPos  Первая позиция блока.
+     *  @param count    Длина блока.
+     *  @param toPos    Позиция первой строки блока ПОСЛЕ перемещения — именно так
+     *                  MPD трактует аргумент TO: очередь в момент перестановки уже
+     *                  без переносимых строк.
+     */
+    void moveQueueBlock(int fromPos, int count, int toPos);
+
+    /** @brief Сохранить текущую очередь как список воспроизведения.
+     *  @param name  Имя в каталоге плейлистов MPD; существующее перезаписывается.
+     */
+    void saveQueueAs(const QString &name);
+
     // -- playback modes -----------------------------------------------------
     void setRepeat(bool on);
     void setRandom(bool on);

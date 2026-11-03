@@ -86,6 +86,35 @@ void MpdCommands::clearQueue() {
     RUN("clear", mpd_run_clear(MPD));
 }
 
+void MpdCommands::removeSongIds(const QList<int> &ids) {
+    CHECK;
+    // deleteid принимает ровно один идентификатор (в libmpdclient 2.24 нет формы
+    // со списком id), поэтому пачка идёт по одному: на unix-сокете это доли
+    // миллисекунды на трек, а id устойчив к сдвигам очереди.
+    for (int id : ids) {
+        if (id < 0)
+            continue;
+        RUN("deleteid", mpd_run_delete_id(MPD, static_cast<unsigned>(id)));
+    }
+}
+
+void MpdCommands::moveQueueBlock(int fromPos, int count, int toPos) {
+    CHECK;
+    if (fromPos < 0 || count <= 0 || toPos < 0)
+        return;
+    RUN("move_range", mpd_run_move_range(MPD, static_cast<unsigned>(fromPos),
+                                         static_cast<unsigned>(fromPos + count - 1),
+                                         static_cast<unsigned>(toPos)));
+}
+
+void MpdCommands::saveQueueAs(const QString &name) {
+    CHECK;
+    const QByteArray n = name.toUtf8();
+    if (n.isEmpty())
+        return;
+    RUN("save", mpd_run_save(MPD, n.constData()));
+}
+
 // -------------------------------------------------------------------
 //  Playback modes
 // -------------------------------------------------------------------
