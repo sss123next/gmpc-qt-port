@@ -36,6 +36,10 @@ set(CORE_SOURCES
     src/core/search-engine.h
     src/core/playlist-model.cpp
     src/core/playlist-model.h
+    src/core/queue-diff.cpp
+    src/core/queue-diff.h
+    src/core/queue-sync.cpp
+    src/core/queue-sync.h
 )
 
 set(GUI_SOURCES
