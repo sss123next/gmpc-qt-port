@@ -4,11 +4,11 @@
  */
 
 #include "playlist-model.h"
-#include "core/connection.h"
 #include "tools/log.h"
 
 #include <QMimeData>
 #include <QSet>
+#include <mpd/client.h>
 
 #include <algorithm>
 #include <functional>
@@ -47,6 +47,19 @@ QString displayTitle(const SongEntry &s)
 }
 
 } // namespace
+
+SongEntry songEntryFromMpd(const mpd_song *song)
+{
+    SongEntry e;
+    e.id       = static_cast<int>(mpd_song_get_id(song));
+    e.pos      = static_cast<int>(mpd_song_get_pos(song));
+    e.artist   = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_ARTIST, 0));
+    e.title    = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_TITLE, 0));
+    e.album    = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_ALBUM, 0));
+    e.uri      = QString::fromUtf8(mpd_song_get_uri(song));
+    e.duration = static_cast<int>(mpd_song_get_duration(song));
+    return e;
+}
 
 PlaylistModel::PlaylistModel(QObject *parent)
     : QAbstractTableModel(parent)
@@ -194,50 +207,6 @@ QMimeData *PlaylistModel::mimeData(const QModelIndexList &indexes) const
     return data;
 }
 
-void PlaylistModel::loadFromConnection(Connection &conn)
-{
-    // Очередь вычитывается ДО сброса модели: consumeError() порождает сигналы,
-    // а обработчики не должны застать модель посреди beginResetModel()/
-    // endResetModel().
-    QList<SongEntry> fetched;
-
-    if (conn.isConnected()) {
-        // Деструктор завершает ответ и снимает error-state — раньше ветка
-        // неудачного send() уходила через goto, минуя mpd_response_finish().
-        Connection::ResponseScope scope(conn, "listqueue");
-        mpd_connection *raw = conn.raw();
-
-        if (mpd_send_list_queue_meta(raw)) {
-            while (mpd_entity *entity = mpd_recv_entity(raw)) {
-                if (mpd_entity_get_type(entity) == MPD_ENTITY_TYPE_SONG) {
-                    const mpd_song *song = mpd_entity_get_song(entity);
-                    SongEntry e;
-                    e.id       = mpd_song_get_id(song);
-                    e.pos      = mpd_song_get_pos(song);
-                    e.artist   = QString::fromUtf8(
-                        mpd_song_get_tag(song, MPD_TAG_ARTIST, 0));
-                    e.title    = QString::fromUtf8(
-                        mpd_song_get_tag(song, MPD_TAG_TITLE, 0));
-                    e.album    = QString::fromUtf8(
-                        mpd_song_get_tag(song, MPD_TAG_ALBUM, 0));
-                    e.uri      = QString::fromUtf8(mpd_song_get_uri(song));
-                    e.duration = mpd_song_get_duration(song);
-                    fetched.append(e);
-                }
-                mpd_entity_free(entity);
-            }
-        }
-    }
-
-    beginResetModel();
-    songs_ = std::move(fetched);
-    endResetModel();
-    emit loaded();
-    // The queue may have arrived after the status update that told us which
-    // song is playing, so re-resolve and announce it.
-    notifyCurrentSong();
-}
-
 void PlaylistModel::setSongs(const QList<SongEntry> &songs)
 {
     beginResetModel();
@@ -349,6 +318,28 @@ void PlaylistModel::renumberPositions()
     // иначе позиции расходились бы с тем, что через plchanges пришлёт сервер.
     for (int i = 0; i < songs_.size(); ++i)
         songs_[i].pos = i;
+}
+
+void PlaylistModel::applyTagsRefreshed(const QList<SongEntry> &rows)
+{
+    for (const SongEntry &fresh : rows) {
+        const int row = fresh.pos;
+        if (row < 0 || row >= songs_.size())
+            continue;
+        // Идентификатор — якорь строки. Если он не совпал, локальная копия описывает
+        // уже другую очередь и теги из диффа относятся к другому трэку: такую строку
+        // не трогаем, расхождение закроет следующее полное перечтение.
+        if (fresh.id != songs_[row].id)
+            continue;
+
+        songs_[row].artist   = fresh.artist;
+        songs_[row].title    = fresh.title;
+        songs_[row].album    = fresh.album;
+        songs_[row].uri      = fresh.uri;     // файл могли переименовать — URI тоже меняется
+        songs_[row].duration = fresh.duration;
+
+        emit dataChanged(index(row, 0), index(row, ColumnCount - 1));
+    }
 }
 
 const SongEntry *PlaylistModel::songAt(int row) const

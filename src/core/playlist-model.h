@@ -4,15 +4,14 @@
  * @file playlist-model.h
  * @brief QAbstractTableModel wrapping the MPD queue (current playlist).
  *
- * Populated by sending mpd_send_list_queue_meta() and iterating
- * with mpd_recv_entity().  Designed to be bound to a CurrentPlaylist
- * QTreeView.
+ * Содержимое подкладывает QueueSync (core/queue-sync.h): он читает очередь в своём
+ * потоке и присылает либо весь список, либо теги изменившихся строк. Вьюха —
+ * CurrentPlaylist.
  */
 
 #include <QAbstractTableModel>
 #include <QList>
 
-class Connection;
 class QMimeData;
 
 /// Lightweight descriptor for one song in the queue.
@@ -25,6 +24,13 @@ struct SongEntry {
     QString uri;        ///< file name/URI — fallback when there is no Title tag
     int duration = 0;   ///< seconds
 };
+
+struct mpd_song;
+
+/** @brief Разбор одной записи ответа MPD в SongEntry.
+ *  Общий для `listqueue` и `plchanges`: теги у этих ответов одинаковые, а две
+ *  копии разбора означали бы, что очередь и дифф наполняются разными полями. */
+[[nodiscard]] SongEntry songEntryFromMpd(const struct mpd_song *song);
 
 /// A model of the MPD queue: four columns, one row per queued song.
 class PlaylistModel : public QAbstractTableModel {
@@ -86,18 +92,11 @@ public:
 
     // -- population ---------------------------------------------------------
 
-    /** @brief Replace the model content by pulling the queue from MPD.
-     *  @param conn  Active connection; must be connected, otherwise no-op.
+    /** @brief Заменить всё содержимое модели списком @a songs.
      *
-     *  Ответ завершается на любой ветке: недочитанный список очереди оставил бы
-     *  соединение в error-state и все последующие команды встали бы.
-     */
-    void loadFromConnection(Connection &conn);
-
-    /** @brief Replace the whole queue with @a songs.
-     *
-     *  Used by incremental updates (plchanges) and by tests that must not talk
-     *  to a server; prefer it over re-reading the entire queue.
+     *  Используется синхронизатором очереди (QueueSync) и тестами, которым не нужен
+     *  сервер; очередь модель сама не читает — `listqueue` на 65 тыс. позиций это
+     *  ~914 мс, а в GUI-потоке такие чтения означают зависшее окно.
      */
     void setSongs(const QList<SongEntry> &songs);
 
@@ -142,6 +141,14 @@ public:
      */
     void removeRowsAt(const QList<int> &rows);
 
+    /** @brief Обновить теги строк, не трогая состав и порядок очереди.
+     *  @param rows Трэки из `plchanges` со своими `pos`; строки вне диапазона игнорируются.
+     *
+     *  Нужен потому, что `update` в фоне меняет теги, не двигая ни одной строки:
+     *  reset модели на такое сбросил бы выделение и прокрутку очереди.
+     */
+    void applyTagsRefreshed(const QList<SongEntry> &rows);
+
     // -- lookup -------------------------------------------------------------
 
     /** @brief Return the song descriptor at a given row (or nullptr). */
@@ -175,7 +182,7 @@ public:
     const SongEntry *currentSong() const;
 
 signals:
-    /// Emitted after loadFromConnection() completes.
+    /// Emit после того, как очередь заменена целиком (setSongs()).
     void loaded();
 
     /** @brief Emitted when the resolved current song changes.
