@@ -318,7 +318,7 @@ void MainWindow::setupCentralArea()
     centralStack_ = new QStackedWidget(this);
     browserStack_ = new BrowserStack(centralStack_, this);
 
-    currentPlaylist_ = new CurrentPlaylist(conn_, playlistModel_, this);
+    currentPlaylist_ = new CurrentPlaylist(conn_, cmds_, playlistModel_, this);
     databaseBrowser_ = new DatabaseBrowser(conn_, this);
     fileBrowser_     = new FileBrowser(conn_, this);
     searchBrowser_   = new SearchBrowser(conn_, this);
@@ -358,7 +358,8 @@ void MainWindow::setupCentralArea()
             return idx.data(MusicDbRoles::UriRole).toString();
         });
 
-    // CurrentPlaylist: already playing — context menu not critical.
+    // CurrentPlaylist needs no add-to-queue menu: its rows are already in the
+    // queue.  It builds its own context menu (play/remove/move/clear/save).
 }
 
 // ── Browser tabs ────────────────────────────────────────────────────────────

@@ -1,24 +1,75 @@
 /**
  * @file current-playlist.cpp
  * @brief Current playlist view implementation.
+ *
+ * Очередь на экране — зеркало MPD: любое изменение сначала уходит серверу, и лишь
+ * потом меняется локальная копия. Иначе отказ команды оставил бы список в порядке,
+ * которого на сервере нет, а следующий `plchanges` (7.2) привёл бы его в соответствие
+ * уже помимо воли пользователя.
  */
 
 #include "current-playlist.h"
 #include "core/connection.h"
+#include "core/mpd-commands.h"
 #include "core/playlist-model.h"
+#include "tools/log.h"
 
-#include <QVBoxLayout>
+#include <QAbstractItemView>
+#include <QDropEvent>
 #include <QHeaderView>
+#include <QInputDialog>
+#include <QMenu>
+#include <QMessageBox>
+#include <QMimeData>
+#include <QShortcut>
+#include <QVBoxLayout>
 
-CurrentPlaylist::CurrentPlaylist(Connection *conn, PlaylistModel *model,
-                                 QWidget *parent)
-    : BrowserWidget(parent), conn_(conn), model_(model)
+#include <algorithm>
+
+namespace {
+
+/** @brief Дерево очереди, открывающее позицию индикатора дропа.
+ *  Индикатор Qt рисует сам, а спросить, где именно он нарисован, может только
+ *  потомок: и dropIndicatorPosition(), и сам enum DropIndicatorPosition объявлены
+ *  protected, поэтому наружу отдаём уже готовый ответ, а не значение енума. */
+class QueueTreeView : public QTreeView {
+public:
+    using QTreeView::QTreeView;
+
+    /// Индикатор под строкой — значит, блок встанет после неё (иначе — перед).
+    bool dropIndicatorBelowItem() const
+    {
+        return dropIndicatorPosition() == BelowItem;
+    }
+};
+
+/// Смежный ли блок строк выделен: `move_range` переносит ровно один такой блок.
+bool contiguousBlock(const QList<int> &rows, int *first, int *count)
+{
+    if (rows.isEmpty())
+        return false;
+    for (int i = 1; i < rows.size(); ++i) {
+        if (rows[i] != rows[i - 1] + 1)
+            return false;
+    }
+    *first = rows.first();
+    *count = rows.size();
+    return true;
+}
+
+} // namespace
+
+CurrentPlaylist::CurrentPlaylist(Connection *conn, MpdCommands *cmds,
+                                 PlaylistModel *model, QWidget *parent)
+    : BrowserWidget(parent), conn_(conn), cmds_(cmds), model_(model)
     , proxy_(new QSortFilterProxyModel(this))
     , filterEdit_(new QLineEdit(this))
 {
     proxy_->setSourceModel(model_);
     proxy_->setFilterCaseSensitivity(Qt::CaseInsensitive);
     proxy_->setFilterKeyColumn(-1); // search all columns
+    // Длительность сортируется численно: по DisplayRole «10:00» встал бы раньше «9:00».
+    proxy_->setSortRole(PlaylistModel::SortRole);
 
     setupUi();
 
@@ -35,14 +86,242 @@ void CurrentPlaylist::setupUi()
     filterEdit_->setClearButtonEnabled(true);
     lay->addWidget(filterEdit_);
 
-    view_ = new QTreeView(this);
+    view_ = new QueueTreeView(this);
     view_->setModel(proxy_);
     view_->setAlternatingRowColors(true);
     view_->setRootIsDecorated(false);
     view_->setSortingEnabled(true);
-    view_->header()->setStretchLastSection(true);
+    view_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    view_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+
+    auto *header = view_->header();
+    header->setStretchLastSection(false);
+    header->setSectionResizeMode(PlaylistModel::TitleColumn, QHeaderView::Stretch);
+    header->setSectionResizeMode(PlaylistModel::ArtistColumn, QHeaderView::Interactive);
+    header->setSectionResizeMode(PlaylistModel::AlbumColumn, QHeaderView::Interactive);
+    header->setSectionResizeMode(PlaylistModel::TimeColumn, QHeaderView::ResizeToContents);
+    header->resizeSection(PlaylistModel::ArtistColumn, 180);
+    header->resizeSection(PlaylistModel::AlbumColumn, 180);
+
+    // Перестановка перетаскиванием: Qt собирает mimeData модели и рисует индикатор,
+    // событие дропа разбираем мы (см. eventFilter).
+    view_->setDragEnabled(true);
+    view_->setAcceptDrops(true);
+    view_->setDropIndicatorShown(true);
+    view_->setDragDropMode(QAbstractItemView::InternalMove);
 
     lay->addWidget(view_, 1);
+
+    // Двойной клик и Enter — как row-activated в оригинальном gmpc.
+    connect(view_, &QTreeView::activated, this, [this](const QModelIndex &index) {
+        playRow(sourceRowOf(index));
+    });
+
+    view_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(view_, &QTreeView::customContextMenuRequested,
+            this, &CurrentPlaylist::showContextMenu);
+
+    // Delete/Backspace удаляют выделенное, но только когда фокус внутри дерева:
+    // на весь стек браузеров эти клавиши перехватывать нельзя.
+    for (const QKeySequence &seq : {QKeySequence::Delete, QKeySequence::Backspace}) {
+        auto *shortcut = new QShortcut(seq, view_);
+        shortcut->setContext(Qt::WidgetWithChildrenShortcut);
+        connect(shortcut, &QShortcut::activated, this, [this] {
+            removeRows(selectedSourceRows());
+        });
+    }
+
+    view_->viewport()->installEventFilter(this);
+}
+
+// ── Разбор индексов вида ─────────────────────────────────────────────────────
+
+int CurrentPlaylist::sourceRowOf(const QModelIndex &index) const
+{
+    if (!index.isValid())
+        return -1;
+    // Вид показывает прокси: сортировка и фильтр смещают строки относительно очереди.
+    const QModelIndex source = proxy_->mapToSource(index);
+    return source.isValid() ? source.row() : -1;
+}
+
+QList<int> CurrentPlaylist::selectedSourceRows() const
+{
+    QList<int> rows;
+    auto *selection = view_->selectionModel();
+    if (!selection)
+        return rows;
+
+    for (const QModelIndex &index : selection->selectedRows(PlaylistModel::TitleColumn)) {
+        const int row = sourceRowOf(index);
+        if (row >= 0 && !rows.contains(row))
+            rows.append(row);
+    }
+    std::sort(rows.begin(), rows.end());
+    return rows;
+}
+
+// ── Действия над очередью ────────────────────────────────────────────────────
+
+void CurrentPlaylist::playRow(int sourceRow)
+{
+    if (sourceRow < 0 || !conn_->isConnected())
+        return;
+    const SongEntry *song = model_->songAt(sourceRow);
+    if (song && song->pos >= 0)
+        cmds_->playPos(song->pos);
+}
+
+void CurrentPlaylist::removeRows(const QList<int> &sourceRows)
+{
+    if (sourceRows.isEmpty() || !conn_->isConnected())
+        return;
+
+    // Удаляем по идентификаторам: пока пользователь выбирал строки, очередь могла
+    // сдвинуться (другой клиент, consume-режим).
+    QList<int> ids;
+    for (int row : sourceRows) {
+        const SongEntry *song = model_->songAt(row);
+        if (song && song->id >= 0)
+            ids.append(song->id);
+    }
+
+    cmds_->removeSongIds(ids);
+    model_->removeRowsAt(sourceRows);
+}
+
+void CurrentPlaylist::moveBlock(int sourceRow, int count, int destRow)
+{
+    if (!conn_->isConnected())
+        return;
+
+    const int toPos = PlaylistModel::targetPosForMove(sourceRow, count, destRow,
+                                                      model_->rowCount({}));
+    if (toPos < 0)
+        return;
+
+    cmds_->moveQueueBlock(sourceRow, count, toPos);
+    // Отказ команды виден в логе; локальная копия разъедется с очередью ровно до
+    // ближайшего обновления по idle (7.2), где очередь и синхронизируется заново.
+    model_->moveRowsWithin(sourceRow, count, destRow);
+}
+
+void CurrentPlaylist::moveBlockFromIds(const QList<int> &songIds, int destRow)
+{
+    // pos == номер строки в полном списке очереди, так что идентификатор переводится
+    // в строку одним поиском.
+    QList<int> rows;
+    for (int id : songIds) {
+        const int row = model_->posForId(id);
+        if (row >= 0 && !rows.contains(row))
+            rows.append(row);
+    }
+    std::sort(rows.begin(), rows.end());
+
+    int first = 0, count = 0;
+    if (!contiguousBlock(rows, &first, &count)) {
+        LOG_INFO("очередь: непоследовательное выделение не перемещается (%d строк)",
+                 static_cast<int>(rows.size()));
+        return;
+    }
+    moveBlock(first, count, destRow);
+}
+
+void CurrentPlaylist::moveSelectionBy(int delta)
+{
+    int first = 0, count = 0;
+    if (!contiguousBlock(selectedSourceRows(), &first, &count))
+        return;
+
+    // «Перед строкой» в координатах до перемещения: вверх — на строку раньше,
+    // вниз — за строку, следующую за блоком.
+    const int destRow = delta < 0 ? first - 1 : first + count + 1;
+    moveBlock(first, count, destRow);
+}
+
+// ── События ─────────────────────────────────────────────────────────────────
+
+bool CurrentPlaylist::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::Drop && watched == view_->viewport()) {
+        auto *drop = static_cast<QDropEvent *>(event);
+        const QList<int> ids = PlaylistModel::songIdsFromMimeData(drop->mimeData());
+
+        if (!ids.isEmpty() && drop->proposedAction() == Qt::MoveAction) {
+            int destRow = -1;   // за последнюю строку — в конец очереди
+            const QModelIndex target = view_->indexAt(drop->position().toPoint());
+            if (target.isValid()) {
+                const int row = sourceRowOf(target);
+                // «На строку» означает «перед ней» — так же Qt вставляет элемент в списке.
+                // Наследник нужен лишь затем, чтобы прочитать позицию индикатора;
+                // дерево создаётся здесь же, в setupUi(), поэтому приведение безопасно.
+                destRow = static_cast<QueueTreeView *>(view_)->dropIndicatorBelowItem()
+                    ? row + 1 : row;
+            }
+
+            moveBlockFromIds(ids, destRow);
+            drop->acceptProposedAction();
+            // Базовая обработка ушла бы в model()->dropMimeData, которой у нас нет:
+            // перестановка очереди — не перемещение данных внутри модели.
+            return true;
+        }
+    }
+
+    return BrowserWidget::eventFilter(watched, event);
+}
+
+void CurrentPlaylist::showContextMenu(const QPoint &pos)
+{
+    const QList<int> rows = selectedSourceRows();
+    const bool connected = conn_->isConnected();
+
+    int first = 0, count = 0;
+    const bool oneBlock = contiguousBlock(rows, &first, &count);
+
+    QMenu menu(this);
+    QAction *playAct = menu.addAction(tr("Play"));
+    playAct->setEnabled(!rows.isEmpty() && connected);
+    QAction *removeAct = menu.addAction(tr("Remove from queue"));
+    removeAct->setEnabled(!rows.isEmpty() && connected);
+    menu.addSeparator();
+    QAction *upAct = menu.addAction(tr("Move up"));
+    QAction *downAct = menu.addAction(tr("Move down"));
+    upAct->setEnabled(oneBlock && connected);
+    downAct->setEnabled(oneBlock && connected);
+    menu.addSeparator();
+    const bool hasQueue = connected && model_->rowCount({}) > 0;
+    QAction *clearAct = menu.addAction(tr("Clear queue"));
+    clearAct->setEnabled(hasQueue);
+    QAction *saveAct = menu.addAction(tr("Save queue as…"));
+    saveAct->setEnabled(hasQueue);
+
+    QAction *chosen = menu.exec(view_->viewport()->mapToGlobal(pos));
+    if (!chosen)
+        return;
+
+    if (chosen == playAct) {
+        playRow(rows.isEmpty() ? -1 : rows.first());
+    } else if (chosen == removeAct) {
+        removeRows(rows);
+    } else if (chosen == upAct) {
+        moveSelectionBy(-1);
+    } else if (chosen == downAct) {
+        moveSelectionBy(1);
+    } else if (chosen == clearAct) {
+        const auto answer = QMessageBox::question(this, tr("Clear queue"),
+            tr("Remove all %1 song(s) from the queue?").arg(model_->rowCount({})));
+        if (answer == QMessageBox::Yes) {
+            cmds_->clearQueue();
+            model_->clear();
+        }
+    } else if (chosen == saveAct) {
+        bool ok = false;
+        const QString name = QInputDialog::getText(this, tr("Save queue as"),
+                                                   tr("Playlist name:"),
+                                                   QLineEdit::Normal, {}, &ok);
+        if (ok && !name.trimmed().isEmpty())
+            cmds_->saveQueueAs(name.trimmed());
+    }
 }
 
 void CurrentPlaylist::onFilterChanged(const QString &text)
