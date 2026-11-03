@@ -2,17 +2,18 @@
 
 /**
  * @file playlist-model.h
- * @brief QAbstractListModel wrapping the MPD queue (current playlist).
+ * @brief QAbstractTableModel wrapping the MPD queue (current playlist).
  *
  * Populated by sending mpd_send_list_queue_meta() and iterating
  * with mpd_recv_entity().  Designed to be bound to a CurrentPlaylist
  * QTreeView.
  */
 
-#include <QAbstractListModel>
+#include <QAbstractTableModel>
 #include <QList>
 
 class Connection;
+class QMimeData;
 
 /// Lightweight descriptor for one song in the queue.
 struct SongEntry {
@@ -21,13 +22,28 @@ struct SongEntry {
     QString artist;
     QString title;
     QString album;
+    QString uri;        ///< file name/URI — fallback when there is no Title tag
     int duration = 0;   ///< seconds
 };
 
-/// A read-only model of the MPD queue.
-class PlaylistModel : public QAbstractListModel {
+/// A model of the MPD queue: four columns, one row per queued song.
+class PlaylistModel : public QAbstractTableModel {
     Q_OBJECT
 public:
+    /** @brief Columns shown by the current-playlist view.
+     *
+     *  Позиция очереди колонкой не является: она и есть номер строки (см.
+     *  renumberPositions()), а показывать её отдельным столбцом оригинальный
+     *  gmpc не пробовал.
+     */
+    enum Column {
+        TitleColumn = 0,
+        ArtistColumn,
+        AlbumColumn,
+        TimeColumn,
+        ColumnCount
+    };
+
     /// Custom data roles exposed to views.
     enum Roles {
         IdRole       = Qt::UserRole + 1,
@@ -35,15 +51,38 @@ public:
         ArtistRole,
         TitleRole,
         AlbumRole,
-        DurationRole
+        DurationRole,
+        UriRole,
+        /** @brief Роль сортировки: длительность сравнивается численно, а не как
+         *  «10:00» < «9:00»; для текстовых колонок — тот же текст, что и на экране. */
+        SortRole
     };
 
     explicit PlaylistModel(QObject *parent = nullptr);
 
     // -- QAbstractItemModel interface ---------------------------------------
     int rowCount(const QModelIndex &parent = {}) const override;
+    int columnCount(const QModelIndex &parent = {}) const override;
     QVariant data(const QModelIndex &index, int role) const override;
+    QVariant headerData(int section, Qt::Orientation orientation,
+                        int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
+
+    // -- перетаскивание строк -----------------------------------------------
+
+    /** @brief MIME-тип строки очереди: songid через запятую.
+     *  Собственный тип вместо внутреннего формата Qt: разбирать его приходится
+     *  нам же, и формат этот не документирован.
+     */
+    static const QString &songIdMimeType();
+
+    /// Идентификаторы из перетаскиваемых данных (пусто, если это не наши данные).
+    static QList<int> songIdsFromMimeData(const QMimeData *data);
+
+    Qt::ItemFlags flags(const QModelIndex &index) const override;
+    Qt::DropActions supportedDragActions() const override { return Qt::MoveAction; }
+    Qt::DropActions supportedDropActions() const override { return Qt::MoveAction; }
+    QMimeData *mimeData(const QModelIndexList &indexes) const override;
 
     // -- population ---------------------------------------------------------
 
@@ -64,6 +103,44 @@ public:
 
     /// Remove all rows.
     void clear();
+
+    // -- локальное отражение изменений очереди -------------------------------
+
+    /** @brief Переместить строки внутри модели, выполнив команду серверу.
+     *  @param sourceRow Первая перемещаемая строка.
+     *  @param count     Сколько строк (соседних).
+     *  @param destRow   Индекс строки, ПЕРЕД которой встанут перенесённые
+     *                   (-1 — в конец очереди).
+     *  @returns false, если диапазон выходит за пределы модели или смещения нет.
+     *
+     *  Модель не является источником истины об очереди: порядок меняет MPD, а здесь
+     *  отражается уже успешная команда — иначе при отказе сервера UI разошёлся бы с
+     *  очередью. Позиции после перемещения перенумеровываются: в полном списке
+     *  очереди `pos` совпадает с номером строки.
+     */
+    bool moveRowsWithin(int sourceRow, int count, int destRow);
+
+    /** @brief Аргумент TO команды `move_range` для того же перемещения.
+     *  @param sourceRow Первая строка блока в исходной модели.
+     *  @param count     Длина блока.
+     *  @param destRow   Строка, ПЕРЕД которой встанет блок (-1 — в конец),
+     *                   в координатах ДО перемещения.
+     *  @param queueSize  Длина очереди.
+     *  @returns позиция первой строки блока после перемещения или -1, если
+     *           перемещения нет (блок уже там) либо он за пределами очереди.
+     *
+     *  Координаты расходятся: MPD считает TO по очереди, из которой переносимые
+     *  строки уже вынуты, а интерфейс — по той, что пользователь видит на экране.
+     */
+    static int targetPosForMove(int sourceRow, int count, int destRow, int queueSize);
+
+    /** @brief Убрать строки из модели (сервер уже изменён командой delete).
+     *  @param rows Номера строк в произвольном порядке, возможны повторы.
+     *
+     *  Удалять нужно одним блоком операций удаления — иначе вьюха получит набор
+     *  несовместимых извещений о строках, которые уже сдвинулись.
+     */
+    void removeRowsAt(const QList<int> &rows);
 
     // -- lookup -------------------------------------------------------------
 
@@ -109,6 +186,9 @@ signals:
 private:
     /// Emit currentSongChanged() if the resolved entry differs from last time.
     void notifyCurrentSong();
+
+    /// Проставить pos по номеру строки (после перемещения или удаления).
+    void renumberPositions();
 
     QList<SongEntry> songs_;
     int curId_ = -1;        ///< `songid` from MPD status
