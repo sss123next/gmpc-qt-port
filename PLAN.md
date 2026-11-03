@@ -454,6 +454,16 @@ lyrics.ovh ────────── резерв, без ключа, то�
 - `QNetworkAccessManager::get(QNetworkRequest)` — не принимает `QUrl` напрямую
 - `QNetworkRequest` обязателен, даже для простых GET
 
+**Интеграция с окружением (перенесено из удалённого SYNC.md):**
+- Трей — только `QSystemTrayIcon`: никаких AppIndicator и GNOME-специфичных API.
+  Работает в X11-треях (tray2, waybar, polybar, stalonetray) и в минималистичных
+  WM/DE (awesome, hyprland, i3, sway, XFCE, LXQt). GNOME без расширения
+  AppIndicator — их проблемы.
+- DBus используется ровно в одном месте — MPRIS (`src/mpris/mpris-player.*`), и это
+  внешний интерфейс приложения, а не зависимость от окружения; трей от него не зависит.
+- Мультимедийные клавиши — X11 native event filter на `xcb-keysyms` (единственная
+  дополнительная зависимость сборки); привязки живут в `Config`, правятся в Preferences.
+
 **Инструментарий (Phase 5):**
 - Qt Linguist: `lupdate`/`lrelease` + `tr()` — официальный путь интернационализации
 - `QXmlStreamReader` — предпочтительнее DOM/SAX для XML
