@@ -113,6 +113,9 @@ QVariant FileSystemModel::data(const QModelIndex &index, int role) const
     if (role == UriRole)
         return item->path;
 
+    if (role == TypeRole)
+        return static_cast<int>(item->type);
+
     return {};
 }
 

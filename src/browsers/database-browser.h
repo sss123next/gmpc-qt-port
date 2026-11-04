@@ -9,6 +9,7 @@
  */
 
 #include "browser-widget.h"
+#include "music-database-model.h"
 
 class Connection;
 class MusicDatabaseModel;
@@ -28,6 +29,13 @@ public:
     /// The embedded tree view (for context menu setup).
     QTreeView *treeView() const { return view_; }
 
+    /** @brief Что делать при активации строки дерева (двойной клик).
+     *  Трэку отдаётся URI, группе и альбому — ограничения `findadd`.
+     */
+    MusicDbActivation activationFor(const QModelIndex &index) const {
+        return model_->activationFor(index);
+    }
+
     void onActivate() override;
     void onConnectionChanged(bool connected) override;
 
@@ -39,5 +47,6 @@ private:
     MusicDatabaseModel *model_;
     QTreeView *view_;
     QComboBox *tagCombo_;
+    enum mpd_tag_type currentTag_ = MPD_TAG_ARTIST; ///< выбранный способ группировки
 };
 

@@ -50,7 +50,10 @@ DatabaseBrowser::DatabaseBrowser(Connection *conn, QWidget *parent)
 
     view_->setModel(model_);
     view_->setHeaderHidden(false);
-    view_->setExpandsOnDoubleClick(true);
+    // Двойной клик здесь означает «добавить в очередь», а не «развернуть»: вместе с
+    // раскрытием второй клик по альбому вываливал бы в очередь сотню трэков вместо
+    // того, чтобы просто показать их. Разворачивают стрелку и клавиши Right/Left.
+    view_->setExpandsOnDoubleClick(false);
     lay->addWidget(view_, 1);
 }
 
@@ -58,21 +61,27 @@ DatabaseBrowser::~DatabaseBrowser() = default;
 
 void DatabaseBrowser::onTagChanged(int index)
 {
+    // Выбор запоминается и без соединения: иначе после переподключения экран
+    // заполнился бы артистами, хотя пользователь выбрал жанр.
+    currentTag_ = comboIndexToTag(index);
+
     if (!conn_ || !conn_->isConnected())
         return;
 
-    model_->loadByTag(comboIndexToTag(index));
+    model_->loadByTag(currentTag_);
 }
 
 void DatabaseBrowser::onActivate()
 {
+    // Группы всегда по текущему способу группировки: loadArtists() здесь сбрасывал бы
+    // дерево к артистам после каждого переключения на жанр.
     if (conn_->isConnected())
-        model_->loadArtists();
+        model_->loadByTag(currentTag_);
 }
 
 void DatabaseBrowser::onConnectionChanged(bool connected)
 {
     setEnabled(connected);
     if (connected)
-        model_->loadArtists();
+        model_->loadByTag(currentTag_);
 }

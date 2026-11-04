@@ -148,6 +148,12 @@ private:
     void setupBrowserContextMenu(QTreeView *view,
                                  std::function<QString(QModelIndex)> getUri);
 
+    /** @brief Активация строки браузера двойным кликом (row-activated оригинала).
+     *  @param activate вызывается с индексом вида; команды отдаёт MpdCommands.
+     */
+    void setupBrowserActivation(QAbstractItemView *view,
+                                std::function<void(QModelIndex)> activate);
+
     bool fullscreen_ = false; ///< Whether the window is fullscreen.
     int zoomLevel_ = 0;       ///< Current zoom level (0/1/2).
     QTimer *overlayTimer_ = nullptr; ///< Auto-hide timer for fullscreen.

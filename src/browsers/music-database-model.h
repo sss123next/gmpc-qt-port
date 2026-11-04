@@ -2,20 +2,21 @@
 
 /**
  * @file music-database-model.h
- * @brief Tree model for the MPD music database (artist / album).
+ * @brief Tree model for the MPD music database, grouped by tag.
  *
- * Top-level items are artists; each artist has child album items.
- * Albums have leaf track entries (future).
- *
- * Populated by calling loadArtists() which sends MPD commands via
- * Connection.
+ * Три уровня: группа верхнего уровня (артист/жанр/год/композитор — см. groupTag())
+ * → альбом → трэк. Группа и альбом грузятся лениво через canFetchMore()/fetchMore(),
+ * поэтому дерево не вываливает всю базу одним движением.
  */
 
 #include <QAbstractItemModel>
 #include <QString>
 #include <QList>
+#include <QVector>
 
 #include <mpd/tag.h>
+
+#include "core/mpd-commands.h"
 
 class Connection;
 
@@ -26,6 +27,8 @@ namespace MusicDbRoles {
 
 /// A node in the music database tree.
 struct MusicDbItem {
+    /** Уровень строки. Artist = «группа верхнего уровня»: при группировке по жанру,
+     *  году или композитору это узел соответствующего тега, а не артист. */
     enum Type { Artist, Album, Track };
 
     Type type;
@@ -33,8 +36,28 @@ struct MusicDbItem {
     QList<MusicDbItem *> children;
     MusicDbItem *parent = nullptr;
     QString uri;        ///< file URI (only for Track)
+    bool loaded = false;///< детей запрашивали с сервера (пустой альбом — тоже «загружен»)
 
     ~MusicDbItem() { qDeleteAll(children); }
+};
+
+/** @brief Ограничения `findadd` для строки дерева БД.
+ *  @param rootTag   тег группировки верхнего уровня
+ *  @param type      уровень строки
+ *  @param name      имя строки
+ *  @param groupName имя родительской группы (для альбома), пусто для группы и трэка
+ *
+ *  Группа → `(rootTag, имя)`; альбом → `(rootTag, группа) + (ALBUM, имя)`; трэк →
+ *  пусто: у него есть собственный URI, его играет `MpdCommands::activateUri`.
+ */
+[[nodiscard]] QVector<MpdTagConstraint> musicDbConstraints(
+    enum mpd_tag_type rootTag, MusicDbItem::Type type,
+    const QString &name, const QString &groupName);
+
+/// Намерение при активации строки дерева (двойной клик).
+struct MusicDbActivation {
+    QString uri;                              ///< трэк: воспроизвести его
+    QVector<MpdTagConstraint> constraints;    ///< группа/альбом: добавить всё подходящее
 };
 
 /// Tree model for browsing the MPD music database.
@@ -45,14 +68,19 @@ public:
     ~MusicDatabaseModel() override;
 
     // ── Population ────────────────────────────────────────────────────────
-    /** Load the list of artists from MPD. */
-    void loadArtists();
-
-    /**
-     * Load top-level items grouped by the given tag type.
-     * Replaces loadArtists() when the user switches tag groups.
+    /** @brief Загрузить группы верхнего уровня по тегу (артисты — частный случай).
+     *  Модель перезаполняется целиком: повторный вызов не должен плодить дубли.
      */
     void loadByTag(enum mpd_tag_type tag);
+
+    /// Загрузить группы верхнего уровня, сгруппированные по артисту.
+    void loadArtists() { loadByTag(MPD_TAG_ARTIST); }
+
+    /// Тег группировки верхнего уровня — нужен ограничениям `findadd`.
+    enum mpd_tag_type groupTag() const { return rootTag_; }
+
+    /** @brief Что делать, когда пользователь активировал строку дерева. */
+    MusicDbActivation activationFor(const QModelIndex &index) const;
 
     /**
      * Load albums for a given artist node.
@@ -76,8 +104,12 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation,
                         int role = Qt::DisplayRole) const override;
 
+    // ── Ленивая загрузка альбомов и трэков ────────────────────────────────
+    bool canFetchMore(const QModelIndex &parent) const override;
+    void fetchMore(const QModelIndex &parent) override;
+
 private:
     Connection *conn_;
-    MusicDbItem *root_; ///< invisible root
+    MusicDbItem *root_;               ///< invisible root
+    enum mpd_tag_type rootTag_ = MPD_TAG_ARTIST; ///< тег групп верхнего уровня
 };
-

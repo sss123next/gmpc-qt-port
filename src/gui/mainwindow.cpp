@@ -324,7 +324,7 @@ void MainWindow::setupCentralArea()
     databaseBrowser_ = new DatabaseBrowser(conn_, this);
     fileBrowser_     = new FileBrowser(conn_, this);
     searchBrowser_   = new SearchBrowser(conn_, this);
-    playlistEditor_  = new PlaylistEditor(conn_, this);
+    playlistEditor_  = new PlaylistEditor(conn_, cmds_, this);
 
     // Order here defines the stack index and must match setupSidebar() and
     // setupBrowserTabs(), which both address pages by row number.
@@ -362,6 +362,39 @@ void MainWindow::setupCentralArea()
 
     // CurrentPlaylist needs no add-to-queue menu: its rows are already in the
     // queue.  It builds its own context menu (play/remove/move/clear/save).
+
+    // ── Двойной клик (row-activated оригинала) ────────────────────────
+    setupBrowserActivation(searchBrowser_->treeView(), [this](const QModelIndex &idx) {
+        auto *m = qobject_cast<SearchResultModel *>(
+            const_cast<QAbstractItemModel *>(idx.model()));
+        if (!m) return;
+        const SearchResultItem *r = m->resultAt(idx.row());
+        if (r && !r->uri.isEmpty()) cmds_->activateUri(r->uri);
+    });
+
+    // Правая панель файлов: каталог — навигация, трэк — играть, список — в очередь.
+    setupBrowserActivation(fileBrowser_->contentView(), [this](const QModelIndex &idx) {
+        switch (static_cast<FileNode::Type>(idx.data(FileSystemModel::TypeRole).toInt())) {
+        case FileNode::Directory:
+            fileBrowser_->enterDirectory(idx);
+            break;
+        case FileNode::Song:
+            cmds_->activateUri(idx.data(FileSystemModel::UriRole).toString());
+            break;
+        case FileNode::Playlist:
+            // Файл .m3u в файловой системе — это сохранённый список: load, а не addid.
+            cmds_->loadStoredPlaylist(idx.data(FileSystemModel::UriRole).toString());
+            break;
+        default:
+            break;   // Root — корень дерева, активировать нечего
+        }
+    });
+
+    setupBrowserActivation(databaseBrowser_->treeView(), [this](const QModelIndex &idx) {
+        const MusicDbActivation act = databaseBrowser_->activationFor(idx);
+        if (!act.uri.isEmpty()) cmds_->activateUri(act.uri);
+        else if (!act.constraints.isEmpty()) cmds_->findAddSongs(act.constraints);
+    });
 }
 
 // ── Browser tabs ────────────────────────────────────────────────────────────
@@ -727,6 +760,20 @@ void MainWindow::setupBrowserContextMenu(
                 tr("Song Info: not implemented as popup yet"), 3000);
         }
     });
+}
+
+// ── Double-click activation for browsers ────────────────────────────────────
+
+void MainWindow::setupBrowserActivation(
+    QAbstractItemView *view, std::function<void(QModelIndex)> activate)
+{
+    // doubleClicked приходит с индексом вида (для прокси — проксированным); маппинг и
+    // разбор типа — забота колбэка, здесь лишь гашение невалидного индекса.
+    connect(view, &QAbstractItemView::doubleClicked, this,
+            [activate](const QModelIndex &idx) {
+                if (idx.isValid())
+                    activate(idx);
+            });
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────

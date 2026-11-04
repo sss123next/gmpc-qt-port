@@ -5,6 +5,7 @@
 
 #include "playlist-editor.h"
 #include "core/connection.h"
+#include "core/mpd-commands.h"
 
 #include <mpd/playlist.h>
 #include <mpd/song.h>
@@ -14,16 +15,24 @@
 #include <QInputDialog>
 #include <QLabel>
 #include <QListWidget>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QShortcut>
 #include <QSplitter>
 #include <QVBoxLayout>
 
+namespace {
+/// URI трэка в позиции списка воспроизведения (роль данных QListWidgetItem).
+constexpr int kUriRole = Qt::UserRole + 1;
+}
+
 // ── Construction ────────────────────────────────────────────────────────────
 
-PlaylistEditor::PlaylistEditor(Connection *conn, QWidget *parent)
+PlaylistEditor::PlaylistEditor(Connection *conn, MpdCommands *cmds, QWidget *parent)
     : BrowserWidget(parent)
     , conn_(conn)
+    , cmds_(cmds)
     , playlistList_(new QListWidget(this))
     , contentsList_(new QListWidget(this))
     , newBtn_(new QPushButton(tr("New"), this))
@@ -33,6 +42,11 @@ PlaylistEditor::PlaylistEditor(Connection *conn, QWidget *parent)
 {
     auto *mainLay = new QVBoxLayout(this);
     mainLay->setContentsMargins(0, 0, 0, 0);
+
+    // Имена панелей: обе — QListWidget, а порядок потомков зависит от раскладки, поэтому
+    // отличать «позиции списка» от «списка имён» надо по имени, а не по индексу.
+    playlistList_->setObjectName(QStringLiteral("playlistNames"));
+    contentsList_->setObjectName(QStringLiteral("playlistContents"));
 
     // ── splitter: playlist list | contents list ──
     auto *splitter = new QSplitter(Qt::Horizontal, this);
@@ -75,6 +89,24 @@ PlaylistEditor::PlaylistEditor(Connection *conn, QWidget *parent)
             this, &PlaylistEditor::onDeletePlaylist);
     connect(loadBtn_, &QPushButton::clicked,
             this, &PlaylistEditor::onLoadPlaylist);
+
+    // ── позиции сохранённого списка ──
+    // Двойной клик — как row-activated в оригинале: play_path(), а не «играть N-ю
+    // строку списка»: позиция в файле и позиция в очереди — разные вещи.
+    contentsList_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(contentsList_, &QListWidget::itemDoubleClicked,
+            this, &PlaylistEditor::onItemActivated);
+    connect(contentsList_, &QListWidget::customContextMenuRequested,
+            this, [this](const QPoint &pos) { showContentsMenu(pos); });
+
+    // Delete/Backspace удаляют позицию из сохранённого списка, но только когда фокус
+    // внутри этого списка: на весь стек браузеров эти клавиши перехватывать нельзя.
+    for (const QKeySequence &seq : {QKeySequence::Delete, QKeySequence::Backspace}) {
+        auto *shortcut = new QShortcut(seq, contentsList_);
+        shortcut->setContext(Qt::WidgetWithChildrenShortcut);
+        connect(shortcut, &QShortcut::activated,
+                this, &PlaylistEditor::removeCurrentPosition);
+    }
 
     updateButtonStates();
 }
@@ -177,7 +209,60 @@ void PlaylistEditor::onLoadPlaylist()
     conn_->consumeError("load");
 }
 
+void PlaylistEditor::onItemActivated(QListWidgetItem *item)
+{
+    if (!item)
+        return;
+
+    const QString uri = item->data(kUriRole).toString();
+    if (!uri.isEmpty())
+        cmds_->activateUri(uri);
+}
+
+void PlaylistEditor::removeCurrentPosition()
+{
+    auto *item = contentsList_->currentItem();
+    const QString name = currentPlaylistName();
+    if (!item || name.isEmpty())
+        return;
+
+    // Строка списка — это и есть позиция в сохранённом файле: MPD нумерует их с нуля,
+    // ровно как QListWidget.
+    cmds_->deletePlaylistPosition(name, contentsList_->row(item));
+
+    // Файл на сервере уже изменился, поэтому список перечитываем сразу: ждать
+    // idle-событие — значит показывать строку, которой больше нет.
+    refreshContents(name);
+}
+
 // ── Private ─────────────────────────────────────────────────────────────────
+
+QString PlaylistEditor::currentPlaylistName() const
+{
+    auto *cur = playlistList_->currentItem();
+    return cur ? cur->text() : QString();
+}
+
+void PlaylistEditor::showContentsMenu(const QPoint &pos)
+{
+    auto *item = contentsList_->itemAt(pos);
+    if (!item)
+        return;   // меню на пустом месте под строками показывать нечего
+
+    contentsList_->setCurrentItem(item);
+
+    QMenu menu(contentsList_);
+    QAction *play = menu.addAction(tr("Play"));
+    QAction *remove = menu.addAction(tr("Remove from playlist"));
+    play->setEnabled(!item->data(kUriRole).toString().isEmpty());
+    remove->setEnabled(!currentPlaylistName().isEmpty() && conn_->isConnected());
+
+    QAction *chosen = menu.exec(contentsList_->viewport()->mapToGlobal(pos));
+    if (chosen == play)
+        onItemActivated(item);
+    else if (chosen == remove)
+        removeCurrentPosition();
+}
 
 void PlaylistEditor::refreshPlaylists()
 {
@@ -236,7 +321,10 @@ void PlaylistEditor::refreshContents(const QString &playlistName)
             else
                 label = uri;
 
-            contentsList_->addItem(label);
+            // URI рядом с подписью: активации и удалению позиции нужен именно файл,
+            // а подпись «artist - title» к нему не привязана.
+            auto *item = new QListWidgetItem(label, contentsList_);
+            item->setData(kUriRole, uri);
         }
         mpd_entity_free(entity);
     }

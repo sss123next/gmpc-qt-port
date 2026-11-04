@@ -109,6 +109,18 @@ void FileBrowser::onLeftSelectionChanged()
         rightView_->resizeColumnToContents(c);
 }
 
+void FileBrowser::enterDirectory(const QModelIndex &contentIndex)
+{
+    const QModelIndex source = contentProxy_->mapToSource(contentIndex);
+    if (!source.isValid())
+        return;
+
+    // Правая панель показывает детей текущего узла, поэтому его родитель в левом
+    // дереве уже раскрыт и строку каталога есть куда выделить. Смена текущей строки
+    // сама дёргает onLeftSelectionChanged, то есть меняет корень правой панели.
+    leftView_->setCurrentIndex(source);
+}
+
 void FileBrowser::onActivate()
 {
     if (conn_->isConnected() && model_->canFetchMore({}))

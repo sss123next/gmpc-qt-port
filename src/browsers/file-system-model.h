@@ -43,6 +43,14 @@ class FileSystemModel : public QAbstractItemModel {
 public:
     /// Custom data role that returns the full virtual path.
     static constexpr int UriRole = Qt::UserRole + 1;
+
+    /** @brief Роль типа узла: значение FileNode::Type как int (Qt::UserRole + 2).
+     *
+     *  Нужен активации двойным кликом: каталог в неё навигирует, трэк играется,
+     *  список воспроизведения дописывается в очередь. По одному URI эти строки не
+     *  различить — путь каталога и путь трэка выглядят одинаково.
+     */
+    static constexpr int TypeRole = Qt::UserRole + 2;
     explicit FileSystemModel(Connection *conn, QObject *parent = nullptr);
     ~FileSystemModel() override;
 

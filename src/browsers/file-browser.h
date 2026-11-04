@@ -47,6 +47,15 @@ public:
     /// The embedded tree view (for context menu setup).
     QTreeView *treeView() const { return leftView_; }
 
+    /** @brief Правая панель — содержимое выбранного каталога.
+     *  Индексы из неё проксированные: `enterDirectory()` принимает именно их. */
+    QTreeView *contentView() const { return rightView_; }
+
+    /** @brief Перейти в каталог, выбрав его в левом дереве (двойной клик справа).
+     *  Как в оригинале: двойной клик по каталогу не добавляет его в очередь, а открывает.
+     */
+    void enterDirectory(const QModelIndex &contentIndex);
+
     void onActivate() override;
     void onConnectionChanged(bool connected) override;
 
