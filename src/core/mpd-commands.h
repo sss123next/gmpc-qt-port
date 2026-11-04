@@ -10,7 +10,15 @@
  */
 
 #include <QObject>
+#include <QVector>
+#include <mpd/tag.h>
 #include "connection.h"
+
+/// Точное ограничение «тег == значение» для findadd (добавление группы/альбома).
+struct MpdTagConstraint {
+    enum mpd_tag_type tag;
+    QString value;
+};
 
 /// Stateless set of player-command slots that operate on a Connection.
 class MpdCommands : public QObject {
@@ -52,6 +60,16 @@ public slots:
     /** @brief Add a URI (song or directory) to the queue. */
     void addUri(const QString &uri);
 
+    /** @brief Воспроизвести трэк, добавив его в очередь, если там его нет.
+     *  @param uri  файл из базы (не каталог).
+     *
+     *  Семантика play_path() оригинального gmpc (`Tools/mpdinteraction.c:477`):
+     *  трэк уже в очереди → `playid` существующего идентификатора, иначе `addid` +
+     *  `playid`. Очередь не очищается — двойной клик в браузере не имеет права
+     *  выбрасывать то, что пользователь собрал раньше.
+     */
+    void activateUri(const QString &uri);
+
     /** @brief Play a specific queue position. */
     void playPos(int pos);
 
@@ -80,6 +98,35 @@ public slots:
      */
     void saveQueueAs(const QString &name);
 
+    // -- списки воспроизведения (сохранённые) --------------------------------
+    /** @brief Добавить в очередь все трэки базы под ограничениями (`findadd`).
+     *  @param constraints  Пары «тег == значение»; точное совпадение.
+     *
+     *  Пустой список ограничений — намеренный no-op: `findadd` без фильтра это
+     *  «всю базу в очередь», а не «ничего».
+     *
+     *  Дубликаты MPD не пропускает (замерено на MPD 0.25): строка, которая уже стоит
+     *  в очереди, будет добавлена второй раз. Это поведение оригинального gmpc — двойной
+     *  клик по группе означает «собрать группу в очередь», а не «добавить недостающее».
+     */
+    void findAddSongs(const QVector<MpdTagConstraint> &constraints);
+
+    /** @brief Дописать сохранённый список воспроизведения в очередь (`load`).
+     *
+     *  Именно дописывает, а не заменяет (замерено на MPD 0.25: очередь из 7 строк после
+     *  `load` списка той же длины стала 14). Очередь пользователя двойной клик выбрасывать
+     *  не имеет права.
+     */
+    void loadStoredPlaylist(const QString &name);
+
+    /** @brief Удалить позицию из сохранённого списка воспроизведения.
+     *  @param name      Имя списка, как его отдаёт `listplaylists`.
+     *  @param position  Номер строки в этом списке (не в очереди).
+     *
+     *  Очередь не меняется: `playlistdelete` правит файл списка на сервере (замерено).
+     */
+    void deletePlaylistPosition(const QString &name, int position);
+
     // -- playback modes -----------------------------------------------------
     void setRepeat(bool on);
     void setRandom(bool on);
@@ -95,6 +142,11 @@ public slots:
     void muteToggle();
 
 private:
+    /** @brief Идентификатор трэка в очереди по точному совпадению URI.
+     *  @returns songid или -1, если трэка в очереди нет (и вне соединения).
+     */
+    int queueSongIdForUri(const QString &uri) const;
+
     Connection *conn_;
 };
 

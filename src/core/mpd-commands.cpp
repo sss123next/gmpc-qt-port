@@ -76,6 +76,59 @@ void MpdCommands::addUri(const QString &uri) {
     RUN("add", mpd_run_add(MPD, u.constData()));
 }
 
+int MpdCommands::queueSongIdForUri(const QString &uri) const {
+    if (!conn_->isConnected())
+        return -1;
+
+    const QByteArray u = uri.toUtf8();
+    Connection::ResponseScope scope(*conn_, "playlistfind");
+
+    // Ограничение по URI: в enum mpd_tag_type тега FILENAME нет, для него в
+    // libmpdclient отдельный вызов — он ставит фильтр `filename "…"`. Совпадение точное
+    // и регистрозависимое (замерено на MPD 0.25: очередь из «a1.flac» не отвечает ни на
+    // «a1», ни на «1.flac», ни на «A1.FLAC»), поэтому подстрока не годится — «Karcev-Itak»
+    // не матчит «Karcev-Itak_remix».
+    if (!mpd_search_queue_songs(MPD, true))
+        return -1;
+
+    bool ok = mpd_search_add_uri_constraint(MPD, MPD_OPERATOR_DEFAULT, u.constData());
+    ok = ok && mpd_search_commit(MPD);
+    if (!ok) {
+        mpd_search_cancel(MPD);
+        return -1;
+    }
+
+    int id = -1;
+    while (struct mpd_song *song = mpd_recv_song(MPD)) {
+        const unsigned songId = mpd_song_get_id(song);
+        mpd_song_free(song);
+        // Один и тот же файл может стоять в очереди несколько раз — играем первый.
+        if (id < 0 && songId > 0)
+            id = static_cast<int>(songId);
+    }
+    return id;   // ResponseScope завершит ответ и снимет error-state
+}
+
+void MpdCommands::activateUri(const QString &uri) {
+    CHECK;
+    if (uri.isEmpty())
+        return;
+
+    const int existing = queueSongIdForUri(uri);
+    if (existing >= 0) {
+        RUN("playid", mpd_run_play_id(MPD, static_cast<unsigned>(existing)));
+        return;
+    }
+
+    // addid отдаёт идентификатор новой строки (0 — ошибка): играть надо именно её,
+    // а не последнюю позицию, которая могла сдвинуться чужим клиентом.
+    const QByteArray u = uri.toUtf8();
+    const unsigned added = mpd_run_add_id(MPD, u.constData());
+    conn_->consumeError("addid");
+    if (added > 0)
+        RUN("playid", mpd_run_play_id(MPD, added));
+}
+
 void MpdCommands::playPos(int pos) {
     CHECK;
     RUN("playid", mpd_run_play_pos(MPD, static_cast<unsigned>(pos)));
@@ -113,6 +166,52 @@ void MpdCommands::saveQueueAs(const QString &name) {
     if (n.isEmpty())
         return;
     RUN("save", mpd_run_save(MPD, n.constData()));
+}
+
+// -------------------------------------------------------------------
+//  Stored playlists / search-based queue additions
+// -------------------------------------------------------------------
+
+void MpdCommands::findAddSongs(const QVector<MpdTagConstraint> &constraints) {
+    CHECK;
+    if (constraints.isEmpty())
+        return;   // findadd без фильтра — это «вся база», а не «ничего»
+
+    Connection::ResponseScope scope(*conn_, "findadd");
+
+    // exact=true: точное совпадение по тегу. Иначе «Abba» притянула бы и трибьюты,
+    // а добавление альбома собрало бы чужие трэки. Фильтр собирает libmpdclient —
+    // экранирование кавычек на протоколе двойное, руками его писать нельзя.
+    if (!mpd_search_add_db_songs(MPD, true))
+        return;
+
+    bool ok = true;
+    for (const MpdTagConstraint &c : constraints) {
+        const QByteArray v = c.value.toUtf8();
+        ok = ok && mpd_search_add_tag_constraint(MPD, MPD_OPERATOR_DEFAULT,
+                                                 c.tag, v.constData());
+    }
+    ok = ok && mpd_search_commit(MPD);
+
+    if (!ok)
+        mpd_search_cancel(MPD);
+}
+
+void MpdCommands::loadStoredPlaylist(const QString &name) {
+    CHECK;
+    const QByteArray n = name.toUtf8();
+    if (n.isEmpty())
+        return;
+    RUN("load", mpd_run_load(MPD, n.constData()));
+}
+
+void MpdCommands::deletePlaylistPosition(const QString &name, int position) {
+    CHECK;
+    const QByteArray n = name.toUtf8();
+    if (n.isEmpty() || position < 0)
+        return;
+    RUN("playlistdelete", mpd_run_playlist_delete(MPD, n.constData(),
+                                                  static_cast<unsigned>(position)));
 }
 
 // -------------------------------------------------------------------
