@@ -10,10 +10,13 @@
  */
 
 #include <QApplication>
+#include <QKeySequence>
 #include <QListWidget>
 #include <QPushButton>
+#include <QShortcut>
 
 #include "browsers/playlist-editor.h"
+#include "core/mpd-commands.h"
 
 static int argc = 1;
 static char arg0[] = "gmpc-qt-test";
@@ -35,7 +38,8 @@ public:
 TEST_CASE("PlaylistEditor is a BrowserWidget subclass")
 {
     MockConnection conn;
-    PlaylistEditor editor(&conn);
+    MpdCommands cmds(&conn);
+    PlaylistEditor editor(&conn, &cmds);
     CHECK(editor.title() == "Playlists");
 
     // BrowserStack decides enabled state from the connection, not the widget.
@@ -45,7 +49,8 @@ TEST_CASE("PlaylistEditor is a BrowserWidget subclass")
 TEST_CASE("PlaylistEditor contains two QListWidgets")
 {
     MockConnection conn;
-    PlaylistEditor editor(&conn);
+    MpdCommands cmds(&conn);
+    PlaylistEditor editor(&conn, &cmds);
     auto lists = editor.findChildren<QListWidget *>();
     CHECK_EQ(lists.size(), 2);
 }
@@ -53,7 +58,8 @@ TEST_CASE("PlaylistEditor contains two QListWidgets")
 TEST_CASE("PlaylistEditor contains four QPushButtons")
 {
     MockConnection conn;
-    PlaylistEditor editor(&conn);
+    MpdCommands cmds(&conn);
+    PlaylistEditor editor(&conn, &cmds);
     auto btns = editor.findChildren<QPushButton *>();
     // New, Rename, Delete, Load
     CHECK_EQ(btns.size(), 4);
@@ -62,7 +68,8 @@ TEST_CASE("PlaylistEditor contains four QPushButtons")
 TEST_CASE("PlaylistEditor reacts to connection state")
 {
     MockConnection conn;
-    PlaylistEditor editor(&conn);
+    MpdCommands cmds(&conn);
+    PlaylistEditor editor(&conn, &cmds);
     editor.onConnectionChanged(true);
     CHECK(editor.isEnabled());
     editor.onConnectionChanged(false);
@@ -72,14 +79,16 @@ TEST_CASE("PlaylistEditor reacts to connection state")
 TEST_CASE("PlaylistEditor icon name is correct")
 {
     MockConnection conn;
-    PlaylistEditor editor(&conn);
+    MpdCommands cmds(&conn);
+    PlaylistEditor editor(&conn, &cmds);
     CHECK(editor.iconName() == "media-playlist");
 }
 
 TEST_CASE("PlaylistEditor lists are initially empty")
 {
     MockConnection conn;
-    PlaylistEditor editor(&conn);
+    MpdCommands cmds(&conn);
+    PlaylistEditor editor(&conn, &cmds);
     auto lists = editor.findChildren<QListWidget *>();
     REQUIRE_EQ(lists.size(), 2);
 
@@ -87,4 +96,64 @@ TEST_CASE("PlaylistEditor lists are initially empty")
     CHECK_EQ(lists[0]->count(), 0);
     // contents list
     CHECK_EQ(lists[1]->count(), 0);
+}
+
+// ── Позиции сохранённого списка: активация и удаление ───────────────────────
+
+TEST_CASE("PlaylistEditor wires activation and removal on the contents list")
+{
+    MockConnection conn;
+    MpdCommands cmds(&conn);
+    PlaylistEditor editor(&conn, &cmds);
+
+    // Обе панели — QListWidget, а порядок потомков задаёт раскладка (виджеты переезжают
+    // в обёртки сплиттера), поэтому искать надо по имени, а не по индексу.
+    QListWidget *contents =
+        editor.findChild<QListWidget *>(QStringLiteral("playlistContents"));
+    REQUIRE(contents != nullptr);
+
+    CHECK(contents->contextMenuPolicy() == Qt::CustomContextMenu);
+
+    const auto shortcuts = contents->findChildren<QShortcut *>();
+    REQUIRE_EQ(shortcuts.size(), 2);   // Delete + Backspace
+    // В Qt6 QShortcut::key() возвращает целую последовательность, а не одну клавишу.
+    const QKeySequence del(QKeySequence::Delete);
+    const QKeySequence back(QKeySequence::Backspace);
+    for (const QShortcut *s : shortcuts) {
+        const bool known = s->key() == del || s->key() == back;
+        CHECK(known);
+        // Область действия — только список позиций: на весь стек браузеров эти
+        // клавиши перехватывать нельзя, они нужны другим панелям.
+        CHECK(s->context() == Qt::WidgetWithChildrenShortcut);
+    }
+    CHECK_NE(shortcuts[0]->key(), shortcuts[1]->key());
+
+    // Клавиши и меню живут на позициях списка, а не на панели с его именами: там Delete
+    // означал бы удаление файла.
+    QListWidget *names =
+        editor.findChild<QListWidget *>(QStringLiteral("playlistNames"));
+    REQUIRE(names != nullptr);
+    CHECK(names->contextMenuPolicy() != Qt::CustomContextMenu);
+    CHECK(names->findChildren<QShortcut *>().isEmpty());
+}
+
+TEST_CASE("PlaylistEditor drops contents when the connection goes away")
+{
+    MockConnection conn;
+    MpdCommands cmds(&conn);
+    PlaylistEditor editor(&conn, &cmds);
+
+    QListWidget *names =
+        editor.findChild<QListWidget *>(QStringLiteral("playlistNames"));
+    QListWidget *contents =
+        editor.findChild<QListWidget *>(QStringLiteral("playlistContents"));
+    REQUIRE(names != nullptr);
+    REQUIRE(contents != nullptr);
+    new QListWidgetItem("stale row", contents);
+    REQUIRE_EQ(contents->count(), 1);
+
+    // Строки чужого списка не должны переживать разрыв: их URI больше не о чём спрашивать.
+    editor.onConnectionChanged(false);
+    CHECK_EQ(names->count(), 0);
+    CHECK_EQ(contents->count(), 0);
 }

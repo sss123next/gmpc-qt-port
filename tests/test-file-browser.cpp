@@ -139,3 +139,26 @@ TEST_CASE("FileBrowser icon name is correct")
     FileBrowser browser(&conn);
     CHECK(browser.iconName() == "folder");
 }
+
+// ── Двойной клик: тип строки и навигация ────────────────────────────────────
+
+TEST_CASE("FileSystemModel TypeRole is empty for an invalid index")
+{
+    MockConnection conn;
+    FileSystemModel model(&conn);
+    // Пустой путь и пустой тип — активация по такому индексу ничего не делает.
+    CHECK(model.data({}, FileSystemModel::TypeRole).isNull());
+}
+
+TEST_CASE("FileBrowser exposes both panes and ignores invalid activation")
+{
+    MockConnection conn;
+    FileBrowser browser(&conn);
+    REQUIRE(browser.treeView() != nullptr);
+    REQUIRE(browser.contentView() != nullptr);
+    // Двойной клик вешается на правую панель, а навигация меняет выделение в левой.
+    CHECK(browser.treeView() != browser.contentView());
+
+    browser.enterDirectory({});   // невалидная строка правой панели — no-op
+    CHECK_EQ(browser.contentView()->model()->rowCount({}), 0);
+}

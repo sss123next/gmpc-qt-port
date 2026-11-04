@@ -27,6 +27,7 @@ add_library(testcore OBJECT
     ${CMAKE_SOURCE_DIR}/src/core/connection.cpp
     ${CMAKE_SOURCE_DIR}/src/core/mpd-error.cpp
     ${CMAKE_SOURCE_DIR}/src/core/mpd-endpoint.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/mpd-commands.cpp
     ${CMAKE_SOURCE_DIR}/src/core/idle-watcher.cpp
     ${CMAKE_SOURCE_DIR}/src/core/mpd-env.cpp
     ${CMAKE_SOURCE_DIR}/src/core/search-engine.cpp
@@ -254,3 +255,13 @@ target_link_libraries(test-queue-diff PRIVATE testcore Qt6::Core Qt6::Test
     doctest::doctest PkgConfig::LIBMPDCLIENT)
 target_include_directories(test-queue-diff PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-queue-diff COMMAND test-queue-diff)
+
+# ── Команды двойного клика (7.3): play_path / findadd / load / playlistdelete ─
+# Без сервера кейсы лишь сообщают о пропуске; мутационные требуют одноразовый
+# сервер — они играют очередь, дописывают трэки и правят сохранённый список.
+
+add_executable(test-browser-activation test-browser-activation.cpp)
+target_link_libraries(test-browser-activation PRIVATE testcore Qt6::Core
+    doctest::doctest PkgConfig::LIBMPDCLIENT)
+target_include_directories(test-browser-activation PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-browser-activation COMMAND test-browser-activation)

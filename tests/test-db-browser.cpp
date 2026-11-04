@@ -123,6 +123,79 @@ TEST_CASE("MusicDatabaseModel data on empty model")
     CHECK(model.data(model.index(0, 1)).isNull());
 }
 
+// ── Activation intent (double-click) ────────────────────────────────────────
+
+TEST_CASE("musicDbConstraints: top-level group filters by the grouping tag")
+{
+    const auto c = musicDbConstraints(MPD_TAG_GENRE, MusicDbItem::Artist,
+                                      "Post-rock", {});
+    REQUIRE_EQ(c.size(), 1);
+    CHECK(c[0].tag == MPD_TAG_GENRE);
+    CHECK(c[0].value == "Post-rock");
+
+    // Пустое имя — не ограничение: findadd без фильтра добавил бы всю базу.
+    CHECK(musicDbConstraints(MPD_TAG_ARTIST, MusicDbItem::Artist, {}, {}).isEmpty());
+}
+
+TEST_CASE("musicDbConstraints: album keeps its parent group")
+{
+    const auto c = musicDbConstraints(MPD_TAG_DATE, MusicDbItem::Album,
+                                      "Ænima", "Tool");
+    REQUIRE_EQ(c.size(), 2);
+    CHECK(c[0].tag == MPD_TAG_DATE);      // тег группировки, а не всегда ARTIST
+    CHECK(c[0].value == "Tool");
+    CHECK(c[1].tag == MPD_TAG_ALBUM);
+    CHECK(c[1].value == "Ænima");
+
+    // Группа потерялась (узел верхнего уровня с типом альбома) — остаётся альбом.
+    const auto orphan = musicDbConstraints(MPD_TAG_ARTIST, MusicDbItem::Album,
+                                           "Ænima", {});
+    REQUIRE_EQ(orphan.size(), 1);
+    CHECK(orphan[0].tag == MPD_TAG_ALBUM);
+}
+
+TEST_CASE("musicDbConstraints: a track needs no filter")
+{
+    CHECK(musicDbConstraints(MPD_TAG_ARTIST, MusicDbItem::Track,
+                             "Schism", "Tool").isEmpty());
+}
+
+TEST_CASE("MusicDatabaseModel activationFor invalid index is a no-op intent")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(false);
+    MusicDatabaseModel model(&conn);
+
+    const MusicDbActivation act = model.activationFor({});
+    CHECK(act.uri.isEmpty());
+    CHECK(act.constraints.isEmpty());
+}
+
+TEST_CASE("MusicDatabaseModel group tag defaults to artist and follows loadByTag")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(false);
+    MusicDatabaseModel model(&conn);
+
+    // Disconnected load is a no-op, so the previous grouping must survive.
+    CHECK(model.groupTag() == MPD_TAG_ARTIST);
+    model.loadByTag(MPD_TAG_GENRE);
+    CHECK(model.groupTag() == MPD_TAG_ARTIST);
+}
+
+TEST_CASE("MusicDatabaseModel lazy loading stays quiet without a connection")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(false);
+    MusicDatabaseModel model(&conn);
+
+    // Ни групп, ни детей: canFetchMore не должен звать сервер без соединения.
+    CHECK_FALSE(model.canFetchMore({}));
+    CHECK_FALSE(model.canFetchMore(model.index(0, 0)));
+    model.fetchMore({});
+    CHECK_EQ(model.rowCount({}), 0);
+}
+
 // ── tree structure with manually injected nodes ─────────────────────────────
 //
 // We cannot easily instrument beginInsertRows to inject nodes through
@@ -187,4 +260,31 @@ TEST_CASE("DatabaseBrowser onConnectionChanged(true) enables and loads")
     DatabaseBrowser browser(&conn);
     browser.onConnectionChanged(true);
     CHECK(browser.isEnabled());
+}
+
+// ── Double-click activation ────────────────────────────────────────────────
+
+TEST_CASE("DatabaseBrowser reserves double-click for activation")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(false);
+
+    DatabaseBrowser browser(&conn);
+    auto *view = browser.findChild<QTreeView *>();
+    REQUIRE(view != nullptr);
+
+    // Двойной клик — «добавить в очередь и играть». Раскрытие узла остаётся за
+    // стрелкой/Right: иначе раскрытие альбома играло бы всю группу.
+    CHECK_FALSE(view->expandsOnDoubleClick());
+}
+
+TEST_CASE("DatabaseBrowser forwards the activation intent of a row")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(false);
+
+    DatabaseBrowser browser(&conn);
+    const MusicDbActivation act = browser.activationFor({});
+    CHECK(act.uri.isEmpty());
+    CHECK(act.constraints.isEmpty());
 }
