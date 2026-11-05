@@ -10,6 +10,9 @@
  * the sidebar.
  */
 
+#include <QAbstractItemView>
+#include <QItemSelectionModel>
+#include <QList>
 #include <QWidget>
 #include <QString>
 #include "core/connection.h"
@@ -37,5 +40,22 @@ public:
 
     /// Icon name (for QIcon::fromTheme or a fallback).
     virtual QString iconName() const { return {}; }
+
+protected:
+    /** @brief Выделенные строки вида — по одной на строку; при пустом выделении текущая.
+     *  selectedIndexes() отдаёт по индексу на колонку, поэтому меню получало бы одну и ту
+     *  же строку трижды; selectedRows() работает по диапазонам и потому не зависит от того,
+     *  выделяли ли строку целиком или отдельную ячейку.
+     */
+    static QList<QModelIndex> uniqueSelectedRows(const QAbstractItemView *view)
+    {
+        if (!view || !view->selectionModel())
+            return {};
+
+        QList<QModelIndex> rows = view->selectionModel()->selectedRows(0);
+        if (rows.isEmpty() && view->currentIndex().isValid())
+            rows << view->currentIndex();
+        return rows;
+    }
 };
 

@@ -59,6 +59,8 @@ set(GUI_SOURCES
 
 set(BROWSER_SOURCES
     src/browsers/browser-widget.h
+    src/browsers/browser-intent.cpp
+    src/browsers/browser-intent.h
     src/browsers/current-playlist.cpp
     src/browsers/current-playlist.h
     src/browsers/file-browser.cpp
