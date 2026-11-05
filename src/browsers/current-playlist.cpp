@@ -9,12 +9,17 @@
  */
 
 #include "current-playlist.h"
+#include "browser-intent.h"
+#include "core/config.h"
 #include "core/connection.h"
 #include "core/mpd-commands.h"
 #include "core/playlist-model.h"
 #include "tools/log.h"
 
 #include <QAbstractItemView>
+#include <QApplication>
+#include <QClipboard>
+#include <QDesktopServices>
 #include <QDropEvent>
 #include <QHeaderView>
 #include <QInputDialog>
@@ -22,6 +27,7 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QShortcut>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -288,6 +294,23 @@ void CurrentPlaylist::showContextMenu(const QPoint &pos)
     QAction *downAct = menu.addAction(tr("Move down"));
     upAct->setEnabled(oneBlock && connected);
     downAct->setEnabled(oneBlock && connected);
+
+    // Путь берётся из URI очереди: в очереди трэк живёт тем же путём, что и в базе.
+    QVector<BrowserIntent> intents;
+    for (int row : rows) {
+        const QString uri = model_->index(row, 0).data(PlaylistModel::UriRole).toString();
+        if (uri.isEmpty())
+            continue;
+
+        BrowserIntent intent;
+        intent.kind = BrowserIntent::Kind::Song;
+        intent.uri = uri;
+        intents.append(intent);
+    }
+    const QString musicDir = Config::instance().musicDirectory();
+    menu.addSeparator();
+    const BrowserPathMenuItems paths = addPathMenuItems(menu, intents, musicDir);
+
     menu.addSeparator();
     const bool hasQueue = connected && model_->rowCount({}) > 0;
     QAction *clearAct = menu.addAction(tr("Clear queue"));
@@ -307,6 +330,10 @@ void CurrentPlaylist::showContextMenu(const QPoint &pos)
         moveSelectionBy(-1);
     } else if (chosen == downAct) {
         moveSelectionBy(1);
+    } else if (paths.openFolder && chosen == paths.openFolder) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(paths.folder));
+    } else if (paths.copyPath && chosen == paths.copyPath) {
+        QApplication::clipboard()->setText(copyTextFor(intents, musicDir));
     } else if (chosen == clearAct) {
         const auto answer = QMessageBox::question(this, tr("Clear queue"),
             tr("Remove all %1 song(s) from the queue?").arg(model_->rowCount({})));
