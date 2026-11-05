@@ -36,6 +36,9 @@ add_library(testcore OBJECT
     ${CMAKE_SOURCE_DIR}/src/core/queue-sync.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/music-database-model.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/file-system-model.cpp
+    # Общий слой намерений нужен и браузерным тестам, и меню очереди: он линкуется с
+    # testcore, а не копируется в каждый тестовый исполняемый файл.
+    ${CMAKE_SOURCE_DIR}/src/browsers/browser-intent.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/log.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/browser-widget.h
 )
@@ -265,3 +268,14 @@ target_link_libraries(test-browser-activation PRIVATE testcore Qt6::Core
     doctest::doctest PkgConfig::LIBMPDCLIENT)
 target_include_directories(test-browser-activation PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-browser-activation COMMAND test-browser-activation)
+
+# ── Контекстные меню браузеров (7.4): состав меню и локальные пути ──────────
+# Меню строится из намерений, поэтому проверяется без MPD: что доступно строке, где
+# берётся путь для «открыть папку» и в каком порядке удаляются позиции списка.
+
+add_executable(test-browser-menu test-browser-menu.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/playlist-editor.cpp)
+target_link_libraries(test-browser-menu PRIVATE testcore Qt6::Widgets
+    doctest::doctest trompeloeil::trompeloeil)
+target_include_directories(test-browser-menu PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-browser-menu COMMAND test-browser-menu)

@@ -473,6 +473,158 @@ TEST_CASE("сохранённый список грузится в очеред�
     mpd_connection_free(admin);
 }
 
+/** @brief Меню файлового браузера: каталог целиком добавляется именно командой add. */
+TEST_CASE("каталог добавляется в очередь через add, а addid его отвергает")
+{
+    const MpdEndpoint ep = endpointFromEnv();
+    const char *whySkip = skipReason(ep);
+    if (*whySkip) {
+        MESSAGE(whySkip);
+        return;
+    }
+
+    // Каталог берём у самого сервера: выдуманный путь ничего бы не доказал.
+    QString dir;
+    {
+        mpd_connection *c = openMpdConnection(ep);
+        REQUIRE(c != nullptr);
+        if (mpd_send_list_meta(c, "")) {
+            while (struct mpd_entity *e = mpd_recv_entity(c)) {
+                if (dir.isEmpty() && mpd_entity_get_type(e) == MPD_ENTITY_TYPE_DIRECTORY)
+                    dir = QString::fromUtf8(
+                        mpd_directory_get_path(mpd_entity_get_directory(e)));
+                mpd_entity_free(e);
+            }
+        } else {
+            MESSAGE("lsinfo не ответил: "
+                    << mpd_connection_get_error_message(c));
+            mpd_connection_clear_error(c);
+        }
+        mpd_response_finish(c);
+        mpd_connection_free(c);
+    }
+    if (dir.isEmpty()) {
+        MESSAGE("на сервере нет ни одного каталога — проверять нечего");
+        return;
+    }
+
+    Connection conn;
+    REQUIRE(openAppConnection(&conn, ep));
+    MpdCommands cmds(&conn);
+
+    const QueueSnapshot before = readQueue(ep);
+    cmds.addUri(dir);
+    CHECK(conn.consumeError("add").isEmpty());
+
+    const QueueSnapshot after = readQueue(ep);
+    MESSAGE("add «" << dir.toStdString() << "»: было " << before.uris.size()
+                    << ", стало " << after.uris.size());
+    REQUIRE(after.uris.size() > before.uris.size());
+
+    // Добавлен именно каталог, а не строка с его именем: всё добавленное — из него.
+    int foreign = 0;
+    for (int i = before.uris.size(); i < after.uris.size(); ++i) {
+        if (!after.uris.at(i).startsWith(dir + QLatin1Char('/')))
+            ++foreign;
+    }
+    CHECK_EQ(foreign, 0);
+
+    // Тот же URI через addid — отказ: у каталога нет song id. Именно этот ACK и заставляет
+    // меню браузеров вести папки через `add` (замер на MPD 0.25).
+    {
+        mpd_connection *c = openMpdConnection(ep);
+        REQUIRE(c != nullptr);
+        const int id = mpd_run_add_id(c, dir.toUtf8().constData());
+        CHECK_EQ(id, -1);
+        const QString err = QString::fromUtf8(mpd_connection_get_error_message(c));
+        MESSAGE("addid каталога: " << err.toStdString());
+        CHECK(err.contains(QLatin1String("No such song")));
+        mpd_connection_clear_error(c);
+        mpd_connection_free(c);
+    }
+
+    // За собой убираем (deleteid по добавленным идентификаторам), иначе каждый прогон
+    // удваивает очередь и следующий прогон уже не о том.
+    QList<int> added;
+    const int tail = qMin(after.uris.size(), after.ids.size());
+    for (int i = before.uris.size(); i < tail; ++i) {
+        if (after.ids.at(i) > 0)
+            added << after.ids.at(i);
+    }
+    if (!added.isEmpty())
+        cmds.removeSongIds(added);
+}
+
+/** @brief Редактор плейлистов: почему номера удаления идут убывающими. */
+TEST_CASE("позиции сохранённого списка удаляются в убывающем порядке номеров")
+{
+    const MpdEndpoint ep = endpointFromEnv();
+    const char *whySkip = skipReason(ep);
+    if (*whySkip) {
+        MESSAGE(whySkip);
+        return;
+    }
+
+    Connection conn;
+    REQUIRE(openAppConnection(&conn, ep));
+    MpdCommands cmds(&conn);
+
+    const QStringList base = readQueue(ep).uris;
+    if (base.size() < 4) {
+        MESSAGE("нужны минимум четыре строки очереди, чтобы сравнить два порядка");
+        return;
+    }
+
+    mpd_connection *admin = openMpdConnection(ep);
+    REQUIRE(admin != nullptr);
+    const QString descName = QStringLiteral("gmpc-qt-74-desc");
+    const QString ascName = QStringLiteral("gmpc-qt-74-asc");
+    for (const QString &n : {descName, ascName}) {
+        mpd_run_rm(admin, n.toUtf8().constData());     // мусор прошлого прогона
+        mpd_connection_clear_error(admin);
+    }
+
+    // Ожидаемый результат удаления строк 0 и 2 — все остальные строки в своём порядке.
+    QStringList expected;
+    for (int i = 0; i < base.size(); ++i) {
+        if (i != 0 && i != 2)
+            expected << base.at(i);
+    }
+
+    // Как это делает removalRows(): сначала больший номер, потом меньший.
+    cmds.saveQueueAs(descName);
+    REQUIRE(conn.consumeError("save").isEmpty());
+    cmds.deletePlaylistPosition(descName, 2);
+    CHECK(conn.consumeError("playlistdelete").isEmpty());
+    cmds.deletePlaylistPosition(descName, 0);
+    CHECK(conn.consumeError("playlistdelete").isEmpty());
+    const QStringList descending = storedPlaylist(ep, descName);
+    CHECK(descending == expected);
+
+    // Тот же выбор по восходящим номерам: после удаления нулевой строки бывшая третья
+    // стоит под вторым номером, поэтому `playlistdelete … 2` сносит не её (замер на
+    // MPD 0.25) — отсюда и отдельный порядок в removalRows().
+    cmds.saveQueueAs(ascName);
+    REQUIRE(conn.consumeError("save").isEmpty());
+    cmds.deletePlaylistPosition(ascName, 0);
+    CHECK(conn.consumeError("playlistdelete").isEmpty());
+    cmds.deletePlaylistPosition(ascName, 2);
+    CHECK(conn.consumeError("playlistdelete").isEmpty());
+    const QStringList ascending = storedPlaylist(ep, ascName);
+    CHECK(ascending != expected);
+
+    MESSAGE("убывающий порядок оставил «" << descending.value(0).toStdString() << "…» ("
+            << descending.size() << "), восходящий — «"
+            << ascending.value(0).toStdString() << "…»; ожидалось «"
+            << expected.value(0).toStdString() << "…»");
+
+    for (const QString &n : {descName, ascName}) {
+        mpd_run_rm(admin, n.toUtf8().constData());
+        mpd_connection_clear_error(admin);
+    }
+    mpd_connection_free(admin);
+}
+
 TEST_CASE("без адреса команды активации молчат и не роняют соединение")
 {
     Connection conn;

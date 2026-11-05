@@ -128,13 +128,18 @@ TEST_CASE("PlaylistEditor wires activation and removal on the contents list")
     }
     CHECK_NE(shortcuts[0]->key(), shortcuts[1]->key());
 
-    // Клавиши и меню живут на позициях списка, а не на панели с его именами: там Delete
-    // означал бы удаление файла.
+    // Клавиши живут на позициях списка, а не на панели с его именами: там Delete означал
+    // бы удаление файла. Меню же есть у обеих панелей — только про разное: у имён пункты
+    // про сами списки (load / replace / new / rename / delete), у позиций — про трэки.
     QListWidget *names =
         editor.findChild<QListWidget *>(QStringLiteral("playlistNames"));
     REQUIRE(names != nullptr);
-    CHECK(names->contextMenuPolicy() != Qt::CustomContextMenu);
+    CHECK(names->contextMenuPolicy() == Qt::CustomContextMenu);
     CHECK(names->findChildren<QShortcut *>().isEmpty());
+
+    // Выделение несколькими строками обязательно: «добавить в очередь» и «копировать
+    // путь» применяются ко всей выборке, как в оригинальном тег-браузере.
+    CHECK(contents->selectionMode() == QAbstractItemView::ExtendedSelection);
 }
 
 TEST_CASE("PlaylistEditor drops contents when the connection goes away")
