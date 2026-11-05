@@ -190,6 +190,18 @@ SearchBrowser::~SearchBrowser()
     engine_->cancel();
 }
 
+QVector<BrowserIntent> SearchBrowser::selectedIntents() const
+{
+    QVector<BrowserIntent> intents;
+    for (const QModelIndex &idx : uniqueSelectedRows(view_)) {
+        const SearchResultItem *hit = model_->resultAt(idx.row());
+        if (!hit || hit->uri.isEmpty())
+            continue;
+        intents.append(BrowserIntent{BrowserIntent::Kind::Song, hit->uri, {}});
+    }
+    return intents;
+}
+
 void SearchBrowser::scheduleSearch()
 {
     if (!currentQuery().isValid()) {

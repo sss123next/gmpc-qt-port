@@ -9,6 +9,7 @@
  */
 
 #include "browser-widget.h"
+#include "browser-intent.h"
 
 #include <QSortFilterProxyModel>
 #include <QSet>
@@ -55,6 +56,15 @@ public:
      *  Как в оригинале: двойной клик по каталогу не добавляет его в очередь, а открывает.
      */
     void enterDirectory(const QModelIndex &contentIndex);
+
+    /** @brief Намерения выделенных строк правой панели: каталог, трэк или список.
+     *  Индексы проксированные, но UriRole/TypeRole прокси отдаёт исходной моделью, так
+     *  что маппинг здесь нужен только если когда-нибудь понадобится сам узел.
+     */
+    [[nodiscard]] QVector<BrowserIntent> contentIntents() const;
+
+    /// Намерения выделенных строк левого дерева каталогов (те же типы, та же разметка).
+    [[nodiscard]] QVector<BrowserIntent> treeIntents() const;
 
     void onActivate() override;
     void onConnectionChanged(bool connected) override;

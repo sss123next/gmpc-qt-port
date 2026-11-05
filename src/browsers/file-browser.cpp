@@ -46,6 +46,49 @@ bool FileContentProxy::filterAcceptsRow(int sourceRow,
 
 // ── FileBrowser ─────────────────────────────────────────────────────────────
 
+namespace {
+
+/** @brief Намерение строки файловой модели.
+ *  @returns false, если активировать строку нечем (Root — сам корень дерева).
+ */
+bool intentForFileIndex(const QModelIndex &idx, BrowserIntent *out)
+{
+    const QString uri = idx.data(FileSystemModel::UriRole).toString();
+    if (uri.isEmpty())
+        return false;
+
+    switch (static_cast<FileNode::Type>(idx.data(FileSystemModel::TypeRole).toInt())) {
+    case FileNode::Song:
+        out->kind = BrowserIntent::Kind::Song;
+        break;
+    case FileNode::Directory:
+        out->kind = BrowserIntent::Kind::Directory;
+        break;
+    case FileNode::Playlist:
+        // Файл .m3u — сохранённый список: ему `load`, а не `addid` (замерено в 7.3).
+        out->kind = BrowserIntent::Kind::StoredPlaylist;
+        break;
+    default:
+        return false;
+    }
+
+    out->uri = uri;
+    return true;
+}
+
+QVector<BrowserIntent> intentsOfRows(const QList<QModelIndex> &rows)
+{
+    QVector<BrowserIntent> intents;
+    for (const QModelIndex &idx : rows) {
+        BrowserIntent intent;
+        if (intentForFileIndex(idx, &intent))
+            intents.append(intent);
+    }
+    return intents;
+}
+
+} // namespace
+
 FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
     : BrowserWidget(parent)
     , conn_(conn)
@@ -119,6 +162,16 @@ void FileBrowser::enterDirectory(const QModelIndex &contentIndex)
     // дереве уже раскрыт и строку каталога есть куда выделить. Смена текущей строки
     // сама дёргает onLeftSelectionChanged, то есть меняет корень правой панели.
     leftView_->setCurrentIndex(source);
+}
+
+QVector<BrowserIntent> FileBrowser::contentIntents() const
+{
+    return intentsOfRows(uniqueSelectedRows(rightView_));
+}
+
+QVector<BrowserIntent> FileBrowser::treeIntents() const
+{
+    return intentsOfRows(uniqueSelectedRows(leftView_));
 }
 
 void FileBrowser::onActivate()

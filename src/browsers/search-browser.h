@@ -11,6 +11,7 @@
  */
 
 #include "browser-widget.h"
+#include "browser-intent.h"
 #include "core/search-engine.h"
 
 #include <QAbstractTableModel>
@@ -85,6 +86,12 @@ public:
 
     /// Движок поиска — свой worker-поток и соединение; нужен тестам и настройке.
     SearchEngine *engine() const { return engine_; }
+
+    /** @brief Намерения выделенных строк результата: только трэки со своим URI.
+     *  Групп тегов здесь нет, поэтому и ограничений `findadd` тоже нет — меню для
+     *  поиска отличается от таг-браузера ровно этим.
+     */
+    [[nodiscard]] QVector<BrowserIntent> selectedIntents() const;
 
 private slots:
     /** @brief Немедленный поиск (Enter, смена поля).

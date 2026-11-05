@@ -59,6 +59,21 @@ DatabaseBrowser::DatabaseBrowser(Connection *conn, QWidget *parent)
 
 DatabaseBrowser::~DatabaseBrowser() = default;
 
+QVector<BrowserIntent> DatabaseBrowser::selectedIntents() const
+{
+    QVector<BrowserIntent> intents;
+    for (const QModelIndex &idx : uniqueSelectedRows(view_)) {
+        // Разбор строки один и тот же, что у двойного клика: меню не имеет права
+        // предлагать то, чего активация сделать не может.
+        const MusicDbActivation act = model_->activationFor(idx);
+        if (!act.uri.isEmpty())
+            intents.append(BrowserIntent{BrowserIntent::Kind::Song, act.uri, {}});
+        else if (!act.constraints.isEmpty())
+            intents.append(BrowserIntent{BrowserIntent::Kind::TagGroup, {}, act.constraints});
+    }
+    return intents;
+}
+
 void DatabaseBrowser::onTagChanged(int index)
 {
     // Выбор запоминается и без соединения: иначе после переподключения экран

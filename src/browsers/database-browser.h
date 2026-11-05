@@ -9,6 +9,7 @@
  */
 
 #include "browser-widget.h"
+#include "browser-intent.h"
 #include "music-database-model.h"
 
 class Connection;
@@ -35,6 +36,12 @@ public:
     MusicDbActivation activationFor(const QModelIndex &index) const {
         return model_->activationFor(index);
     }
+
+    /** @brief Намерения выделенных строк для контекстного меню.
+     *  Трэк даёт URI, группа и альбом — ограничения `findadd`; порядок выделения не
+     *  важен, а дубли одной строки из разных колонок схлопываются в одно намерение.
+     */
+    [[nodiscard]] QVector<BrowserIntent> selectedIntents() const;
 
     void onActivate() override;
     void onConnectionChanged(bool connected) override;
