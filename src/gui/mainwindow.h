@@ -17,8 +17,10 @@
 #include <QLabel>
 #include <QTimer>
 #include <QAbstractNativeEventFilter>
+#include <functional>
 #include <xcb/xcb_keysyms.h>
 
+#include "browsers/browser-intent.h"
 #include "core/connection.h"
 
 class MpdCommands;
@@ -144,9 +146,22 @@ private:
     void setZoomLevel(int level);   ///< 0=full, 1=no-sidebar, 2=compact.
     void toggleFullscreenOverlay(); ///< F12 handler with auto-hide.
 
-    // Context menu helper for tree-view browsers
-    void setupBrowserContextMenu(QTreeView *view,
-                                 std::function<QString(QModelIndex)> getUri);
+    // ── Контекстные меню браузеров ────────────────────────────────────────
+    /** @brief Подвешивает контекстное меню на дерево браузера.
+     *  @param gatherIntents возвращает намерения выделенных строк; состав пунктов и их
+     *         активность считает menuActionsFor(), а не очередная ветка «если это БД».
+     */
+    void setupBrowserContextMenu(QAbstractItemView *view,
+                                 std::function<QVector<BrowserIntent>()> gatherIntents);
+
+    /** @brief Меню целиком: Play / Add / Replace / Open folder / Copy path.
+     *  Вынесено из лямбды — состав пунктов должен читаться без мыши.
+     */
+    void showBrowserMenu(QAbstractItemView *view, const QPoint &pos,
+                         const QVector<BrowserIntent> &intents);
+
+    /// Добавляет строки в очередь: трэк и каталог — `add`, список — `load`, группа — `findadd`.
+    void addIntentsToQueue(const QVector<BrowserIntent> &intents);
 
     /** @brief Активация строки браузера двойным кликом (row-activated оригинала).
      *  @param activate вызывается с индексом вида; команды отдаёт MpdCommands.

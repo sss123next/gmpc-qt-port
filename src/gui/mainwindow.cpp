@@ -32,6 +32,9 @@
 #include <functional>
 #include <QStandardItemModel>
 #include <QApplication>
+#include <QClipboard>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QMenuBar>
 #include <QMouseEvent>
 #include <QSplitter>
@@ -337,28 +340,15 @@ void MainWindow::setupCentralArea()
     // Browsers start disabled; onConnected() hands them the connection.
     browserStack_->setConnected(conn_->isConnected());
 
-    // ── Context menus for browsers that expose URI via data roles ──────
-    // SearchBrowser: SearchResultItem::uri
-    setupBrowserContextMenu(searchBrowser_->treeView(),
-        [](const QModelIndex &idx) -> QString {
-            auto *m = qobject_cast<SearchResultModel *>(
-                const_cast<QAbstractItemModel *>(idx.model()));
-            if (!m) return {};
-            auto *r = m->resultAt(idx.row());
-            return r ? r->uri : QString();
-        });
-
-    // FileBrowser: FileSystemModel::UriRole returns full path
-    setupBrowserContextMenu(fileBrowser_->treeView(),
-        [](const QModelIndex &idx) -> QString {
-            return idx.data(FileSystemModel::UriRole).toString();
-        });
-
-    // DatabaseBrowser: MusicDatabaseModel now carries URI via MusicDbRoles::UriRole
+    // ── Контекстные меню: намерения отдаёт сам браузер, состав пунктов — menuActionsFor
     setupBrowserContextMenu(databaseBrowser_->treeView(),
-        [](const QModelIndex &idx) -> QString {
-            return idx.data(MusicDbRoles::UriRole).toString();
-        });
+                            [this] { return databaseBrowser_->selectedIntents(); });
+    setupBrowserContextMenu(fileBrowser_->contentView(),
+                            [this] { return fileBrowser_->contentIntents(); });
+    setupBrowserContextMenu(fileBrowser_->treeView(),
+                            [this] { return fileBrowser_->treeIntents(); });
+    setupBrowserContextMenu(searchBrowser_->treeView(),
+                            [this] { return searchBrowser_->selectedIntents(); });
 
     // CurrentPlaylist needs no add-to-queue menu: its rows are already in the
     // queue.  It builds its own context menu (play/remove/move/clear/save).
@@ -722,44 +712,91 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event)
 // ── Context menus for browsers ───────────────────────────────────────────────
 
 void MainWindow::setupBrowserContextMenu(
-    QTreeView *view, std::function<QString(QModelIndex)> getUri)
+    QAbstractItemView *view, std::function<QVector<BrowserIntent>()> gatherIntents)
 {
     view->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(view, &QTreeView::customContextMenuRequested,
-            this, [this, view, getUri](const QPoint &pos) {
+    connect(view, &QAbstractItemView::customContextMenuRequested, this,
+            [this, view, gatherIntents](const QPoint &pos) {
         const QModelIndex idx = view->indexAt(pos);
         if (!idx.isValid())
             return;
 
-        const QString uri = getUri(idx);
-        if (uri.isEmpty() && !idx.parent().isValid())
-            return;  // top-level grouping node without a URI
-
-        QMenu menu(view);
-
-        QAction *playAct = menu.addAction(tr("Play"));
-        QAction *addAct  = menu.addAction(tr("Add"));
-        QAction *replaceAct = menu.addAction(tr("Replace"));
-        menu.addSeparator();
-        QAction *infoAct = menu.addAction(tr("Song Info"));
-
-        QAction *chosen = menu.exec(view->mapToGlobal(pos));
-        if (chosen == playAct) {
-            cmds_->clearQueue();
-            cmds_->addUri(uri);
-            cmds_->playPos(0);
-        } else if (chosen == addAct) {
-            cmds_->addUri(uri);
-        } else if (chosen == replaceAct) {
-            cmds_->clearQueue();
-            cmds_->addUri(uri);
-            cmds_->playPos(0);
-        } else if (chosen == infoAct) {
-            songInfo_->showSong(nullptr);  // placeholder — no popup yet
-            statusBar_->showMessage(
-                tr("Song Info: not implemented as popup yet"), 3000);
+        // Правый клик по строке вне выделения относится именно к ней: иначе меню
+        // предлагало бы команды для строк, выделенных до этого и давно не нужных.
+        auto *sel = view->selectionModel();
+        if (sel && !sel->isSelected(idx)) {
+            sel->setCurrentIndex(idx, QItemSelectionModel::ClearAndSelect
+                                          | QItemSelectionModel::Rows);
         }
+
+        showBrowserMenu(view, pos, gatherIntents());
     });
+}
+
+void MainWindow::showBrowserMenu(QAbstractItemView *view, const QPoint &pos,
+                                const QVector<BrowserIntent> &intents)
+{
+    const QString musicDir = Config::instance().musicDirectory();
+    const BrowserMenuActions actions = menuActionsFor(intents, musicDir);
+    if (!actions.canAdd && !actions.canCopyPath)
+        return;   // меню из одних выключенных пунктов только моргает под курсором
+
+    QMenu menu(view);
+    QAction *playAct = menu.addAction(tr("Play"));
+    playAct->setEnabled(actions.canPlay);
+    QAction *addAct = menu.addAction(tr("Add"));
+    addAct->setEnabled(actions.canAdd);
+    QAction *replaceAct = menu.addAction(tr("Replace"));
+    replaceAct->setEnabled(actions.canReplace);
+
+    const BrowserPathMenuItems paths = addPathMenuItems(menu, intents, musicDir);
+
+    QAction *chosen = menu.exec(view->viewport()->mapToGlobal(pos));
+    if (!chosen)
+        return;
+
+    if (chosen == playAct) {
+        // canPlay означает ровно одну строку-трэк, так что первый Song и есть клика.
+        for (const BrowserIntent &intent : intents) {
+            if (intent.kind == BrowserIntent::Kind::Song) {
+                cmds_->activateUri(intent.uri);
+                break;
+            }
+        }
+    } else if (chosen == addAct) {
+        addIntentsToQueue(intents);
+    } else if (chosen == replaceAct) {
+        // Как Replace в оригинале: playlist_clear, затем добавление, затем игра.
+        cmds_->clearQueue();
+        addIntentsToQueue(intents);
+        cmds_->play();
+    } else if (paths.openFolder && chosen == paths.openFolder) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(paths.folder));
+    } else if (paths.copyPath && chosen == paths.copyPath) {
+        QApplication::clipboard()->setText(copyTextFor(intents, musicDir));
+        statusBar_->showMessage(tr("Path copied to clipboard"), 2000);
+    }
+}
+
+void MainWindow::addIntentsToQueue(const QVector<BrowserIntent> &intents)
+{
+    for (const BrowserIntent &intent : intents) {
+        switch (intent.kind) {
+        case BrowserIntent::Kind::Song:
+        case BrowserIntent::Kind::Directory:
+            // `add "sub"` кладёт в очередь весь каталог, а `addid "sub"` отвечает
+            // «ACK [50@0] {addid} No such song» (замер на MPD 0.25), поэтому иерархия
+            // идёт одним и тем же addUri, а не двумя командами.
+            cmds_->addUri(intent.uri);
+            break;
+        case BrowserIntent::Kind::StoredPlaylist:
+            cmds_->loadStoredPlaylist(intent.uri);
+            break;
+        case BrowserIntent::Kind::TagGroup:
+            cmds_->findAddSongs(intent.constraints);
+            break;
+        }
+    }
 }
 
 // ── Double-click activation for browsers ────────────────────────────────────
