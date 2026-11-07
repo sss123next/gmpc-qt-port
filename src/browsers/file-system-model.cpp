@@ -169,7 +169,7 @@ void FileSystemModel::refresh()
 
 void FileSystemModel::loadDirectory(FileNode *node)
 {
-    if (!conn_ || !conn_->isConnected())
+    if (!conn_ || !conn_->isConnected() || !conn_->hasHandle())
         return;
 
     const QByteArray path = node->path.toUtf8();

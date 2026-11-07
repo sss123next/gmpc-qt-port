@@ -62,7 +62,7 @@ MusicDatabaseModel::~MusicDatabaseModel()
 
 void MusicDatabaseModel::loadByTag(enum mpd_tag_type tag)
 {
-    if (!conn_ || !conn_->isConnected())
+    if (!conn_ || !conn_->isConnected() || !conn_->hasHandle())
         return;
 
     QVector<QString> names;
@@ -102,7 +102,7 @@ void MusicDatabaseModel::loadAlbums(const QModelIndex &idx)
     if (group->type != MusicDbItem::Artist || group->loaded)
         return;
 
-    if (!conn_ || !conn_->isConnected())
+    if (!conn_ || !conn_->isConnected() || !conn_->hasHandle())
         return;
 
     QVector<QString> albums;
@@ -157,7 +157,7 @@ void MusicDatabaseModel::loadTracks(const QModelIndex &idx)
     if (!group || group->type != MusicDbItem::Artist)
         return;
 
-    if (!conn_ || !conn_->isConnected())
+    if (!conn_ || !conn_->isConnected() || !conn_->hasHandle())
         return;
 
     struct TrackEntry { QString title; QString uri; };
@@ -229,7 +229,8 @@ MusicDbActivation MusicDatabaseModel::activationFor(const QModelIndex &index) co
 
 bool MusicDatabaseModel::canFetchMore(const QModelIndex &parent) const
 {
-    if (!parent.isValid() || !conn_ || !conn_->isConnected())
+    if (!parent.isValid() || !conn_ || !conn_->isConnected()
+        || !conn_->hasHandle())
         return false;   // группы грузит DatabaseBrowser::onActivate()
 
     auto *item = static_cast<MusicDbItem *>(parent.internalPointer());
