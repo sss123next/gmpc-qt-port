@@ -6,9 +6,16 @@
  *
  * Lists, creates, renames, deletes saved playlists, and shows contents.
  * Двойной клик по позиции списка воспроизводит её (play_path), Delete/Backspace и
- * пункт контекстного меню удаляют позицию из сохранённого списка (`playlistdelete`).
+ * пункт контекстного меню удаляют выделенные позиции из сохранённого списка
+ * (`playlistdelete` диапазоном — блок подряд идущих строк одним вызовом).
  * Контекстные меню две: у панели имён — Load / Replace / New / Rename / Delete (как в
- * оригинальном редакторе), у позиции — Play / Add / Copy path / Open folder / Remove.
+ * оригинальном редакторе), у позиции — Play / Add to Queue / Move up / Move down /
+ * Copy path / Open folder / Remove from playlist.
+ *
+ * Правки идут прямо по файлу списка на сервере (`playlistadd`/`playlistmove`/
+ * `playlistdelete`) — как в оригинальном редакторе: отдельного «сохранить» нет,
+ * содержимое перечитывается сразу после команды, потому что idle-событие о правке
+ * файла списка приходит не всегда.
  */
 
 #include "browser-widget.h"
@@ -58,6 +65,23 @@ public:
      */
     [[nodiscard]] QList<int> removalRows() const;
 
+    /** @brief Блоки подряд идущих выделенных строк для диапазонного удаления.
+     *  @returns пары «первая; последняя» включительно, по убыванию первой строки.
+     *
+     *  Удаление диапазоном сдвигает номера всех следующих за ним позиций (замерено),
+     *  поэтому блоки идут сверху вниз: тогда обработанные ранее номера не съезжают под
+     *  руками. Несмежное выделение — это несколько пар, а не одна на весь диапазон:
+     *  удалять «от первой до последней» значило бы снести и то, что между ними.
+     */
+    [[nodiscard]] QVector<QPair<int, int>> removalBlocks() const;
+
+    /** @brief Создать пустой список с этим именем — без диалога.
+     *
+     *  Отделено от слота «New…» ради юнита: `QInputDialog::getText()` ждёт событий,
+     *  а проверять надо саму команду и последующее выделение нового имени.
+     */
+    void newPlaylistNamed(const QString &name);
+
 private slots:
     void onPlaylistSelected(int row);
     void onNewPlaylist();
@@ -71,6 +95,12 @@ private slots:
      *  удаления нулевой строки бывшая вторая стоит уже под первым номером (замер).
      */
     void removeCurrentPosition();
+    /** @brief Сдвинуть выделенный блок позиций на delta строк (−1 вверх, +1 вниз).
+     *
+     *  Блок — только смежный: одна `playlistmove` описывает один непрерывный участок,
+     *  а «сдвиг» несмежного выделения иначе разъехался бы с тем, что видит пользователь.
+     */
+    void moveSelection(int delta);
 
 private:
     void refreshPlaylists();
@@ -78,6 +108,12 @@ private:
     void updateButtonStates();
     /** @brief Имя выбранного сохранённого списка (пусто, если выбора нет). */
     QString currentPlaylistName() const;
+    /** @brief Номера выделенных позиций по возрастанию; пусто — текущая строка.
+     *
+     *  Возвращаются именно номера строк виджета: команды правки файла списка работают
+     *  с ними, а не с идентификаторами (у позиции сохранённого списка id нет).
+     */
+    QList<int> selectedContentsRows() const;
     /** @brief Меню позиции: play / add / copy path / open folder / remove. */
     void showContentsMenu(const QPoint &pos);
     /** @brief Меню панели имён: load / replace queue / new / rename / delete. */
