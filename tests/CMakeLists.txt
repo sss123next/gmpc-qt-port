@@ -279,3 +279,14 @@ target_link_libraries(test-browser-menu PRIVATE testcore Qt6::Widgets
     doctest::doctest trompeloeil::trompeloeil)
 target_include_directories(test-browser-menu PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-browser-menu COMMAND test-browser-menu)
+
+# ── Редактор сохранённых списков (7.5): последовательности команд ───────────
+# MpdCommands виртуальный, поэтому мок ловит именно то, что панель отправляет серверу;
+# ни одно соединение не нужно — команды подменены.
+
+add_executable(test-playlist-editor-commands test-playlist-editor-commands.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/playlist-editor.cpp)
+target_link_libraries(test-playlist-editor-commands PRIVATE testcore Qt6::Widgets
+    doctest::doctest trompeloeil::trompeloeil)
+target_include_directories(test-playlist-editor-commands PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-playlist-editor-commands COMMAND test-playlist-editor-commands)

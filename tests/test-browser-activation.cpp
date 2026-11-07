@@ -209,6 +209,48 @@ QStringList storedPlaylist(const MpdEndpoint &endpoint, const QString &name)
     return uris;
 }
 
+/** @brief Имена сохранённых списков глазами сервера (`listplaylists`).
+ *  Нужен, чтобы отличать «список создан» от «файла не появилось»: содержимое пустого
+ *  списка ничего об этом не говорит.
+ */
+QStringList storedPlaylistNames(const MpdEndpoint &endpoint)
+{
+    QStringList names;
+    mpd_connection *c = openMpdConnection(endpoint);
+    if (!c)
+        return names;
+
+    if (mpd_send_list_playlists(c)) {
+        while (struct mpd_playlist *pl = mpd_recv_playlist(c)) {
+            names << QString::fromUtf8(mpd_playlist_get_path(pl));
+            mpd_playlist_free(pl);
+        }
+    }
+    mpd_response_finish(c);
+    mpd_connection_free(c);
+    return names;
+}
+
+/** @brief Копилка отказов сервера за время проверки.
+ *
+ *  MpdCommands сам вызывает consumeError() после каждой команды (иначе соединение
+ *  осталось бы в error-state до конца прогона), поэтому снаружи ошибку видно только
+ *  сигналом commandFailed: повторный conn.consumeError() уже всегда пуст.
+ */
+class FailureLog {
+public:
+    explicit FailureLog(Connection &conn)
+    {
+        QObject::connect(&conn, &Connection::commandFailed,
+                         [this](const QString &m) { messages_ << m; });
+    }
+
+    const QStringList &messages() const { return messages_; }
+
+private:
+    QStringList messages_;
+};
+
 /// Открывает соединение приложения по адресу из окружения; false — сервера нет.
 bool openAppConnection(Connection *conn, const MpdEndpoint &endpoint)
 {
@@ -622,6 +664,253 @@ TEST_CASE("позиции сохранённого списка удаляютс
         mpd_run_rm(admin, n.toUtf8().constData());
         mpd_connection_clear_error(admin);
     }
+    mpd_connection_free(admin);
+}
+
+/** @brief «New…» редактора на живом сервере: список появляется пустым.
+ *
+ *  Проверяется именно двухшаговость (save + playlistclear) — она вынужденная, и от неё
+ *  зависит смысл кнопки: одной команды «создать пустой список» у MPD нет.
+ */
+TEST_CASE("новый сохранённый список создаётся по имени и остаётся пустым")
+{
+    const MpdEndpoint ep = endpointFromEnv();
+    const char *whySkip = skipReason(ep);
+    if (*whySkip) {
+        MESSAGE(whySkip);
+        return;
+    }
+
+    Connection conn;
+    REQUIRE(openAppConnection(&conn, ep));
+    MpdCommands cmds(&conn);
+    FailureLog failures(conn);
+
+    mpd_connection *admin = openMpdConnection(ep);
+    REQUIRE(admin != nullptr);
+
+    const QString name = QStringLiteral("gmpc-qt-75-new");
+    auto dropPlaylist = [&](const QString &n) {
+        mpd_run_rm(admin, n.toUtf8().constData());
+        mpd_connection_clear_error(admin);
+    };
+    dropPlaylist(name);
+
+    // Замер 15: `playlistclear` по имени без файла отвечает ACK No such playlist и списка
+    // не создаёт — поэтому перед ним обязателен save.
+    const QString missing = QStringLiteral("gmpc-qt-75-none");
+    dropPlaylist(missing);
+    CHECK_FALSE(mpd_run_playlist_clear(admin, missing.toUtf8().constData()));
+    const QString clearErr =
+        QString::fromUtf8(mpd_connection_get_error_message(admin));
+    mpd_connection_clear_error(admin);
+    MESSAGE("playlistclear по несуществующему имени: " << clearErr.toStdString());
+
+    cmds.createEmptyStoredPlaylist(name);
+
+    CHECK(failures.messages().isEmpty());
+    CHECK(storedPlaylistNames(ep).contains(name));   // файл появился
+    CHECK(storedPlaylist(ep, name).isEmpty());       // и он пуст
+
+    dropPlaylist(name);
+    mpd_connection_free(admin);
+}
+
+/** @brief Перемещение позиции и блока в сохранённом списке на живом сервере.
+ *
+ *  Тот же порядок строк, что у очереди: TO считается по списку без вынутого участка,
+ *  а `to = len−count` — это «в конец», не ошибка (замер 16).
+ */
+TEST_CASE("перемещение блока в сохранённом списке переставляет ровно его")
+{
+    const MpdEndpoint ep = endpointFromEnv();
+    const char *whySkip = skipReason(ep);
+    if (*whySkip) {
+        MESSAGE(whySkip);
+        return;
+    }
+
+    Connection conn;
+    REQUIRE(openAppConnection(&conn, ep));
+    MpdCommands cmds(&conn);
+    FailureLog failures(conn);
+
+    mpd_connection *admin = openMpdConnection(ep);
+    REQUIRE(admin != nullptr);
+
+    const QStringList base = readQueue(ep).uris;
+    if (base.size() < 4) {
+        MESSAGE("нужны минимум четыре строки очереди для проверки перемещения");
+        mpd_connection_free(admin);
+        return;
+    }
+
+    const QString name = QStringLiteral("gmpc-qt-75-move");
+    auto fillPlaylist = [&]() {
+        mpd_run_rm(admin, name.toUtf8().constData());
+        mpd_connection_clear_error(admin);
+        for (int i = 0; i < 4; ++i)
+            mpd_run_playlist_add(admin, name.toUtf8().constData(),
+                                 base.at(i).toUtf8().constData());
+    };
+
+    // Строка 2 встаёт на место строки 1: TO — координата без вынутого блока.
+    fillPlaylist();
+    cmds.movePlaylistBlock(name, 2, 1, 1);
+    CHECK(failures.messages().isEmpty());
+    QStringList expected{base.at(0), base.at(2), base.at(1), base.at(3)};
+    CHECK(storedPlaylist(ep, name) == expected);
+
+    // Блок [0..2) уходит за строку 2: при движении вниз TO на длину блока меньше.
+    fillPlaylist();
+    cmds.movePlaylistBlock(name, 0, 2, 1);
+    CHECK(failures.messages().isEmpty());
+    expected = QStringList{base.at(2), base.at(0), base.at(1), base.at(3)};
+    CHECK(storedPlaylist(ep, name) == expected);
+
+    // Граница: `to = len` при count=1 сервер отвергает ACK Bad range (замер 16).
+    fillPlaylist();
+    const int len = storedPlaylist(ep, name).size();
+    REQUIRE_EQ(len, 4);
+    CHECK_FALSE(mpd_run_playlist_move(admin, name.toUtf8().constData(), 0,
+                                      static_cast<unsigned>(len)));
+    const QString rangeErr =
+        QString::fromUtf8(mpd_connection_get_error_message(admin));
+    mpd_connection_clear_error(admin);
+    CHECK(rangeErr.contains(QStringLiteral("Bad range")));
+
+    // А `to = len−count` — принимается: это «в конец».
+    cmds.movePlaylistBlock(name, 0, 1, len - 1);
+    CHECK(failures.messages().isEmpty());
+    expected = QStringList{base.at(1), base.at(2), base.at(3), base.at(0)};
+    CHECK(storedPlaylist(ep, name) == expected);
+
+    mpd_run_rm(admin, name.toUtf8().constData());
+    mpd_connection_free(admin);
+}
+
+/** @brief Удаление смежного блока позиций: одним диапазоном и ровно он.
+ *
+ *  Сырое `playlistdelete name start end` сервер не понимает — работает библиотечная
+ *  обёртка delete_range (замер 17), поэтому проверяем обе стороны этого факта.
+ */
+TEST_CASE("смежный блок позиций списка удаляется одним диапазоном")
+{
+    const MpdEndpoint ep = endpointFromEnv();
+    const char *whySkip = skipReason(ep);
+    if (*whySkip) {
+        MESSAGE(whySkip);
+        return;
+    }
+
+    Connection conn;
+    REQUIRE(openAppConnection(&conn, ep));
+    MpdCommands cmds(&conn);
+    FailureLog failures(conn);
+
+    mpd_connection *admin = openMpdConnection(ep);
+    REQUIRE(admin != nullptr);
+
+    const QStringList base = readQueue(ep).uris;
+    if (base.size() < 4) {
+        MESSAGE("нужны минимум четыре строки очереди для проверки удаления");
+        mpd_connection_free(admin);
+        return;
+    }
+
+    const QString name = QStringLiteral("gmpc-qt-75-del");
+    auto fillPlaylist = [&]() {
+        mpd_run_rm(admin, name.toUtf8().constData());
+        mpd_connection_clear_error(admin);
+        for (int i = 0; i < 4; ++i)
+            mpd_run_playlist_add(admin, name.toUtf8().constData(),
+                                 base.at(i).toUtf8().constData());
+    };
+
+    fillPlaylist();
+
+    // Сырая форма с двумя номерами: сервер ждёт ровно один аргумент-диапазон.
+    mpd_send_command(admin, "playlistdelete", name.toUtf8().constData(), "1", "2",
+                     nullptr);
+    const bool rawOk = mpd_response_finish(admin);
+    CHECK_FALSE(rawOk);
+    const QString rawErr =
+        QString::fromUtf8(mpd_connection_get_error_message(admin));
+    mpd_connection_clear_error(admin);
+    MESSAGE("сырое playlistdelete с диапазоном: " << rawErr.toStdString());
+
+    // Список после неудачной сырой команды не изменился — удаляет обёртка.
+    CHECK_EQ(storedPlaylist(ep, name).size(), 4);
+
+    cmds.removePlaylistPositions(name, 1, 2);
+    CHECK(failures.messages().isEmpty());
+    const QStringList expected{base.at(0), base.at(3)};
+    CHECK(storedPlaylist(ep, name) == expected);
+
+    mpd_run_rm(admin, name.toUtf8().constData());
+    mpd_connection_free(admin);
+}
+
+/** @brief «Add to Playlist» дописывает трэк и создаёт список на ходу (замер 18).
+ *
+ *  Имя другого списка сервер как путь не принимает — это и есть причина, по которой в
+ *  подменю попадают только намерения с URI-путём.
+ */
+TEST_CASE("добавление трэка создаёт список, а имя чужого списка отвергается")
+{
+    const MpdEndpoint ep = endpointFromEnv();
+    const char *whySkip = skipReason(ep);
+    if (*whySkip) {
+        MESSAGE(whySkip);
+        return;
+    }
+
+    Connection conn;
+    REQUIRE(openAppConnection(&conn, ep));
+    MpdCommands cmds(&conn);
+    FailureLog failures(conn);
+
+    mpd_connection *admin = openMpdConnection(ep);
+    REQUIRE(admin != nullptr);
+
+    const QStringList base = readQueue(ep).uris;
+    if (base.isEmpty()) {
+        MESSAGE("нужна хотя бы одна строка очереди для проверки добавления");
+        mpd_connection_free(admin);
+        return;
+    }
+
+    const QString target = QStringLiteral("gmpc-qt-75-add");
+    auto dropPlaylist = [&](const QString &n) {
+        mpd_run_rm(admin, n.toUtf8().constData());
+        mpd_connection_clear_error(admin);
+    };
+    dropPlaylist(target);
+
+    // Файла нет — playlistadd создаёт его сам (замер 15).
+    cmds.appendToStoredPlaylist(target, base.first());
+    CHECK(failures.messages().isEmpty());
+    CHECK(storedPlaylistNames(ep).contains(target));
+    CHECK_EQ(storedPlaylist(ep, target), QStringList{base.first()});
+
+    // Имя другого сохранённого списка вместо пути: сервер отвечает No such directory.
+    const QString other = QStringLiteral("gmpc-qt-75-add-src");
+    dropPlaylist(other);
+    cmds.appendToStoredPlaylist(other, base.at(base.size() > 1 ? 1 : 0));
+    REQUIRE(failures.messages().isEmpty());
+
+    const int before = storedPlaylist(ep, target).size();
+    cmds.appendToStoredPlaylist(target, other);
+
+    // Отказ виден только сигналом: MpdCommands сам завершает ответ и снимает error-state.
+    REQUIRE_EQ(failures.messages().size(), 1);
+    const QString nameErr = failures.messages().first();
+    CHECK(nameErr.contains(QStringLiteral("No such directory")));
+    MESSAGE("playlistadd с именем списка вместо пути: " << nameErr.toStdString());
+    CHECK_EQ(storedPlaylist(ep, target).size(), before);   // цель не изменилась
+
+    dropPlaylist(target);
+    dropPlaylist(other);
     mpd_connection_free(admin);
 }
 

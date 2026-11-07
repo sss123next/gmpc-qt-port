@@ -68,6 +68,9 @@ TEST_CASE("PlaylistEditor contains four QPushButtons")
 TEST_CASE("PlaylistEditor reacts to connection state")
 {
     MockConnection conn;
+    // isConnected() виртуальна и мок теперь действительно опрашивается; «подключено»
+    // здесь про панель — у мока нет handle, поэтому чтения списков не происходит.
+    ALLOW_CALL(conn, isConnected()).RETURN(true);
     MpdCommands cmds(&conn);
     PlaylistEditor editor(&conn, &cmds);
     editor.onConnectionChanged(true);

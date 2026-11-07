@@ -126,6 +126,9 @@ TEST_CASE("FileBrowser contains a QTreeView")
 TEST_CASE("FileBrowser reacts to connection state")
 {
     MockConnection conn;
+    // Мок опрашивается по-настоящему (isConnected виртуальна), но handle у него нет:
+    // загрузка каталога пропускается, а состояние панели от соединения не зависит.
+    ALLOW_CALL(conn, isConnected()).RETURN(true);
     FileBrowser browser(&conn);
     browser.onConnectionChanged(true);
     CHECK(browser.isEnabled());
