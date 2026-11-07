@@ -357,7 +357,9 @@ void MainWindow::setupCentralArea()
     currentPlaylist_ = new CurrentPlaylist(conn_, cmds_, playlistModel_, this);
     databaseBrowser_ = new DatabaseBrowser(conn_, this);
     fileBrowser_     = new FileBrowser(conn_, this);
-    searchBrowser_   = new SearchBrowser(conn_, this);
+    // Команды нужны поиску для Enter/Insert: результат кладётся в очередь, а Ctrl+Insert
+    // ею же её заменяет.
+    searchBrowser_   = new SearchBrowser(conn_, cmds_, this);
     playlistEditor_  = new PlaylistEditor(conn_, cmds_, this);
 
     // Order here defines the stack index and must match setupSidebar() and
