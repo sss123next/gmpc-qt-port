@@ -43,9 +43,40 @@
 #include <QShortcut>
 #include <QMenu>
 #include <QMessageBox>
+#include <mpd/playlist.h>
+
 #include <QCloseEvent>
 #include <QStandardPaths>
 #include <xcb/xcb_keysyms.h>
+
+namespace {
+
+/** @brief Имена сохранённых списков на сервере.
+ *
+ *  Спрашиваются в момент открытия меню, а не держатся зеркалом: список мог измениться
+ *  другим клиентом (idle-событие о правке файла списка приходит не всегда), а подменю
+ *  «Add to Playlist» с устаревшими именами — это команды в никуда.
+ */
+QStringList storedPlaylistNames(Connection *conn)
+{
+    QStringList names;
+    // handle тоже: у мок-соединения в юните сервера нет, а libmpdclient падает на NULL.
+    if (!conn || !conn->isConnected() || !conn->hasHandle())
+        return names;
+
+    Connection::ResponseScope scope(*conn, "listplaylists");
+    if (mpd_send_list_playlists(conn->raw())) {
+        while (struct mpd_playlist *pl = mpd_recv_playlist(conn->raw())) {
+            const QString path = QString::fromUtf8(mpd_playlist_get_path(pl));
+            if (!path.isEmpty())
+                names.append(path);
+            mpd_playlist_free(pl);
+        }
+    }
+    return names;
+}
+
+}  // namespace
 
 // ── MediaKeyFilter ───────────────────────────────────────────────────────────
 
@@ -751,11 +782,42 @@ void MainWindow::showBrowserMenu(QAbstractItemView *view, const QPoint &pos,
 
     const BrowserPathMenuItems paths = addPathMenuItems(menu, intents, musicDir);
 
+    // «Add to Playlist ▸ имя» — то, чего в оригинале как пункта меню браузера не было:
+    // сохранённый список это единственное место помимо очереди, куда строку можно положить.
+    // Годятся только пути файлов: у группы и списка URI — не путь (замер 18).
+    QVector<QString> appendable;
+    for (const BrowserIntent &intent : intents) {
+        if (!intent.uri.isEmpty()
+            && (intent.kind == BrowserIntent::Kind::Song
+                || intent.kind == BrowserIntent::Kind::Directory)) {
+            appendable.append(intent.uri);
+        }
+    }
+
+    QMenu *toList = nullptr;
+    if (!appendable.isEmpty()) {
+        toList = menu.addMenu(tr("Add to Playlist"));
+        const QStringList names = storedPlaylistNames(conn_);
+        for (const QString &name : names)
+            toList->addAction(name);
+        if (names.isEmpty())
+            // Пустое подменю выглядит сломанным: сервер без списков — это факт, а не баг.
+            toList->addAction(tr("(no playlists)"))->setEnabled(false);
+    }
+
     QAction *chosen = menu.exec(view->viewport()->mapToGlobal(pos));
     if (!chosen)
         return;
 
-    if (chosen == playAct) {
+    // Пункт подменю узнаётся по принадлежности: у него нет ни одного из указателей выше,
+    // а выключенный «(no playlists)» в exec() выбрать нельзя.
+    if (toList && toList->actions().contains(chosen)) {
+        // Одна команда на строку: playlistadd принимает ровно один путь, а список-цель
+        // уже выбран пунктом подменю.
+        for (const QString &uri : appendable)
+            cmds_->appendToStoredPlaylist(chosen->text(), uri);
+        statusBar_->showMessage(tr("Added to playlist \"%1\"").arg(chosen->text()), 2000);
+    } else if (chosen == playAct) {
         // canPlay означает ровно одну строку-трэк, так что первый Song и есть клика.
         for (const BrowserIntent &intent : intents) {
             if (intent.kind == BrowserIntent::Kind::Song) {
