@@ -12,16 +12,19 @@
 #include <QApplication>
 #include <QLabel>
 #include <QLineEdit>
+#include <QScrollBar>
+#include <QShortcut>
 #include <QTreeView>
 
 #include "browsers/search-browser.h"
+#include "core/mpd-commands.h"
 
 static int argc = 1;
 static char arg0[] = "gmpc-qt-test";
 static char *argv = arg0;
 static QApplication app(argc, &argv);
 
-// ── Mock Connection ──────────────────────────────────────────────────────────
+// ── Mock Connection / Commands ───────────────────────────────────────────────
 
 class MockConnection : public Connection {
 public:
@@ -29,6 +32,19 @@ public:
     MAKE_CONST_MOCK0(isConnected, bool());
     MAKE_MOCK0(fetchStatus, Connection::Status());
     MAKE_MOCK0(nextEntity, mpd_entity *());
+};
+
+/** @brief Подменённые команды очереди: Enter/Insert в результатах — это они.
+ *
+ *  Мок ловит именно отправляемое, а не догадку о протоколе (движок поиска ходит
+ *  своим соединением и здесь не участвует).
+ */
+class MockCommands : public MpdCommands {
+public:
+    explicit MockCommands(Connection *conn) : MpdCommands(conn) {}
+    MAKE_MOCK1(addUri, void(const QString &));
+    MAKE_MOCK0(clearQueue, void());
+    MAKE_MOCK0(play, void());
 };
 
 // ── Tests for SearchResultModel ──────────────────────────────────────────────
@@ -256,5 +272,213 @@ TEST_CASE("leaving the screen cancels the pending search")
 
     browser.onDeactivate();   // не должно ни крашнуться, ни оставить запроса
     CHECK_EQ(browser.treeView()->model()->rowCount({}), 0);
+}
+
+// ── История сессии и действия по клавишам (7.6) ─────────────────────────────
+
+namespace {
+
+/// Наполняет вид результатом «как от движка»: строки + счётчик всего найденного.
+void feed(SearchBrowser &browser, const QVector<SearchHit> &hits, int total)
+{
+    Q_EMIT browser.engine()->resultsReady(1, hits, total, QString());
+}
+
+/// Выделяет строку целиком (колонка 0 — по ней работает uniqueSelectedRows).
+void selectRow(QTreeView *view, int row)
+{
+    // Флаг Rows обязателен: selectedRows(0) отдаёт строки только при выделении всей
+    // строки, а прямой вызов selectionModel()->select() поведение вида не применяет.
+    view->selectionModel()->select(view->model()->index(row, 0),
+                                   QItemSelectionModel::Select
+                                       | QItemSelectionModel::Rows);
+}
+
+} // namespace
+
+TEST_CASE("Ctrl+↑ возвращает предыдущий термин, Ctrl+↓ — обратно")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(true);
+    MpdCommands cmds(&conn);   // история живёт в виджете: команды не нужны
+    SearchBrowser browser(&conn, &cmds);
+
+    auto *edit = browser.findChild<QLineEdit *>();
+    REQUIRE(edit != nullptr);
+
+    edit->setText("alpha");
+    QMetaObject::invokeMethod(&browser, "executeSearch", Qt::DirectConnection);
+    edit->setText("beta");
+    QMetaObject::invokeMethod(&browser, "executeSearch", Qt::DirectConnection);
+
+    // Первый Ctrl+↑ — предыдущий термин (не тот, что набран сейчас).
+    CHECK(QMetaObject::invokeMethod(&browser, "recallPreviousQuery",
+                                    Qt::DirectConnection));
+    CHECK_EQ(edit->text(), QStringLiteral("alpha"));
+
+    QMetaObject::invokeMethod(&browser, "recallNextQuery", Qt::DirectConnection);
+    CHECK_EQ(edit->text(), QStringLiteral("beta"));
+}
+
+TEST_CASE("повторный поиск того же термина не плодит историю")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(true);
+    MpdCommands cmds(&conn);
+    SearchBrowser browser(&conn, &cmds);
+
+    auto *edit = browser.findChild<QLineEdit *>();
+    REQUIRE(edit != nullptr);
+
+    edit->setText("one");
+    QMetaObject::invokeMethod(&browser, "executeSearch", Qt::DirectConnection);
+    // Тот же термин дважды: в истории он один — иначе Ctrl+↑ стоял бы на месте.
+    QMetaObject::invokeMethod(&browser, "executeSearch", Qt::DirectConnection);
+
+    edit->setText("two");
+    QMetaObject::invokeMethod(&browser, "executeSearch", Qt::DirectConnection);
+    CHECK(QMetaObject::invokeMethod(&browser, "recallPreviousQuery",
+                                    Qt::DirectConnection));
+    CHECK_EQ(edit->text(), QStringLiteral("one"));
+}
+
+TEST_CASE("Enter/Insert на результатах кладут выделенные строки в очередь")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(true);
+    MockCommands cmds(&conn);
+
+    SearchBrowser browser(&conn, &cmds);
+    feed(browser, {makeHit("/a.mp3", "A", "T1"), makeHit("/b.mp3", "B", "T2")}, 0);
+
+    QTreeView *view = browser.treeView();
+    REQUIRE_EQ(view->model()->rowCount({}), 2);
+    selectRow(view, 1);   // только вторая строка
+    CHECK_EQ(view->selectionModel()->selectedIndexes().size(), SearchResultModel::ColCount);
+    CHECK_EQ(browser.selectedIntents().size(), 1);
+
+    trompeloeil::sequence seq;
+    REQUIRE_CALL(cmds, addUri(QStringLiteral("/b.mp3"))).IN_SEQUENCE(seq);
+
+    QMetaObject::invokeMethod(&browser, "addSelectionToQueue", Qt::DirectConnection);
+}
+
+TEST_CASE("Ctrl+Insert заменяет очередь: clear → add выделенного → play")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(true);
+    MockCommands cmds(&conn);
+
+    SearchBrowser browser(&conn, &cmds);
+    feed(browser, {makeHit("/a.mp3", "A", "T1"), makeHit("/b.mp3", "B", "T2")}, 0);
+
+    QTreeView *view = browser.treeView();
+    REQUIRE_EQ(view->model()->rowCount({}), 2);
+    selectRow(view, 0);
+    selectRow(view, 1);
+
+    // Порядок важен: очистка до добавления, игра — после (иначе заиграла бы старая очередь).
+    trompeloeil::sequence seq;
+    REQUIRE_CALL(cmds, clearQueue()).IN_SEQUENCE(seq);
+    REQUIRE_CALL(cmds, addUri(QStringLiteral("/a.mp3"))).IN_SEQUENCE(seq);
+    REQUIRE_CALL(cmds, addUri(QStringLiteral("/b.mp3"))).IN_SEQUENCE(seq);
+    REQUIRE_CALL(cmds, play()).IN_SEQUENCE(seq);
+
+    QMetaObject::invokeMethod(&browser, "replaceQueueWithSelection",
+                              Qt::DirectConnection);
+}
+
+TEST_CASE("без команд клавиши результата молчат")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(true);
+    SearchBrowser browser(&conn);   // cmds == nullptr
+
+    feed(browser, {makeHit("/a.mp3", "A", "T")}, 0);
+    QTreeView *view = browser.treeView();
+    REQUIRE_EQ(view->model()->rowCount({}), 1);
+    selectRow(view, 0);
+
+    CHECK(QMetaObject::invokeMethod(&browser, "addSelectionToQueue",
+                                    Qt::DirectConnection));
+}
+
+TEST_CASE("прокрутка до конца догружает следующее окно и дописывает строки")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(true);
+    MpdCommands cmds(&conn);
+
+    SearchBrowser browser(&conn, &cmds);
+    // Вид без показа не имеет размера — ползунку нужна раскладка.
+    browser.resize(400, 200);
+    browser.show();
+    QCoreApplication::processEvents();   // дать layout пройти: иначе viewport нулевой
+
+    auto *edit = browser.findChild<QLineEdit *>();
+    REQUIRE(edit != nullptr);
+    edit->setText("term");
+    QMetaObject::invokeMethod(&browser, "executeSearch", Qt::DirectConnection);
+
+    // Первое окно приходит целиком (200 строк) — значит за ним может быть ещё.
+    const unsigned limit = SearchQuery{}.clampedLimit();
+    QVector<SearchHit> page;
+    for (unsigned i = 0; i < limit; ++i)
+        page.append(makeHit(QStringLiteral("/p%1.mp3").arg(i), "A", "T"));
+    feed(browser, page, static_cast<int>(limit) + 5);
+    CHECK_EQ(static_cast<unsigned>(browser.shownCount()), limit);
+
+    QCoreApplication::processEvents();   // вид пересчитает диапазон ползунка
+    auto *tree = browser.treeView();
+    REQUIRE(tree->viewport()->height() > 0);   // раскладка дала высоту
+    CHECK_EQ(static_cast<unsigned>(browser.shownCount()), limit);
+
+    QScrollBar *bar = tree->verticalScrollBar();
+    REQUIRE(bar->maximum() > 0);   // есть куда прокручивать
+    bar->setValue(bar->maximum());
+
+    // Догрузка просит следующий offset, а не тот же самый.
+    CHECK_EQ(browser.lastRequested().offset, limit);
+
+    QVector<SearchHit> tail{makeHit("/tail.mp3", "Z", "T")};
+    feed(browser, tail, static_cast<int>(limit) + 5);
+    // Строки дописаны к прежним (не заменены): прокрутка стоит у нижней границы.
+    CHECK_EQ(static_cast<unsigned>(browser.shownCount()), limit + 1);
+
+    browser.hide();
+}
+
+TEST_CASE("прокси сортирует длительность числом, а не строкой")
+{
+    SearchResultModel model;
+    QVector<SearchResultItem> items;
+
+    // «10:00» против «9:59»: по тексту десятиминутный встал бы раньше.
+    for (const auto &pair : {std::pair<int, const char *>{600, "long"},
+                             {599, "short"}}) {
+        SearchResultItem it;
+        it.artist = pair.second;
+        it.duration = pair.first;
+        items.append(it);
+    }
+    model.setResults(items);
+
+    SearchResultProxy proxy;
+    proxy.setSourceModel(&model);
+    proxy.sort(SearchResultModel::ColDuration, Qt::AscendingOrder);
+    CHECK_EQ(proxy.index(0, SearchResultModel::ColArtist).data().toString(),
+             QStringLiteral("short"));
+
+    // Обычные колонки — без регистра: «ABBA» не должен уезжать от «abba».
+    QVector<SearchResultItem> names;
+    for (const char *artist : {"ABBA", "abba2"}) {
+        SearchResultItem it;
+        it.artist = artist;
+        names.append(it);
+    }
+    model.setResults(names);
+    proxy.sort(SearchResultModel::ColArtist, Qt::AscendingOrder);
+    CHECK_EQ(proxy.index(0, SearchResultModel::ColArtist).data().toString(),
+             QStringLiteral("ABBA"));
 }
 
