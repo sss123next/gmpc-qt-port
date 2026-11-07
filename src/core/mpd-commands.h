@@ -32,33 +32,33 @@ public:
 
 public slots:
     // -- transport ----------------------------------------------------------
-    void play();
-    void pause();
-    void togglePause();
-    void stop();
-    void next();
-    void previous();
+    virtual void play();
+    virtual void pause();
+    virtual void togglePause();
+    virtual void stop();
+    virtual void next();
+    virtual void previous();
 
     // -- seeking ------------------------------------------------------------
     /** @brief Seek to an absolute position.
      *  @param seconds  Target position.
      */
-    void seek(int seconds);
+    virtual void seek(int seconds);
 
     /** @brief Seek relative to current position.
      *  @param delta  Signed offset in seconds.
      */
-    void seekRelative(int delta);
+    virtual void seekRelative(int delta);
 
     // -- volume -------------------------------------------------------------
     /** @brief Set volume (0–100). */
-    void setVolume(int vol);
-    void volumeUp(int step = 5);
-    void volumeDown(int step = 5);
+    virtual void setVolume(int vol);
+    virtual void volumeUp(int step = 5);
+    virtual void volumeDown(int step = 5);
 
     // -- queue manipulation -------------------------------------------------
     /** @brief Add a URI (song or directory) to the queue. */
-    void addUri(const QString &uri);
+    virtual void addUri(const QString &uri);
 
     /** @brief Воспроизвести трэк, добавив его в очередь, если там его нет.
      *  @param uri  файл из базы (не каталог).
@@ -68,13 +68,13 @@ public slots:
      *  `playid`. Очередь не очищается — двойной клик в браузере не имеет права
      *  выбрасывать то, что пользователь собрал раньше.
      */
-    void activateUri(const QString &uri);
+    virtual void activateUri(const QString &uri);
 
     /** @brief Play a specific queue position. */
-    void playPos(int pos);
+    virtual void playPos(int pos);
 
     /** @brief Clear the entire queue (current playlist). */
-    void clearQueue();
+    virtual void clearQueue();
 
     /** @brief Удалить из очереди треки по их идентификаторам.
      *  @param ids  songid'ы; отрицательные пропускаются.
@@ -82,7 +82,7 @@ public slots:
      *  Идентификаторы, а не позиции: очередь могла сдвинуться, пока пользователь
      *  выбирал строки (другой клиент, consume-режим).
      */
-    void removeSongIds(const QList<int> &ids);
+    virtual void removeSongIds(const QList<int> &ids);
 
     /** @brief Переместить блок строк очереди на новую позицию.
      *  @param fromPos  Первая позиция блока.
@@ -91,12 +91,12 @@ public slots:
      *                  MPD трактует аргумент TO: очередь в момент перестановки уже
      *                  без переносимых строк.
      */
-    void moveQueueBlock(int fromPos, int count, int toPos);
+    virtual void moveQueueBlock(int fromPos, int count, int toPos);
 
     /** @brief Сохранить текущую очередь как список воспроизведения.
      *  @param name  Имя в каталоге плейлистов MPD; существующее перезаписывается.
      */
-    void saveQueueAs(const QString &name);
+    virtual void saveQueueAs(const QString &name);
 
     // -- списки воспроизведения (сохранённые) --------------------------------
     /** @brief Добавить в очередь все трэки базы под ограничениями (`findadd`).
@@ -109,7 +109,7 @@ public slots:
      *  в очереди, будет добавлена второй раз. Это поведение оригинального gmpc — двойной
      *  клик по группе означает «собрать группу в очередь», а не «добавить недостающее».
      */
-    void findAddSongs(const QVector<MpdTagConstraint> &constraints);
+    virtual void findAddSongs(const QVector<MpdTagConstraint> &constraints);
 
     /** @brief Дописать сохранённый список воспроизведения в очередь (`load`).
      *
@@ -117,7 +117,7 @@ public slots:
      *  `load` списка той же длины стала 14). Очередь пользователя двойной клик выбрасывать
      *  не имеет права.
      */
-    void loadStoredPlaylist(const QString &name);
+    virtual void loadStoredPlaylist(const QString &name);
 
     /** @brief Удалить позицию из сохранённого списка воспроизведения.
      *  @param name      Имя списка, как его отдаёт `listplaylists`.
@@ -125,21 +125,62 @@ public slots:
      *
      *  Очередь не меняется: `playlistdelete` правит файл списка на сервере (замерено).
      */
-    void deletePlaylistPosition(const QString &name, int position);
+    virtual void deletePlaylistPosition(const QString &name, int position);
+
+    /** @brief Дописать URI в сохранённый список (`playlistadd`).
+     *  @param name  Имя списка; файла нет — он создаётся (замерено на MPD 0.25).
+     *  @param uri   Трэк или каталог: каталог сервер разворачивает сам.
+     *
+     *  Дубликаты разрешены (замер 16): две одинаковые строки в списке — норма, а не
+     *  ошибка. Несуществующий URI → ACK [50@0] No such directory (замер 17).
+     */
+    virtual void appendToStoredPlaylist(const QString &name, const QString &uri);
+
+    /** @brief Создать пустой сохранённый список по имени.
+     *
+     *  Одной команды «создать» у MPD нет: `playlistclear` требует существующий файл
+     *  (ACK [50@0] {playlistclear} No such playlist, замер 15). Поэтому два шага —
+     *  `save` текущей очереди под именем (создаёт или перезаписывает) и `playlistclear`
+     *  (обнуляет); очередь при этом не трогается.
+     */
+    virtual void createEmptyStoredPlaylist(const QString &name);
+
+    /** @brief Переместить блок позиций сохранённого списка (`playlistmove`).
+     *  @param name      Имя списка.
+     *  @param fromPos   Первая строка блока в файле списка.
+     *  @param count     Длина блока.
+     *  @param toPos     Позиция первой строки ПОСЛЕ перемещения — координаты без
+     *                   вынутого блока, как у `move_range` очереди (замер 16:
+     *                   допустимо `to ≤ len−count`, иначе ACK 2 Bad range).
+     */
+    virtual void movePlaylistBlock(const QString &name, int fromPos, int count, int toPos);
+
+    /** @brief Удалить подряд идущий блок позиций сохранённого списка.
+     *  @param name      Имя списка.
+     *  @param firstRow  Первая удаляемая строка (включительно).
+     *  @param lastRow   Последняя удаляемая строка (включительно) — переводится в
+     *                   полуинтервал, как требует диапазонная форма `playlistdelete`.
+     *
+     *  Один вызов вместо цикла: сырая форма «start end» серверу не нравится
+     *  («wrong number of arguments», замер 17), а библиотечная работает и экономит
+     *  round-trip на каждой строке. Несмежное выделение всё равно требует по вызову
+     *  на блок — см. PlaylistEditor::removalBlocks().
+     */
+    virtual void removePlaylistPositions(const QString &name, int firstRow, int lastRow);
 
     // -- playback modes -----------------------------------------------------
-    void setRepeat(bool on);
-    void setRandom(bool on);
-    void setSingle(bool on);
-    void setConsume(bool on);
+    virtual void setRepeat(bool on);
+    virtual void setRandom(bool on);
+    virtual void setSingle(bool on);
+    virtual void setConsume(bool on);
 
-    void toggleRepeat();
-    void toggleRandom();
-    void toggleSingle();
-    void toggleConsume();
+    virtual void toggleRepeat();
+    virtual void toggleRandom();
+    virtual void toggleSingle();
+    virtual void toggleConsume();
 
     /// Toggle mute: remembers the last non-zero volume.
-    void muteToggle();
+    virtual void muteToggle();
 
 private:
     /** @brief Идентификатор трэка в очереди по точному совпадению URI.

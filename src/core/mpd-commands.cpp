@@ -214,6 +214,69 @@ void MpdCommands::deletePlaylistPosition(const QString &name, int position) {
                                                   static_cast<unsigned>(position)));
 }
 
+void MpdCommands::appendToStoredPlaylist(const QString &name, const QString &uri) {
+    CHECK;
+    const QByteArray n = name.toUtf8();
+    const QByteArray u = uri.toUtf8();
+    if (n.isEmpty() || u.isEmpty())
+        return;
+
+    // Каталог сервер разворачивает сам (`playlistadd "список" "sub"` → строка sub/c1.flac,
+    // замер 17), поэтому отдельной ветки для папок не нужно. Дубликаты он пропускает —
+    // список из двух одинаковых строк это норма, а не ошибка (замер 16).
+    RUN("playlistadd", mpd_run_playlist_add(MPD, n.constData(), u.constData()));
+}
+
+void MpdCommands::createEmptyStoredPlaylist(const QString &name) {
+    CHECK;
+    const QByteArray n = name.toUtf8();
+    if (n.isEmpty())
+        return;
+
+    // `playlistclear` по имени без файла отвечает ACK 50 No such playlist и списка не
+    // создаёт, а команды «создать пустой» у MPD нет вовсе. Поэтому save текущей очереди
+    // под этим именем (файл появляется или перезаписывается) плюс clear — очередь
+    // пользователя при этом остаётся на месте.
+    RUN("save", mpd_run_save(MPD, n.constData()));
+    RUN("playlistclear", mpd_run_playlist_clear(MPD, n.constData()));
+}
+
+void MpdCommands::movePlaylistBlock(const QString &name, int fromPos, int count, int toPos) {
+    CHECK;
+    const QByteArray n = name.toUtf8();
+    if (n.isEmpty() || fromPos < 0 || count <= 0 || toPos < 0)
+        return;
+
+    // TO — координата в списке без вынутого блока: MPD сначала убирает блок, потом
+    // вставляет его по указанному индексу (замер 16). Граница `to ≤ len−count` —
+    // это «в конец»; большее значение сервер отвергает ACK 2 Bad range.
+    if (count == 1) {
+        RUN("playlistmove", mpd_run_playlist_move(MPD, n.constData(),
+                                                  static_cast<unsigned>(fromPos),
+                                                  static_cast<unsigned>(toPos)));
+        return;
+    }
+    RUN("playlistmovelrange",
+        mpd_run_playlist_move_range(MPD, n.constData(), static_cast<unsigned>(fromPos),
+                                    static_cast<unsigned>(fromPos + count),   // end — исключающий
+                                    static_cast<unsigned>(toPos)));
+}
+
+void MpdCommands::removePlaylistPositions(const QString &name, int firstRow, int lastRow) {
+    CHECK;
+    const QByteArray n = name.toUtf8();
+    if (n.isEmpty() || firstRow < 0 || lastRow < firstRow)
+        return;
+
+    // Диапазонная форма принимает полуинтервал [start; end), поэтому к последней строке
+    // прибавляется единица. Сырое «playlistdelete name start end» сервер не понимает
+    // («wrong number of arguments», замер 17) — работает именно библиотечная обёртка.
+    RUN("playlistdelrange",
+        mpd_run_playlist_delete_range(MPD, n.constData(),
+                                      static_cast<unsigned>(firstRow),
+                                      static_cast<unsigned>(lastRow + 1)));
+}
+
 // -------------------------------------------------------------------
 //  Playback modes
 // -------------------------------------------------------------------
