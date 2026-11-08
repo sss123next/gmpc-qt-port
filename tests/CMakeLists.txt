@@ -290,3 +290,22 @@ target_link_libraries(test-playlist-editor-commands PRIVATE testcore Qt6::Widget
     doctest::doctest trompeloeil::trompeloeil)
 target_include_directories(test-playlist-editor-commands PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-playlist-editor-commands COMMAND test-playlist-editor-commands)
+
+# ── Страница «Now Playing» (8.1): теги, обложка и приход лирики ─────────────
+# Менеджер метаданных не поднимается: без него страница живёт на одних тегах,
+# а ответ провайдера подаётся прямо в слот — сеть в кейсах не участвует.
+
+add_executable(test-now-playing test-now-playing.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/now-playing.cpp
+    ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
+target_link_libraries(test-now-playing PRIVATE testcore Qt6::Widgets Qt6::Network
+    PkgConfig::SQLITE3 doctest::doctest trompeloeil::trompeloeil)
+target_include_directories(test-now-playing PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-now-playing COMMAND test-now-playing)
