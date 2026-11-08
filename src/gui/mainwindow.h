@@ -34,6 +34,7 @@ class CurrentPlaylist;
 class FileBrowser;
 class SearchBrowser;
 class PlaylistEditor;
+class NowPlaying;
 class MetadataManager;
 class CoverWidget;
 class SongInfo;
@@ -121,6 +122,7 @@ private:
     FileBrowser *fileBrowser_;
     SearchBrowser *searchBrowser_;
     PlaylistEditor *playlistEditor_;
+    NowPlaying *nowPlaying_;   ///< Страница «Now Playing»: крупная обложка и лирика.
 
     // Bars
     ControlBar *controlBar_;  ///< Transport buttons + cover + info + volume.

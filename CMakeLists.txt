@@ -73,6 +73,8 @@ set(BROWSER_SOURCES
     src/browsers/file-system-model.h
     src/browsers/search-browser.cpp
     src/browsers/search-browser.h
+    src/browsers/now-playing.cpp
+    src/browsers/now-playing.h
     src/browsers/playlist-editor.cpp
     src/browsers/playlist-editor.h
 )

@@ -23,6 +23,7 @@
 #include "browsers/file-browser.h"
 #include "browsers/search-browser.h"
 #include "browsers/playlist-editor.h"
+#include "browsers/now-playing.h"
 
 #include "browsers/music-database-model.h"
 #include "browsers/file-system-model.h"
@@ -333,6 +334,8 @@ void MainWindow::setupSidebar()
     model->appendRow(new QStandardItem(tr("Files")));
     model->appendRow(new QStandardItem(tr("Search")));
     model->appendRow(new QStandardItem(tr("Playlist Editor")));
+    // Порядок строк обязан совпадать с порядком addBrowser() и вкладками.
+    model->appendRow(new QStandardItem(tr("Now Playing")));
     sidebar_->setModel(model);
     sidebar_->setHeaderHidden(true);
     // TODO: proper QML-style sidebar with icons
@@ -361,6 +364,9 @@ void MainWindow::setupCentralArea()
     // ею же её заменяет.
     searchBrowser_   = new SearchBrowser(conn_, cmds_, this);
     playlistEditor_  = new PlaylistEditor(conn_, cmds_, this);
+    // Странице нужен менеджер метаданных: она единственный потребитель лирики.
+    nowPlaying_      = new NowPlaying(this);
+    nowPlaying_->setMetadataManager(metadataMgr_);
 
     // Order here defines the stack index and must match setupSidebar() and
     // setupBrowserTabs(), which both address pages by row number.
@@ -369,6 +375,7 @@ void MainWindow::setupCentralArea()
     browserStack_->addBrowser(fileBrowser_);
     browserStack_->addBrowser(searchBrowser_);
     browserStack_->addBrowser(playlistEditor_);
+    browserStack_->addBrowser(nowPlaying_);
 
     // Browsers start disabled; onConnected() hands them the connection.
     browserStack_->setConnected(conn_->isConnected());
@@ -430,6 +437,7 @@ void MainWindow::setupBrowserTabs()
     tabBar_->addTab(tr("Files"));
     tabBar_->addTab(tr("Search"));
     tabBar_->addTab(tr("Playlist Editor"));
+    tabBar_->addTab(tr("Now Playing"));
     tabBar_->setExpanding(false);
 
     connect(tabBar_, &QTabBar::currentChanged, this, [this](int idx) {
@@ -556,6 +564,7 @@ void MainWindow::onDisconnected()
     browserStack_->setConnected(false);
     lastSongId_ = -1;
     songInfo_->clear();
+    nowPlaying_->setSong(nullptr);
     playlistModel_->clear();
 }
 
@@ -585,6 +594,9 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     lastSongId_ = songId;
 
     songInfo_->showSong(song);
+    // Страница «Now Playing» живёт тем же источником истины: трэк ей отдаём здесь,
+    // а лирику она тянет сама (ключ внутри гасит повторные запросы).
+    nowPlaying_->setSong(song);
     if (song && !song->artist.isEmpty() && !song->album.isEmpty()) {
         coverWidget_->fetchCover(song->artist, song->album);
     }
