@@ -31,6 +31,14 @@ void CoverWidget::setMetadataManager(MetadataManager *mgr)
     }
 }
 
+void CoverWidget::setCoverSize(int px)
+{
+    if (px <= 0 || px == coverPx_)
+        return;
+    coverPx_ = px;
+    setMinimumSize(coverPx_, coverPx_);
+}
+
 void CoverWidget::fetchCover(const QString &artist, const QString &album)
 {
     if (mgr_) {
@@ -42,7 +50,8 @@ void CoverWidget::fetchCover(const QString &artist, const QString &album)
 
 void CoverWidget::setCover(const QPixmap &pixmap)
 {
-    setPixmap(pixmap.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    setPixmap(pixmap.scaled(coverPx_, coverPx_, Qt::KeepAspectRatio,
+                            Qt::SmoothTransformation));
 }
 
 void CoverWidget::clear()

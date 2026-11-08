@@ -23,6 +23,10 @@ public:
     /// Set the metadata manager to use for cover fetching.
     void setMetadataManager(MetadataManager *mgr);
 
+    /** @brief Размер отрисовки обложки. По умолчанию 128 — размер control bar;
+     *         страница «Now Playing» просит крупнее, места ей хватает. */
+    void setCoverSize(int px);
+
     /// Fetch cover art for artist/album from the active pipeline.
     void fetchCover(const QString &artist, const QString &album);
     /// Immediately display a pre-loaded pixmap.
@@ -32,5 +36,6 @@ public:
 
 private:
     MetadataManager *mgr_ = nullptr;
+    int coverPx_ = 128;   ///< сторона квадрата отрисовки, px
 };
 
