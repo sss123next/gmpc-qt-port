@@ -55,6 +55,8 @@ set(GUI_SOURCES
     src/gui/trayicon.h
     src/gui/preferences-dialog.cpp
     src/gui/preferences-dialog.h
+    src/gui/song-info-dialog.cpp
+    src/gui/song-info-dialog.h
 )
 
 set(BROWSER_SOURCES

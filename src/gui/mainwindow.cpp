@@ -25,6 +25,8 @@
 #include "browsers/playlist-editor.h"
 #include "browsers/now-playing.h"
 
+#include "gui/song-info-dialog.h"
+
 #include "browsers/music-database-model.h"
 #include "browsers/file-system-model.h"
 
@@ -793,6 +795,17 @@ void MainWindow::showBrowserMenu(QAbstractItemView *view, const QPoint &pos,
     addAct->setEnabled(actions.canAdd);
     QAction *replaceAct = menu.addAction(tr("Replace"));
     replaceAct->setEnabled(actions.canReplace);
+    // «Info» — только у трэка: показать теги и лирику можно лишь одной песне (7.4 обещал
+    // этот пункт, но окна метаданных не было).
+    QAction *infoAct = nullptr;
+    QString infoUri;
+    for (const BrowserIntent &intent : intents) {
+        if (intent.kind == BrowserIntent::Kind::Song && !intent.uri.isEmpty()) {
+            infoAct = menu.addAction(tr("Info"));
+            infoUri = intent.uri;   // первая выделенная песня: окно одно
+            break;
+        }
+    }
 
     const BrowserPathMenuItems paths = addPathMenuItems(menu, intents, musicDir);
 
@@ -846,12 +859,30 @@ void MainWindow::showBrowserMenu(QAbstractItemView *view, const QPoint &pos,
         cmds_->clearQueue();
         addIntentsToQueue(intents);
         cmds_->play();
+    } else if (infoAct && chosen == infoAct) {
+        showSongInfo(infoUri);
     } else if (paths.openFolder && chosen == paths.openFolder) {
         QDesktopServices::openUrl(QUrl::fromLocalFile(paths.folder));
     } else if (paths.copyPath && chosen == paths.copyPath) {
         QApplication::clipboard()->setText(copyTextFor(intents, musicDir));
         statusBar_->showMessage(tr("Path copied to clipboard"), 2000);
     }
+}
+
+void MainWindow::showSongInfo(const QString &uri)
+{
+    // Теги берём у сервера по URI: намерение строки несёт только путь, а показать надо
+    // artist/title/album. Файла в базе может и не быть — тогда останется хотя бы путь.
+    SongEntry song;
+    if (const auto found = cmds_->songForUri(uri))
+        song = *found;
+    else
+        song.uri = uri;
+
+    auto *dlg = new SongInfoDialog(song, metadataMgr_, this);
+    // Окон можно открыть несколько подряд — пусть закрываются сами.
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->show();
 }
 
 void MainWindow::addIntentsToQueue(const QVector<BrowserIntent> &intents)

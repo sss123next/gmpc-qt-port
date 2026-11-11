@@ -165,6 +165,10 @@ private:
     /// Добавляет строки в очередь: трэк и каталог — `add`, список — `load`, группа — `findadd`.
     void addIntentsToQueue(const QVector<BrowserIntent> &intents);
 
+    /** @brief Открывает окно «Song Info» для трэка по его URI.
+     *  Теги достаёт сервер (в намерении строки есть только путь), лирику — диалог. */
+    void showSongInfo(const QString &uri);
+
     /** @brief Активация строки браузера двойным кликом (row-activated оригинала).
      *  @param activate вызывается с индексом вида; команды отдаёт MpdCommands.
      */
