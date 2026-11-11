@@ -109,6 +109,35 @@ int MpdCommands::queueSongIdForUri(const QString &uri) const {
     return id;   // ResponseScope завершит ответ и снимет error-state
 }
 
+std::optional<SongEntry> MpdCommands::songForUri(const QString &uri) const {
+    if (!conn_->isConnected() || uri.isEmpty())
+        return std::nullopt;
+
+    const QByteArray u = uri.toUtf8();
+    Connection::ResponseScope scope(*conn_, "search");
+
+    // По базе, а не по очереди: строку выбирают и в дереве БД/файлов, где трэк может
+    // вовсе не стоять в очередь. Ограничение точное (как filename-фильтр, замер 10).
+    if (!mpd_search_db_songs(MPD, true))
+        return std::nullopt;
+
+    bool ok = mpd_search_add_uri_constraint(MPD, MPD_OPERATOR_DEFAULT, u.constData());
+    ok = ok && mpd_search_commit(MPD);
+    if (!ok) {
+        mpd_search_cancel(MPD);
+        return std::nullopt;
+    }
+
+    std::optional<SongEntry> found;
+    // Ответ вычитывается до конца: брошенный список оставил бы соединение в error-state.
+    while (struct mpd_song *song = mpd_recv_song(MPD)) {
+        if (!found)
+            found = songEntryFromMpd(song);
+        mpd_song_free(song);
+    }
+    return found;   // ResponseScope завершит ответ и снимет error-state
+}
+
 void MpdCommands::activateUri(const QString &uri) {
     CHECK;
     if (uri.isEmpty())

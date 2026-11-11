@@ -9,10 +9,13 @@
  * through Connection::raw() via the MPD macro.
  */
 
+#include <optional>
+
 #include <QObject>
 #include <QVector>
 #include <mpd/tag.h>
 #include "connection.h"
+#include "core/playlist-model.h"   // SongEntry — тип возврата songForUri()
 
 /// Точное ограничение «тег == значение» для findadd (добавление группы/альбома).
 struct MpdTagConstraint {
@@ -181,6 +184,16 @@ public slots:
 
     /// Toggle mute: remembers the last non-zero volume.
     virtual void muteToggle();
+
+    /** @brief Теги трэка по точному URI из базы — для окна «Song Info».
+     *
+     *  Намерение строки браузера несёт только путь, а показать надо artist/title/album:
+     *  их знает сервер. Поиск идёт **по базе**, не по очереди: трэк выбирают и там, где он
+     *  в очередь вовсе не поставлен.
+     *
+     *  @returns найденный трэк либо nullopt (нет соединения, пустой URI или файла нет).
+     */
+    [[nodiscard]] std::optional<SongEntry> songForUri(const QString &uri) const;
 
 private:
     /** @brief Идентификатор трэка в очереди по точному совпадению URI.
