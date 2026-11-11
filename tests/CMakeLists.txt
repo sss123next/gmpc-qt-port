@@ -309,3 +309,23 @@ target_link_libraries(test-now-playing PRIVATE testcore Qt6::Widgets Qt6::Networ
     PkgConfig::SQLITE3 doctest::doctest trompeloeil::trompeloeil)
 target_include_directories(test-now-playing PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-now-playing COMMAND test-now-playing)
+
+# ── Окно «Song Info» (8.2): теги выбранного трэка и его лирика ───────────────
+# Менеджер метаданных в кейсах не поднимается: без него окно живёт на одних тегах,
+# а приход текста подаётся прямо в слот. Живой кейс проверяет songForUri по
+# GMPC_QT_TEST_MPD — единственный путь достать теги строки.
+
+add_executable(test-song-info-dialog test-song-info-dialog.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/song-info-dialog.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
+target_link_libraries(test-song-info-dialog PRIVATE testcore Qt6::Widgets
+    Qt6::Network PkgConfig::SQLITE3 doctest::doctest trompeloeil::trompeloeil
+    PkgConfig::LIBMPDCLIENT)
+target_include_directories(test-song-info-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-song-info-dialog COMMAND test-song-info-dialog)
