@@ -12,6 +12,7 @@
 #include <optional>
 
 #include <QObject>
+#include <QStringList>
 #include <QVector>
 #include <mpd/tag.h>
 #include "connection.h"
@@ -22,6 +23,38 @@ struct MpdTagConstraint {
     enum mpd_tag_type tag;
     QString value;
 };
+
+/** @brief Снимок ответа сервера на команду `stats` — содержимое окна «Server Information».
+ *
+ *  Всё, кроме version и urlHandlers, приходит одним ответом: сервер сам считает аптайм
+ *  и суммарную длительность базы. Числа держим в quint64 — секунды аптайма демона,
+ *  работающего месяцами, перерастают int.
+ */
+struct ServerStats {
+    QString version;           ///< версия протокола сервера («0.25.6»); пусто, если не сообщена
+    quint64 uptimeSec = 0;     ///< сколько работает сам демон
+    quint64 playtimeSec = 0;   ///< сколько он играл
+    quint64 dbPlaytimeSec = 0; ///< суммарная длительность всей базы
+    int artists = 0;
+    int albums = 0;
+    int songs = 0;
+    QStringList urlHandlers;   ///< схемы («http://»…); пусто — сервер их не объявил
+};
+
+/** @brief Время и число песен с одним значением тега (`count`). */
+struct TagPlaytime {
+    QString value;             ///< значение, как его отдал сервер
+    quint64 playTimeSec = 0;
+    int songs = 0;
+};
+
+/** @brief Секунды в компактную подпись («2 m 5 s», «1 d 1 h»).
+ *
+ *  Оригинал печатал локализованную прозу (`format_time_real`), у нас фиксированный
+ *  набор единиц: разбор не должен зависеть от языка. Нулевые компоненты опускаются,
+ *  полностью нулевое время — «0 s».
+ */
+[[nodiscard]] QString formatSpan(quint64 seconds);
 
 /// Stateless set of player-command slots that operate on a Connection.
 class MpdCommands : public QObject {
@@ -194,6 +227,43 @@ public slots:
      *  @returns найденный трэк либо nullopt (нет соединения, пустой URI или файла нет).
      */
     [[nodiscard]] std::optional<SongEntry> songForUri(const QString &uri) const;
+
+    // -- статистика сервера (окно «Server Information») ----------------------
+    /** @brief Снимок `stats`: аптайм, время игры и размеры базы.
+     *  @returns поля ответа либо nullopt (нет соединения или команда отвергнута).
+     */
+    virtual std::optional<ServerStats> serverStats() const;
+
+    /** @brief Схемы, которые сервер умеет открывать как URL (`urlhandlers`).
+     *
+     *  Пусто и вне соединения, и когда сервер таких схем не объявил: окну различать
+     *  эти случаи незачем.
+     */
+    virtual QStringList urlSchemes() const;
+
+    /** @brief Значения одного тега по всей базе (`list <tag>`) — строки таблицы
+     *  «Tag statistics».
+     *
+     *  Пусто и вне соединения, и когда такого тега в базе нет.
+     */
+    virtual QStringList tagValues(enum mpd_tag_type tag) const;
+
+    /** @brief Теги, включённые на сервере (`tagtypes`) — варианты списка в окне.
+     *
+     *  Спрашиваем сервер, а не перебираем весь `mpd_tag_type`: тег может быть
+     *  отключён (disabled tag types), и обход по нему вернул бы пустоту на каждой
+     *  строке — таблица из одних нулей.
+     */
+    virtual QVector<enum mpd_tag_type> supportedTags() const;
+
+    /** @brief Время песен с данным значением тега (`count` + ограничение).
+     *
+     *  Отдельная команда на значение: агрегата «сразу по всем значениям» у MPD нет,
+     *  поэтому таблицу окно собирает построчно, чанками — иначе база в тысячи
+     *  исполнителей заморозила бы GUI-поток.
+     */
+    virtual std::optional<TagPlaytime> tagPlaytime(enum mpd_tag_type tag,
+                                                  const QString &value) const;
 
 private:
     /** @brief Идентификатор трэка в очереди по точному совпадению URI.

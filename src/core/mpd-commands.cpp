@@ -320,6 +320,177 @@ void MpdCommands::toggleRandom()    { CHECK; auto st = conn_->fetchStatus(); RUN
 void MpdCommands::toggleSingle()    { CHECK; auto st = conn_->fetchStatus(); RUN("single", mpd_run_single(MPD, !st.single)); }
 void MpdCommands::toggleConsume()   { CHECK; auto st = conn_->fetchStatus(); RUN("consume", mpd_run_consume(MPD, !st.consume)); }
 
+// -------------------------------------------------------------------
+//  Статистика сервера (окно «Server Information»)
+// -------------------------------------------------------------------
+
+namespace {
+
+/// Освобождает mpd_stats на любом выходе из блока — в т.ч. по раннему return.
+struct StatsGuard {
+    struct mpd_stats *s;
+    ~StatsGuard() { if (s != nullptr) mpd_stats_free(s); }
+};
+
+/** @brief Схемы URL, объявленные сервером (`urlhandlers`).
+ *
+ *  Общий код для serverStats() и urlSchemes(): окну нужен готовый снимок целиком,
+ * а тестам — возможность спросить список отдельно.
+ */
+QStringList readUrlSchemes(Connection *conn)
+{
+    QStringList out;
+    if (!conn->isConnected())
+        return out;
+
+    Connection::ResponseScope scope(*conn, "urlhandlers");
+    mpd_send_list_url_schemes(conn->raw());
+    while (struct mpd_pair *pair = mpd_recv_url_scheme_pair(conn->raw())) {
+        const QString scheme = pair->value ? QString::fromUtf8(pair->value) : QString();
+        if (!scheme.isEmpty() && !out.contains(scheme))
+            out << scheme;
+        mpd_return_pair(conn->raw(), pair);
+    }
+    return out;   // ResponseScope завершит ответ и снимет error-state
+}
+
+} // namespace
+
+QString formatSpan(quint64 seconds)
+{
+    if (seconds == 0)
+        return QStringLiteral("0 s");
+
+    const quint64 d = seconds / 86400;
+    const quint64 h = (seconds % 86400) / 3600;
+    const quint64 m = (seconds % 3600) / 60;
+    const quint64 s = seconds % 60;
+
+    QStringList parts;
+    if (d > 0)
+        parts << QStringLiteral("%1 d").arg(d);
+    if (h > 0)
+        parts << QStringLiteral("%1 h").arg(h);
+    if (m > 0)
+        parts << QStringLiteral("%1 m").arg(m);
+    // Секунды показываем, только когда они не ноль: «1 h» точнее и короче, чем
+    // «1 h 0 s». Полностью нулевое время уже отсечено выше.
+    if (s > 0)
+        parts << QStringLiteral("%1 s").arg(s);
+    return parts.join(QLatin1Char(' '));
+}
+
+std::optional<ServerStats> MpdCommands::serverStats() const
+{
+    if (!conn_->isConnected())
+        return std::nullopt;
+
+    Connection::ResponseScope scope(*conn_, "stats");
+    struct mpd_stats *raw = mpd_run_stats(MPD);
+    StatsGuard guard{raw};
+    if (raw == nullptr)
+        return std::nullopt;   // ResponseScope снимет error-state
+
+    ServerStats out;
+    // Версия из приветствия сервера («OK MPD 0.25.6») — то же, что показывал оригинал
+    // через mpd_server_get_version(). В самом ответе `stats` её нет.
+    if (const unsigned *v = mpd_connection_get_server_version(MPD)) {
+        out.version = QStringLiteral("%1.%2.%3").arg(v[0]).arg(v[1]).arg(v[2]);
+    }
+    out.uptimeSec     = mpd_stats_get_uptime(raw);
+    out.playtimeSec   = mpd_stats_get_play_time(raw);
+    out.dbPlaytimeSec = mpd_stats_get_db_play_time(raw);
+    // Аксессоры отдают unsigned long; в int кладём осознанно — миллиарда песен не бывает.
+    out.artists       = static_cast<int>(mpd_stats_get_number_of_artists(raw));
+    out.albums        = static_cast<int>(mpd_stats_get_number_of_albums(raw));
+    out.songs         = static_cast<int>(mpd_stats_get_number_of_songs(raw));
+
+    // Отдельная команда: в ответе `stats` схем нет, а окну они нужны той же строкой.
+    out.urlHandlers = readUrlSchemes(conn_);
+    return out;
+}
+
+QStringList MpdCommands::urlSchemes() const
+{
+    return readUrlSchemes(conn_);
+}
+
+QStringList MpdCommands::tagValues(enum mpd_tag_type tag) const
+{
+    QStringList out;
+    if (!conn_->isConnected())
+        return out;
+
+    Connection::ResponseScope scope(*conn_, "list");
+    if (!mpd_search_db_tags(MPD, tag))
+        return out;   // сервер старше 0.12: команды `list <tag>` нет
+
+    if (!mpd_search_commit(MPD)) {
+        mpd_search_cancel(MPD);
+        return out;
+    }
+
+    while (struct mpd_pair *pair = mpd_recv_pair_tag(MPD, tag)) {
+        const QString value = pair->value ? QString::fromUtf8(pair->value) : QString();
+        if (!value.isEmpty() && !out.contains(value))
+            out << value;
+        mpd_return_pair(MPD, pair);
+    }
+    return out;   // ResponseScope завершит ответ и снимет error-state
+}
+
+QVector<enum mpd_tag_type> MpdCommands::supportedTags() const
+{
+    QVector<enum mpd_tag_type> out;
+    if (!conn_->isConnected())
+        return out;
+
+    Connection::ResponseScope scope(*conn_, "tagtypes");
+    // `list tagtypes` — только включённые теги; имя разбираем тем же парсером, что и
+    // сервер в своих ответах (регистр не наш).
+    mpd_send_list_tag_types(MPD);
+    while (struct mpd_pair *pair = mpd_recv_tag_type_pair(MPD)) {
+        const enum mpd_tag_type tag =
+            pair->value ? mpd_tag_name_parse(pair->value) : MPD_TAG_UNKNOWN;
+        if (tag != MPD_TAG_UNKNOWN && !out.contains(tag))
+            out << tag;
+        mpd_return_pair(MPD, pair);
+    }
+    return out;   // ResponseScope завершит ответ и снимет error-state
+}
+
+std::optional<TagPlaytime> MpdCommands::tagPlaytime(enum mpd_tag_type tag,
+                                                    const QString &value) const
+{
+    if (!conn_->isConnected() || value.isEmpty())
+        return std::nullopt;
+
+    Connection::ResponseScope scope(*conn_, "count");
+    // `count` вместо поиска песен: сервер сам складывает длительности, а нам нужна
+    // ровно одна пара чисел на значение тега.
+    if (!mpd_count_db_songs(MPD))
+        return std::nullopt;
+
+    const QByteArray v = value.toUtf8();
+    bool ok = mpd_search_add_tag_constraint(MPD, MPD_OPERATOR_DEFAULT, tag, v.constData());
+    ok = ok && mpd_search_commit(MPD);
+    if (!ok) {
+        mpd_search_cancel(MPD);
+        return std::nullopt;
+    }
+
+    struct mpd_stats *raw = mpd_recv_stats(MPD);
+    StatsGuard guard{raw};
+    if (raw == nullptr)
+        return std::nullopt;
+
+    TagPlaytime out;
+    out.value       = value;
+    out.playTimeSec = mpd_stats_get_play_time(raw);
+    out.songs       = static_cast<int>(mpd_stats_get_number_of_songs(raw));
+    return out;   // ResponseScope завершит ответ и снимет error-state
+}
+
 void MpdCommands::muteToggle() {
     CHECK;
     static int prevVol = 50;
