@@ -329,3 +329,14 @@ target_link_libraries(test-song-info-dialog PRIVATE testcore Qt6::Widgets
     PkgConfig::LIBMPDCLIENT)
 target_include_directories(test-song-info-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-song-info-dialog COMMAND test-song-info-dialog)
+
+# ── Окно «Server Information» (8.3): снимок stats и время по значениям тега ──
+# Транспорт подменяется наследником MpdCommands — сервер нужен только живому кейсу
+# (GMPC_QT_TEST_MPD), который проверяет разбор настоящих `stats` и `list <tag>`.
+
+add_executable(test-server-info-dialog test-server-info-dialog.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/server-info-dialog.cpp)
+target_link_libraries(test-server-info-dialog PRIVATE testcore Qt6::Widgets
+    doctest::doctest trompeloeil::trompeloeil PkgConfig::LIBMPDCLIENT)
+target_include_directories(test-server-info-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-server-info-dialog COMMAND test-server-info-dialog)
