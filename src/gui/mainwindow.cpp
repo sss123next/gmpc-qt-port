@@ -25,6 +25,7 @@
 #include "browsers/playlist-editor.h"
 #include "browsers/now-playing.h"
 
+#include "gui/server-info-dialog.h"
 #include "gui/song-info-dialog.h"
 
 #include "browsers/music-database-model.h"
@@ -322,6 +323,9 @@ void MainWindow::setupMenuBar()
     view->addAction(tr("Toggle &Sidebar"), this, [this] {
         sidebar_->setVisible(!sidebar_->isVisible());
     });
+    // Оригинал держал этот пункт в меню View («_View server information»).
+    view->addSeparator();
+    view->addAction(tr("Server &Information..."), this, &MainWindow::showServerInfo);
 
     auto *help = menuBar()->addMenu(tr("&Help"));
     help->addAction(tr("&About"), this, &MainWindow::showAbout);
@@ -477,8 +481,9 @@ void MainWindow::connectSignals()
     // События MPD (6.7): слушатель держит своё соединение, поэтому статус можно
     // забирать мгновенно, не дожидаясь тика таймера. Polling никуда не делся —
     // он подстраховка, и Connection сам решает, как часто опрашивать, когда
-    // событий нет (setIdleWatched). databaseChanged пока не за что цеплять — деревья
-    // браузеров от перестройки базы сами не меняются.
+    // событий нет (setIdleWatched). Деревья браузеров от перестройки базы сами не
+    // меняются — они читают её по раскрытию узла; а вот размеры и время по тегам в
+    // окне статистики устаревают молча, поэтому database|update адресован ему.
     connect(conn_, &Connection::connected, this, [this] {
         const MpdEndpoint endpoint{conn_->host(), conn_->port(),
                                    conn_->password(), conn_->timeoutMs()};
@@ -508,6 +513,16 @@ void MainWindow::connectSignals()
         conn_->refreshNow();   // длина очереди и songid живут в status
         queueSync_->syncNow(); // а сама очередь — диффом plchanges, не listqueue
     });
+    // База перестраивается или уже перестроена (idle database|update): в окне
+    // статистики устарели и размеры базы, и таблица времени по тегам. Пересборку
+    // просим только у открытого окна — закрытое соберётся при следующем показе.
+    connect(idle_, &IdleWatcher::databaseChanged, this, [this] {
+        if (serverInfo_ == nullptr)
+            return;
+        serverInfo_->refresh();
+        serverInfo_->reloadTagStats();
+    });
+
     connect(idle_, &IdleWatcher::watchingChanged, conn_, &Connection::setIdleWatched);
 
     // Очередь (7.2): worker присылает либо новый список, либо теги изменившихся строк.
@@ -608,6 +623,18 @@ void MainWindow::showPreferences()
 {
     PreferencesDialog dlg(this);
     dlg.exec();
+}
+
+void MainWindow::showServerInfo()
+{
+    // Окно немодальное и самообновляющееся: повторный пункт меню обязан поднять уже
+    // открытое, а не плодить копии (указатель обнулится сам — QPointer).
+    if (serverInfo_ == nullptr)
+        serverInfo_ = new ServerInfoDialog(cmds_, this);
+
+    serverInfo_->show();
+    serverInfo_->raise();
+    serverInfo_->activateWindow();
 }
 
 void MainWindow::showAbout()

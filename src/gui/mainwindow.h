@@ -11,6 +11,7 @@
  */
 
 #include <QMainWindow>
+#include <QPointer>
 #include <QStackedWidget>
 #include <QTabBar>
 #include <QTreeView>
@@ -35,6 +36,7 @@ class FileBrowser;
 class SearchBrowser;
 class PlaylistEditor;
 class NowPlaying;
+class ServerInfoDialog;
 class MetadataManager;
 class CoverWidget;
 class SongInfo;
@@ -80,6 +82,8 @@ private slots:
 
     /// Show the preferences dialog.
     void showPreferences();
+    /// Показать (или поднять уже открытое) окно «Server Information».
+    void showServerInfo();
     /// Show the About dialog.
     void showAbout();
 
@@ -123,6 +127,7 @@ private:
     SearchBrowser *searchBrowser_;
     PlaylistEditor *playlistEditor_;
     NowPlaying *nowPlaying_;   ///< Страница «Now Playing»: крупная обложка и лирика.
+    QPointer<ServerInfoDialog> serverInfo_;  ///< Окно статистики; живёт само (WA_DeleteOnClose).
 
     // Bars
     ControlBar *controlBar_;  ///< Transport buttons + cover + info + volume.
