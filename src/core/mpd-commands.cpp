@@ -491,6 +491,81 @@ std::optional<TagPlaytime> MpdCommands::tagPlaytime(enum mpd_tag_type tag,
     return out;   // ResponseScope завершит ответ и снимет error-state
 }
 
+// -------------------------------------------------------------------
+//  Серверные настройки: fading, выходы, ReplayGain
+// -------------------------------------------------------------------
+
+QVector<MpdOutput> MpdCommands::outputs() const
+{
+    QVector<MpdOutput> out;
+    if (!conn_->isConnected())
+        return out;
+
+    Connection::ResponseScope scope(*conn_, "outputs");
+    mpd_send_outputs(MPD);
+    while (struct mpd_output *dev = mpd_recv_output(MPD)) {
+        MpdOutput o;
+        // Идентификатор, а не имя: два вывода могут зваться одинаково.
+        o.id      = static_cast<int>(mpd_output_get_id(dev));
+        if (const char *name = mpd_output_get_name(dev))
+            o.name = QString::fromUtf8(name);
+        o.enabled = mpd_output_get_enabled(dev) != 0;
+        out << o;
+        mpd_output_free(dev);
+    }
+    return out;   // ResponseScope завершит ответ и снимет error-state
+}
+
+void MpdCommands::setOutputEnabled(int id, bool on)
+{
+    CHECK;
+    if (id < 0)
+        return;
+    RUN(on ? "enableoutput" : "disableoutput",
+        (on ? mpd_run_enable_output(MPD, static_cast<unsigned>(id))
+            : mpd_run_disable_output(MPD, static_cast<unsigned>(id))));
+}
+
+int MpdCommands::crossfadeSeconds()
+{
+    if (!conn_->isConnected())
+        return -1;
+
+    const Connection::Status st = conn_->fetchStatus();
+    // Отказ fetchStatus даёт состояние UNKNOWN: «нет ответа» не должно выглядеть
+    // как выключенный crossfade, иначе окно настроек молча покажет ноль.
+    if (st.state == MPD_STATE_UNKNOWN)
+        return -1;
+    return st.crossfade;
+}
+
+void MpdCommands::setCrossfade(int seconds)
+{
+    CHECK;
+    RUN("crossfade", mpd_run_crossfade(MPD, static_cast<unsigned>(qMax(0, seconds))));
+}
+
+int MpdCommands::replayGainMode()
+{
+    if (!conn_->isConnected())
+        return -1;
+
+    Connection::ResponseScope scope(*conn_, "replay_gain_status");
+    const enum mpd_replay_gain_mode mode = mpd_run_replay_gain_status(MPD);
+    // UNKNOWN приходит и на ошибке, и на неизвестном режиме — для окна это одно
+    // «не знаю», а не валидный индекс списка.
+    return mode == MPD_REPLAY_UNKNOWN ? -1 : static_cast<int>(mode);
+}
+
+void MpdCommands::setReplayGainMode(int mode)
+{
+    CHECK;
+    if (mode < 0 || mode > static_cast<int>(MPD_REPLAY_AUTO))
+        return;
+    RUN("replay_gain_mode",
+        mpd_run_replay_gain_mode(MPD, static_cast<enum mpd_replay_gain_mode>(mode)));
+}
+
 void MpdCommands::muteToggle() {
     CHECK;
     static int prevVol = 50;

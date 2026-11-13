@@ -14,7 +14,8 @@ namespace {
 
 /// Подсистемы, на которые подписываемся: ровно те, что превращаем в сигналы.
 constexpr unsigned kListenMask = MPD_IDLE_PLAYER | MPD_IDLE_OPTIONS | MPD_IDLE_MIXER
-    | MPD_IDLE_QUEUE | MPD_IDLE_STORED_PLAYLIST | MPD_IDLE_DATABASE | MPD_IDLE_UPDATE;
+    | MPD_IDLE_OUTPUT | MPD_IDLE_QUEUE | MPD_IDLE_STORED_PLAYLIST
+    | MPD_IDLE_DATABASE | MPD_IDLE_UPDATE;
 
 /// Задержка переподключения, как в Connection: секунда с удвоением до получаса.
 constexpr int kRetryBaseMs = 1000;
@@ -263,6 +264,10 @@ IdleWatcher::IdleWatcher(QObject *parent)
             emit queueChanged();
         if (events.testFlag(IdleEvent::Mixer))
             emit mixerChanged();
+        // Выход включён/выключен — другим клиентом или нами: окно настроек обязано
+        // перечитать список, иначе тумблер покажет состояние, которого уже нет.
+        if (events.testFlag(IdleEvent::Output))
+            emit outputsChanged();
         if (events.testFlag(IdleEvent::Database) || events.testFlag(IdleEvent::Update))
             emit databaseChanged();
     });

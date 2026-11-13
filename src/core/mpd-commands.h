@@ -41,6 +41,13 @@ struct ServerStats {
     QStringList urlHandlers;   ///< схемы («http://»…); пусто — сервер их не объявил
 };
 
+/** @brief Выходное аудиоустройство сервера (команда `outputs`) — строка окна настроек. */
+struct MpdOutput {
+    int id = -1;        ///< идентификатор устройства: имена дублируются, он уникален
+    QString name;
+    bool enabled = false;
+};
+
 /** @brief Время и число песен с одним значением тега (`count`). */
 struct TagPlaytime {
     QString value;             ///< значение, как его отдал сервер
@@ -264,6 +271,35 @@ public slots:
      */
     virtual std::optional<TagPlaytime> tagPlaytime(enum mpd_tag_type tag,
                                                   const QString &value) const;
+
+    // -- серверные настройки: fading, выходы, ReplayGain ---------------------
+    /** @brief Выходные устройства сервера (`outputs`); пусто вне соединения. */
+    [[nodiscard]] virtual QVector<MpdOutput> outputs() const;
+
+    /** @brief Включить или выключить выход.
+     *
+     *  По идентификатору, а не по имени: имена дублируются (несколько «null output»
+     *  в конфигурации — норма), уникален только id. Состояние сервер меняет сам,
+     *  локальной копии у нас нет.
+     */
+    virtual void setOutputEnabled(int id, bool on);
+
+    /** @brief Текущий crossfade из статуса; -1 вне соединения (0 — это «выключен»).
+     *
+     *  Возврат int, а не unsigned: различать «ноль секунд» и «нет ответа» обязательно.
+     */
+    [[nodiscard]] virtual int crossfadeSeconds();
+
+    /// Установить crossfade в секундах; 0 выключает (команда `crossfade`).
+    virtual void setCrossfade(int seconds);
+
+    /** @brief Режим ReplayGain сервера (`replay_gain_status`) как значение
+     *  enum mpd_replay_gain_mode: Off/Track/Album/Auto — индексы выпадающего списка.
+     *  -1 вне соединения либо при неизвестном режиме. */
+    [[nodiscard]] virtual int replayGainMode();
+
+    /// Установить режим ReplayGain (значение enum mpd_replay_gain_mode).
+    virtual void setReplayGainMode(int mode);
 
 private:
     /** @brief Идентификатор трэка в очереди по точному совпадению URI.

@@ -34,7 +34,7 @@ enum class IdleEvent : unsigned {
     Queue          = 0x4,   ///< очередь изменена (он же MPD_IDLE_PLAYLIST)
     Player         = 0x8,   ///< play/pause/seek/смена трэка
     Mixer          = 0x10,  ///< громкость
-    Output         = 0x20,  ///< выход включён/выключен (не слушаем: UI выходов нет)
+    Output         = 0x20,  ///< выход включён/выключен
     Options        = 0x40,  ///< random/repeat/single/consume/crossfade
     Update         = 0x80,  ///< обновление базы началось или закончилось
 };
@@ -85,6 +85,9 @@ signals:
 
     /// MIXER — громкость изменилась другим клиентом.
     void mixerChanged();
+
+    /// OUTPUT — выход включён или выключен (кем угодно, включая нас).
+    void outputsChanged();
 
     /// DATABASE или UPDATE — база перестраивается или перестроена.
     void databaseChanged();
