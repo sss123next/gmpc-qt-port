@@ -1,6 +1,8 @@
 #include "preferences-dialog.h"
 #include "core/config.h"
+#include "core/mpd-commands.h"
 
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QLabel>
@@ -127,6 +129,69 @@ void PreferencesDialog::setupUi()
     serverForm->addRow(tr("Connection timeout:"), connectionTimeout_);
 
     root->addWidget(serverGroup);
+
+    // ── Fading & Outputs (серверные настройки) ───────────────────────
+    // Оригинал держал это страницей серверных настроек (`glade/preferences-server.ui`:
+    // cb_fading + sb_fade_time, replay_gain_combo и дерево выходов с тумблерами).
+    // Значения живут на MPD: правка уходит командой сразу, а не копится до «Ok».
+    liveServerGroup_ = new QGroupBox(tr("Fading & Outputs (server)"), this);
+    liveServerGroup_->setObjectName(QStringLiteral("liveServerGroup"));
+    auto *liveForm = new QFormLayout(liveServerGroup_);
+
+    fadeHint_ = new QLabel(this);
+    fadeHint_->setObjectName(QStringLiteral("fadeHint"));
+    liveForm->addRow(fadeHint_);
+
+    crossfadeEnable_ = new QCheckBox(tr("Cross-fading"), this);
+    crossfadeEnable_->setObjectName(QStringLiteral("crossfadeEnable"));
+    liveForm->addRow(crossfadeEnable_);
+
+    crossfadeSec_ = new QSpinBox(this);
+    crossfadeEnable_->setToolTip(tr("Fade between tracks (server-side)"));
+    crossfadeSec_->setObjectName(QStringLiteral("crossfadeSec"));
+    crossfadeSec_->setRange(1, 60);
+    crossfadeSec_->setSuffix(tr(" s"));
+    liveForm->addRow(tr("Fade time:"), crossfadeSec_);
+
+    replayGainCombo_ = new QComboBox(this);
+    replayGainCombo_->setObjectName(QStringLiteral("replayGainCombo"));
+    // Порядок обязан совпадать с enum mpd_replay_gain_mode: индекс — значение.
+    replayGainCombo_->addItems({tr("Off"), tr("Track"), tr("Album"), tr("Auto")});
+    liveForm->addRow(tr("Replay Gain:"), replayGainCombo_);
+
+    outputList_ = new QListWidget(this);
+    outputList_->setObjectName(QStringLiteral("outputList"));
+    // Флажок строки — состояние выхода; правка уходит на сервер сразу.
+    connect(outputList_, &QListWidget::itemChanged, this, [this](QListWidgetItem *item) {
+        if (cmds_ == nullptr || item == nullptr)
+            return;
+        cmds_->setOutputEnabled(item->data(Qt::UserRole).toInt(),
+                                item->checkState() == Qt::Checked);
+    });
+    liveForm->addRow(tr("Outputs:"), outputList_);
+
+    connect(crossfadeEnable_, &QCheckBox::toggled, this, [this](bool on) {
+        crossfadeSec_->setEnabled(on && cmds_ != nullptr);
+        if (cmds_ == nullptr || !liveServerGroup_->isEnabled())
+            return;
+        // Выключение — это `crossfade 0`, а не «забыть про значение»: спин сохраняет
+        // последнюю цифру, чтобы включить фейд обратно было чем.
+        cmds_->setCrossfade(on ? crossfadeSec_->value() : 0);
+    });
+    connect(crossfadeSec_, qOverload<int>(&QSpinBox::valueChanged), this, [this](int seconds) {
+        if (cmds_ == nullptr || !crossfadeEnable_->isChecked())
+            return;   // правка выключенного спина фейд не включает
+        cmds_->setCrossfade(seconds);
+    });
+    connect(replayGainCombo_, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int index) {
+        if (cmds_ == nullptr || !liveServerGroup_->isEnabled())
+            return;
+        cmds_->setReplayGainMode(index);
+    });
+
+    root->addWidget(liveServerGroup_);
+    // До bindServer() о сервере ничего не известно: группа выключена и говорит об этом.
+    refreshServerSettings();
 
     // ── Tray group ───────────────────────────────────────────────────
     auto *trayGroup = new QGroupBox(tr("Tray Icon"), this);
@@ -311,6 +376,59 @@ void PreferencesDialog::setupUi()
     connect(buttons_, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons_, &QDialogButtonBox::rejected, this, &QDialog::reject);
     root->addWidget(buttons_);
+}
+
+void PreferencesDialog::bindServer(MpdCommands *cmds)
+{
+    cmds_ = cmds;
+    refreshServerSettings();
+}
+
+void PreferencesDialog::refreshServerSettings()
+{
+    // Один запрос вместо двух: crossfade < 0 означает «сервер молчит» (нет соединения
+    // или отказ статуса), и тогда остальные поля тоже читать не у кого.
+    const int fade = cmds_ == nullptr ? -1 : cmds_->crossfadeSeconds();
+
+    if (fade < 0) {
+        liveServerGroup_->setEnabled(false);
+        crossfadeSec_->setEnabled(false);
+        outputList_->clear();
+        replayGainCombo_->setCurrentIndex(0);
+        fadeHint_->setText(tr("Not connected"));
+        return;
+    }
+
+    liveServerGroup_->setEnabled(true);
+    fadeHint_->clear();
+
+    {
+        // Заливка — не правка пользователя: без блокировки каждое перечитывание
+        // слало бы серверу ту же самую команду.
+        const QSignalBlocker blockEnable(crossfadeEnable_);
+        const QSignalBlocker blockSec(crossfadeSec_);
+        crossfadeEnable_->setChecked(fade > 0);
+        if (fade > 0)
+            crossfadeSec_->setValue(qBound(1, fade, 60));
+    }
+    // Спин активен только при включённом фейде: правка выключенного спина ничего не шлёт.
+    crossfadeSec_->setEnabled(fade > 0);
+
+    const int gain = cmds_->replayGainMode();
+    {
+        const QSignalBlocker block(replayGainCombo_);
+        replayGainCombo_->setCurrentIndex(gain < 0 ? 0 : qBound(0, gain, 3));
+    }
+
+    // Выходы: id в роли данных строки — имена дублируются.
+    const QSignalBlocker blockList(outputList_);
+    outputList_->clear();
+    for (const MpdOutput &o : cmds_->outputs()) {
+        auto *item = new QListWidgetItem(o.name.isEmpty() ? tr("(unnamed)") : o.name, outputList_);
+        item->setData(Qt::UserRole, o.id);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(o.enabled ? Qt::Checked : Qt::Unchecked);
+    }
 }
 
 void PreferencesDialog::loadFromConfig()

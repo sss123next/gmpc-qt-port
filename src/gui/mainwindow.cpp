@@ -622,6 +622,17 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
 void MainWindow::showPreferences()
 {
     PreferencesDialog dlg(this);
+
+    // Fading, выходы и ReplayGain живут на сервере: окно читает их при открытии, а по
+    // idle OUTPUT/OPTIONS перечитывает — тумблер мог дёрнуть другой клиент.
+    if (cmds_ != nullptr) {
+        dlg.bindServer(cmds_);
+        connect(idle_, &IdleWatcher::outputsChanged, &dlg,
+                [&dlg] { dlg.refreshServerSettings(); });
+        connect(idle_, &IdleWatcher::playerChanged, &dlg,
+                [&dlg] { dlg.refreshServerSettings(); });
+    }
+
     dlg.exec();
 }
 

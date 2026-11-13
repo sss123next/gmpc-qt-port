@@ -23,6 +23,8 @@
 #include <QFontComboBox>
 #include "core/config.h"
 
+class MpdCommands;
+
 /// Modal settings dialog bound to Config.
 class PreferencesDialog : public QDialog {
     Q_OBJECT
@@ -31,6 +33,18 @@ public:
 
     /// Apply current UI values to Config and sync to disk.
     void accept() override;
+
+    /** @brief Привязать транспорт сервера: fading, выходы и ReplayGain живут на нём,
+     *  а не в Config — их значение читается у MPD при открытии окна.
+     *
+     *  Без транспорта группа остаётся выключенной с надписью «Not connected»:
+     *  показывать нули сервера, о котором ничего не известно, значило бы врать.
+     */
+    void bindServer(MpdCommands *cmds);
+
+public slots:
+    /// Перечитать crossfade/выходы у сервера (при открытии и по idle OUTPUT).
+    void refreshServerSettings();
 
 private:
     void setupUi();
@@ -61,6 +75,15 @@ private:
     QLineEdit    *musicDirectory_;
     QSpinBox     *reconnectDelay_;
     QSpinBox     *connectionTimeout_;
+
+    // Серверные настройки (живут у MPD, не в Config)
+    MpdCommands  *cmds_ = nullptr;   ///< транспорт; без него группа выключена
+    QGroupBox    *liveServerGroup_;  ///< «Fading & Outputs» — целиком гасится вне соединения
+    QLabel       *fadeHint_;         ///< «Not connected», когда сервер молчит
+    QCheckBox    *crossfadeEnable_;
+    QSpinBox     *crossfadeSec_;
+    QComboBox    *replayGainCombo_;
+    QListWidget  *outputList_;
 
     // Tray group
     QCheckBox    *trayEnabled_;
