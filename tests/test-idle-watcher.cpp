@@ -211,4 +211,59 @@ TEST_CASE("live MPD: idle delivers a change made by another client") {
     CHECK(waitFor([&idle] { return !idle.isWatching(); }, 2000));
 }
 
+TEST_CASE("live MPD: включение выхода другим клиентом даёт outputsChanged") {
+    const QString socket = qEnvironmentVariable("GMPC_QT_TEST_MPD");
+    if (socket.isEmpty()) {
+        MESSAGE("GMPC_QT_TEST_MPD не задан — интеграционная проверка пропущена");
+        return;
+    }
+
+    IdleWatcher idle;
+    MpdEndpoint endpoint;
+    endpoint.host = socket;
+    endpoint.timeoutMs = 5000;
+    idle.setEndpoint(endpoint);
+    idle.start();
+    REQUIRE_MESSAGE(waitFor([&idle] { return idle.isWatching(); }, 5000),
+                    "слушатель не смог подключиться к " << socket.toStdString());
+
+    QSignalSpy outputs(&idle, &IdleWatcher::outputsChanged);
+
+    QString error;
+    mpd_connection *prober = openMpdConnection(endpoint, &error);
+    REQUIRE_MESSAGE(prober, error.toStdString());
+
+    // Первое устройство служебного сервера (в setup-скрипте это «null output»).
+    unsigned id = 0;
+    int wasEnabled = -1;
+    bool found = false;   // у первого выхода может быть и id 0 — нужен отдельный признак
+    if (!mpd_send_outputs(prober)) {
+        mpd_connection_free(prober);
+        FAIL("сервер не отдал список выходов");
+        return;
+    }
+    while (struct mpd_output *dev = mpd_recv_output(prober)) {
+        id = static_cast<unsigned>(mpd_output_get_id(dev));
+        wasEnabled = mpd_output_get_enabled(dev);
+        found = true;
+        mpd_output_free(dev);
+        break;   // одного устройства достаточно
+    }
+    REQUIRE_MESSAGE(found, "у сервера нет выходных устройств");
+
+    // Тумблер дёргает чужой клиент — слушатель обязан это заметить: подсистема OUTPUT
+    // раньше разбиралась и молча выбрасывалась.
+    REQUIRE(mpd_run_disable_output(prober, id));
+    const bool delivered = waitFor([&outputs] { return !outputs.isEmpty(); }, 5000);
+    CHECK(delivered);
+
+    if (wasEnabled == 1)
+        mpd_run_enable_output(prober, id);   // чужой сервер возвращаем как был
+    else
+        mpd_run_disable_output(prober, id);
+    mpd_connection_free(prober);
+
+    idle.stop();
+}
+
 } // TEST_SUITE

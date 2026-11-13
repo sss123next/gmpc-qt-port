@@ -17,10 +17,13 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QSpinBox>
 
 #include "gui/preferences-dialog.h"
 #include "core/config.h"
+#include "core/connection.h"
+#include "core/mpd-commands.h"
 
 /// Reset all config keys to their defaults, so tests don't leak across runs.
 static void resetConfig()
@@ -354,6 +357,244 @@ TEST_CASE("PreferencesDialog has at least 8 QGroupBox widgets")
     auto groups = dlg.findChildren<QGroupBox *>();
     // Connection, Playback, Window, Proxy, Server, Tray, Playlist, Metadata, Multimedia Keys, Profiles
     CHECK_GE(groups.size(), 8);
+}
+
+// ── Серверные настройки: fading, выходы и ReplayGain (живут у MPD) ───────────
+// Транспорт подменён наследником MpdCommands — сеть участвует только в живом кейсе.
+
+namespace {
+
+/// «Сервер» с готовыми ответами; команды записываются для проверки.
+class FakeServer : public MpdCommands {
+public:
+    FakeServer() : MpdCommands(&conn_) {}
+
+    int crossfadeSeconds() override { return fade_; }
+    void setCrossfade(int seconds) override
+    {
+        ++crossfadeCalls;
+        lastFade = seconds;
+        // Как настоящий сервер: выставленное значение видно следующему чтению,
+        // ноль — это выключенный фейд.
+        fade_ = qMax(0, seconds);
+    }
+
+    int replayGainMode() override { return gain_; }
+    void setReplayGainMode(int mode) override
+    {
+        ++gainCalls;
+        lastGain = mode;
+        gain_ = mode;
+    }
+
+    QVector<MpdOutput> outputs() const override { return devices; }
+
+    void setOutputEnabled(int id, bool on) override
+    {
+        outputCalls.append(qMakePair(id, on));
+        for (MpdOutput &dev : devices)
+            if (dev.id == id)
+                dev.enabled = on;
+    }
+
+    Connection conn_;
+    int fade_ = 0;      ///< crossfade сервера (-1 — «нет соединения»)
+    int gain_ = 0;      ///< режим ReplayGain
+    QVector<MpdOutput> devices;
+    QList<QPair<int, bool>> outputCalls;   ///< (id, включить?) по порядку
+    int crossfadeCalls = 0;
+    int lastFade = -1;
+    int gainCalls = 0;
+    int lastGain = -1;
+};
+
+QGroupBox *liveGroup(PreferencesDialog &dlg)
+{
+    return dlg.findChild<QGroupBox *>(QStringLiteral("liveServerGroup"));
+}
+
+} // namespace
+
+TEST_CASE("группа серверных настроек выключена, пока транспорт не привязан")
+{
+    resetConfig();
+    PreferencesDialog dlg;
+
+    QGroupBox *group = liveGroup(dlg);
+    REQUIRE(group != nullptr);
+    CHECK_FALSE(group->isEnabled());
+    // Сервера нет — окно обязано сказать это словами, а не показать нули.
+    auto *hint = dlg.findChild<QLabel *>(QStringLiteral("fadeHint"));
+    REQUIRE(hint != nullptr);
+    CHECK_EQ(hint->text(), QStringLiteral("Not connected"));
+}
+
+TEST_CASE("bindServer заполняет fading, ReplayGain и выходы значениями сервера")
+{
+    resetConfig();
+    FakeServer server;
+    server.fade_ = 5;
+    server.gain_ = 2;
+    server.devices = {{0, QStringLiteral("Speakers"), true},
+                      {1, QStringLiteral("Headphones"), false}};
+
+    PreferencesDialog dlg;
+    dlg.bindServer(&server);
+
+    CHECK(liveGroup(dlg)->isEnabled());
+    auto *enable = dlg.findChild<QCheckBox *>(QStringLiteral("crossfadeEnable"));
+    auto *secs   = dlg.findChild<QSpinBox *>(QStringLiteral("crossfadeSec"));
+    REQUIRE(enable != nullptr);
+    REQUIRE(secs != nullptr);
+    CHECK(enable->isChecked());
+    CHECK_EQ(secs->value(), 5);
+    CHECK(secs->isEnabled());
+
+    auto *gain = dlg.findChild<QComboBox *>(QStringLiteral("replayGainCombo"));
+    REQUIRE(gain != nullptr);
+    CHECK_EQ(gain->currentIndex(), 2);
+
+    auto *list = dlg.findChild<QListWidget *>(QStringLiteral("outputList"));
+    REQUIRE(list != nullptr);
+    REQUIRE_EQ(list->count(), 2);
+    CHECK_EQ(list->item(0)->text(), QStringLiteral("Speakers"));
+    CHECK(list->item(0)->checkState() == Qt::Checked);
+    CHECK(list->item(1)->checkState() == Qt::Unchecked);
+
+    // Заливка не считается правкой: ни одной команды серверу.
+    CHECK_EQ(server.crossfadeCalls, 0);
+    CHECK_EQ(server.gainCalls, 0);
+    CHECK(server.outputCalls.isEmpty());
+}
+
+TEST_CASE("тумблер выхода шлёт команду по идентификатору, а не по имени")
+{
+    resetConfig();
+    FakeServer server;
+    // Одинаковые имена — норма (два «null output» в конфигурации): различает только id.
+    server.devices = {{3, QStringLiteral("null output"), false},
+                      {7, QStringLiteral("null output"), false}};
+
+    PreferencesDialog dlg;
+    dlg.bindServer(&server);
+
+    auto *list = dlg.findChild<QListWidget *>(QStringLiteral("outputList"));
+    REQUIRE(list != nullptr);
+    list->item(1)->setCheckState(Qt::Checked);
+
+    REQUIRE_EQ(server.outputCalls.size(), 1);
+    CHECK_EQ(server.outputCalls.first().first, 7);
+    CHECK(server.outputCalls.first().second);
+}
+
+TEST_CASE("снятие галочки fading выключает crossfade нулём")
+{
+    resetConfig();
+    FakeServer server;
+    server.fade_ = 4;
+
+    PreferencesDialog dlg;
+    dlg.bindServer(&server);
+
+    auto *enable = dlg.findChild<QCheckBox *>(QStringLiteral("crossfadeEnable"));
+    REQUIRE(enable != nullptr);
+    enable->setChecked(false);
+    CHECK_EQ(server.lastFade, 0);   // выключение — именно `crossfade 0`
+    CHECK_FALSE(dlg.findChild<QSpinBox *>(QStringLiteral("crossfadeSec"))->isEnabled());
+
+    // Обратное включение шлёт сохранённую цифру спина.
+    enable->setChecked(true);
+    CHECK_EQ(server.lastFade, 4);
+}
+
+TEST_CASE("правка времени фейда уходит командой только при включённом тумблере")
+{
+    resetConfig();
+    FakeServer server;
+
+    PreferencesDialog dlg;
+    dlg.bindServer(&server);
+
+    auto *secs = dlg.findChild<QSpinBox *>(QStringLiteral("crossfadeSec"));
+    REQUIRE(secs != nullptr);
+    secs->setValue(9);                       // фейд выключен — команды нет
+    CHECK_EQ(server.crossfadeCalls, 0);
+
+    dlg.findChild<QCheckBox *>(QStringLiteral("crossfadeEnable"))->setChecked(true);
+    CHECK_EQ(server.lastFade, 9);            // включение отправляет текущую цифру
+}
+
+TEST_CASE("смена ReplayGain шлёт режим по индексу списка")
+{
+    resetConfig();
+    FakeServer server;
+
+    PreferencesDialog dlg;
+    dlg.bindServer(&server);
+
+    auto *gain = dlg.findChild<QComboBox *>(QStringLiteral("replayGainCombo"));
+    REQUIRE(gain != nullptr);
+    gain->setCurrentIndex(1);   // Track
+    CHECK_EQ(server.lastGain, 1);
+}
+
+TEST_CASE("без соединения группа снова гаснет и говорит Not connected")
+{
+    resetConfig();
+    FakeServer server;
+    server.fade_ = -1;   // транспорт есть, сервер молчит
+
+    PreferencesDialog dlg;
+    dlg.bindServer(&server);
+
+    CHECK_FALSE(liveGroup(dlg)->isEnabled());
+    auto *hint = dlg.findChild<QLabel *>(QStringLiteral("fadeHint"));
+    REQUIRE(hint != nullptr);
+    CHECK_EQ(hint->text(), QStringLiteral("Not connected"));
+
+    // Соединение появилось — перечитывание возвращает группу к жизни.
+    server.fade_ = 3;
+    QMetaObject::invokeMethod(&dlg, "refreshServerSettings", Qt::DirectConnection);
+    CHECK(liveGroup(dlg)->isEnabled());
+}
+
+// ── Живой кейс: выходы и crossfade настоящего сервера ───────────────────────
+
+TEST_CASE("живой MPD: окно показывает выходы и меняет их состояние")
+{
+    const QString socket = qEnvironmentVariable("GMPC_QT_TEST_MPD");
+    if (socket.isEmpty()) {
+        MESSAGE("GMPC_QT_TEST_MPD не задан — интеграционная проверка пропущена");
+        return;
+    }
+
+    Connection conn;
+    REQUIRE(conn.connectToServer(socket, 0, QString(), 5000));
+    MpdCommands cmds(&conn);
+
+    PreferencesDialog dlg;
+    dlg.bindServer(&cmds);
+    CHECK(liveGroup(dlg)->isEnabled());
+
+    auto *list = dlg.findChild<QListWidget *>(QStringLiteral("outputList"));
+    REQUIRE(list != nullptr);
+    // В служебной конфигурации объявлен «null output» — список не имеет права быть пустым.
+    REQUIRE_GE(list->count(), 1);
+
+    const int id = list->item(0)->data(Qt::UserRole).toInt();
+    const bool wasEnabled = list->item(0)->checkState() == Qt::Checked;
+    list->item(0)->setCheckState(wasEnabled ? Qt::Unchecked : Qt::Checked);
+
+    // Состояние спрашиваем у сервера отдельным чтением: тумблер мог соврать.
+    bool now = !wasEnabled;
+    for (const MpdOutput &dev : cmds.outputs())
+        if (dev.id == id)
+            now = dev.enabled;
+    CHECK_EQ(now, !wasEnabled);
+
+    // Возвращаем сервер как был — он служебный и переживёт этот тест.
+    list->item(0)->setCheckState(wasEnabled ? Qt::Checked : Qt::Unchecked);
+    conn.disconnect();
 }
 
 int main(int argc, char *argv[])
