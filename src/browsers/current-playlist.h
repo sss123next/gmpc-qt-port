@@ -10,6 +10,9 @@
  */
 
 #include "browser-widget.h"
+#include "gui/column-chooser-dialog.h"
+
+#include <QVector>
 #include <QTreeView>
 #include <QLineEdit>
 #include <QList>
@@ -37,6 +40,12 @@ public:
     /// The embedded tree view (for context menu setup).
     QTreeView *treeView() const { return view_; }
 
+    /** @brief Записать выбор колонок в Config и применить его к виду.
+     *
+     *  Отделено от окна выбора: `exec()` модален, а проверять хочется без него.
+     */
+    void applyColumnChoices(const QVector<ColumnChoice> &choices);
+
 protected:
     /** @brief Разбирает событие дропа: Qt умеет рисовать индикатор и собирать
      *  mimeData, но команду перестановки очереди знает только этот виджет. */
@@ -49,6 +58,15 @@ private slots:
 
 private:
     void setupUi();
+    /** @brief Привести вид к сохранённым порядку и видимости колонок.
+     *
+     *  Порядок задаётся ключами (`PlaylistModel::columnKey`), а не номерами: сам
+     *  enum переживает добавление столбца, но настройка пользователя обязана
+     *  остаться при своей колонке.
+     */
+    void applyColumnConfig();
+    /// Открыть окно выбора колонок и записать его результат в Config.
+    void editColumns();
 
     /// Строки исходной модели из выделения (отсортированы, без повторов).
     QList<int> selectedSourceRows() const;

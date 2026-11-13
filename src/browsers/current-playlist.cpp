@@ -14,6 +14,7 @@
 #include "core/connection.h"
 #include "core/mpd-commands.h"
 #include "core/playlist-model.h"
+#include "gui/column-chooser-dialog.h"
 #include "tools/log.h"
 
 #include <QAbstractItemView>
@@ -109,6 +110,9 @@ void CurrentPlaylist::setupUi()
     header->resizeSection(PlaylistModel::ArtistColumn, 180);
     header->resizeSection(PlaylistModel::AlbumColumn, 180);
 
+    // Сохранённый порядок и видимость колонок — поверх исходной раскладки.
+    applyColumnConfig();
+
     // Перестановка перетаскиванием: Qt собирает mimeData модели и рисует индикатор,
     // событие дропа разбираем мы (см. eventFilter).
     view_->setDragEnabled(true);
@@ -138,6 +142,66 @@ void CurrentPlaylist::setupUi()
     }
 
     view_->viewport()->installEventFilter(this);
+}
+
+void CurrentPlaylist::applyColumnConfig()
+{
+    auto &cfg = Config::instance();
+    QHeaderView *header = view_->header();
+
+    for (int column = 0; column < PlaylistModel::ColumnCount; ++column)
+        header->setSectionHidden(column, !cfg.playlistColumnVisible(playlistColumnKey(column)));
+
+    // Порядок: каждый сохранённый ключ встаёт на следующее место подряд.
+    int target = 0;
+    for (const QString &key : cfg.playlistColumnsOrder()) {
+        const int column = playlistColumnForKey(key);
+        if (column < 0)
+            continue;   // ключ из другой версии — нашего столбца за ним нет
+        header->moveSection(header->visualIndex(column), target++);
+    }
+}
+
+void CurrentPlaylist::editColumns()
+{
+    QHeaderView *header = view_->header();
+
+    // Текущий порядок берём с экрана, а не из Config: пользователь мог тасовать
+    // столбцы мышью за заголовок, и окно обязано показать то, что он видит.
+    QVector<QPair<int, int>> byVisual;   // (визуальная позиция, колонка)
+    for (int column = 0; column < PlaylistModel::ColumnCount; ++column)
+        byVisual.append({header->visualIndex(column), column});
+    std::sort(byVisual.begin(), byVisual.end());
+
+    QVector<ColumnChoice> choices;
+    for (const auto &pair : byVisual) {
+        const int column = pair.second;
+        ColumnChoice choice;
+        choice.key     = playlistColumnKey(column);
+        choice.title   = model_->headerData(column, Qt::Horizontal).toString();
+        choice.visible = !header->isSectionHidden(column);
+        choices.append(choice);
+    }
+
+    ColumnChooserDialog dlg(this);
+    dlg.setColumns(choices);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    applyColumnChoices(dlg.columns());
+}
+
+void CurrentPlaylist::applyColumnChoices(const QVector<ColumnChoice> &choices)
+{
+    auto &cfg = Config::instance();
+    QStringList order;
+    for (const ColumnChoice &choice : choices) {
+        cfg.setPlaylistColumnVisible(choice.key, choice.visible);
+        order.append(choice.key);   // порядок окна — он и есть новый
+    }
+    cfg.setPlaylistColumnsOrder(order);
+
+    applyColumnConfig();
 }
 
 // ── Разбор индексов вида ─────────────────────────────────────────────────────
@@ -318,6 +382,10 @@ void CurrentPlaylist::showContextMenu(const QPoint &pos)
     QAction *saveAct = menu.addAction(tr("Save queue as…"));
     saveAct->setEnabled(hasQueue);
 
+    // Колонки — свойство вида, а не очереди: пункт живёт и без соединения.
+    menu.addSeparator();
+    QAction *colsAct = menu.addAction(tr("Edit columns…"));
+
     QAction *chosen = menu.exec(view_->viewport()->mapToGlobal(pos));
     if (!chosen)
         return;
@@ -348,6 +416,8 @@ void CurrentPlaylist::showContextMenu(const QPoint &pos)
                                                    QLineEdit::Normal, {}, &ok);
         if (ok && !name.trimmed().isEmpty())
             cmds_->saveQueueAs(name.trimmed());
+    } else if (chosen == colsAct) {
+        editColumns();
     }
 }
 

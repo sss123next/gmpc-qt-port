@@ -110,6 +110,21 @@ target_link_libraries(test-preferences-dialog PRIVATE testcore Qt6::Widgets doct
 target_include_directories(test-preferences-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-preferences-dialog COMMAND test-preferences-dialog)
 
+# ── Выбор колонок очереди: окно и применение раскладки видом ─────────────────
+
+add_executable(test-column-chooser-dialog test-column-chooser-dialog.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/column-chooser-dialog.cpp)
+target_link_libraries(test-column-chooser-dialog PRIVATE Qt6::Widgets doctest::doctest)
+target_include_directories(test-column-chooser-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-column-chooser-dialog COMMAND test-column-chooser-dialog)
+
+add_executable(test-current-playlist-columns test-current-playlist-columns.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/current-playlist.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/column-chooser-dialog.cpp)
+target_link_libraries(test-current-playlist-columns PRIVATE testcore Qt6::Widgets doctest::doctest)
+target_include_directories(test-current-playlist-columns PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-current-playlist-columns COMMAND test-current-playlist-columns)
+
 # ── Widget tests ──────────────────────────────────────────────────────────────
 
 add_executable(test-volume-widget test-volume-widget.cpp
