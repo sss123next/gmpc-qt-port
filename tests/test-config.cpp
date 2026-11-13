@@ -44,6 +44,14 @@ struct ConfigFixture
     }
 };
 
+// Свой каталог настроек на процесс: сьюты идут параллельно и пишут в общий
+// INI-файл — чужое значение попадало бы между clearSettings() и чтением.
+static QTemporaryDir *g_configHome = new QTemporaryDir();
+
+struct PrivateConfigHome {
+    PrivateConfigHome() { qputenv("XDG_CONFIG_HOME", g_configHome->path().toUtf8()); }
+} privateConfigHome;
+
 static int argc = 1;
 static char arg0[] = "gmpc-qt-test";
 static char *argv = arg0;
@@ -333,6 +341,32 @@ TEST_CASE("Playlist header markup round-trip")
 
     CHECK_EQ(cfg.playlistHeaderMarkup(), "$artist — $title");
     CHECK_EQ(cfg.playlistHighlightColor(), "#ffcc00");
+}
+
+TEST_CASE("Playlist columns are visible by default")
+{
+    clearSettings();
+    auto &cfg = Config::instance();
+
+    // Нет ключа — колонка видна: скрывать её пользователь не просил.
+    CHECK(cfg.playlistColumnVisible(QStringLiteral("title")));
+    CHECK(cfg.playlistColumnVisible(QStringLiteral("artist")));
+
+    cfg.setPlaylistColumnVisible(QStringLiteral("album"), false);
+    CHECK_FALSE(cfg.playlistColumnVisible(QStringLiteral("album")));
+    // Соседняя колонка не задета: ключи независимы.
+    CHECK(cfg.playlistColumnVisible(QStringLiteral("title")));
+}
+
+TEST_CASE("Playlist column order round-trips")
+{
+    clearSettings();
+    auto &cfg = Config::instance();
+
+    CHECK(cfg.playlistColumnsOrder().isEmpty());   // пусто — исходный порядок
+    cfg.setPlaylistColumnsOrder({QStringLiteral("time"), QStringLiteral("title")});
+    CHECK_EQ(cfg.playlistColumnsOrder(), (QStringList{QStringLiteral("time"),
+                                                      QStringLiteral("title")}));
 }
 
 // ── Metadata ─────────────────────────────────────────────────────────────

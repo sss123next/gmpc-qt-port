@@ -27,6 +27,24 @@ struct SongEntry {
 
 struct mpd_song;
 
+/** @brief Ключ колонки для хранения её настроек (порядок/видимость).
+ *
+ *  Именем, а не номером: пользователь переставляет колонки местами, и настройка
+ *  обязана остаться при своей колонке — так же поступал оригинал
+ *  (`eggcolumnmodel.c` хранил видимость по имени столбца).
+ */
+[[nodiscard]] QString playlistColumnKey(int column);
+
+/** @brief Колонка по её ключу (-1, если такого ключа нет). */
+int playlistColumnForKey(const QString &key);
+
+/** @brief Развернуть форматную строку трэка (аналог `mpc --format`).
+ *
+ *  Подстановки: `$title`, `$artist`, `$album`, `$duration`, `$file`. Неизвестный
+ *  токен остаётся в тексте как есть, отсутствующий тег даёт пустую строку.
+ */
+[[nodiscard]] QString expandSongMarkup(const QString &markup, const SongEntry &song);
+
 /** @brief Разбор одной записи ответа MPD в SongEntry.
  *  Общий для `listqueue` и `plchanges`: теги у этих ответов одинаковые, а две
  *  копии разбора означали бы, что очередь и дифф наполняются разными полями. */

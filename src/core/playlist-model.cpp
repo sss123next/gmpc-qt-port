@@ -4,6 +4,7 @@
  */
 
 #include "playlist-model.h"
+#include "core/config.h"
 #include "tools/log.h"
 
 #include <QMimeData>
@@ -46,7 +47,81 @@ QString displayTitle(const SongEntry &s)
     return fileNameOf(s.uri);
 }
 
+/** @brief Текст колонки заголовка с учётом форматной строки пользователя.
+ *
+ *  Пустая настройка — обычный заголовок; строка, из которой не подставилось ни
+ *  одного тега (у трэка их нет), тоже откатывается к нему: пустой ячейки в
+ *  списке очереди быть не должно.
+ */
+QString titleText(const SongEntry &s)
+{
+    const QString markup = Config::instance().playlistHeaderMarkup();
+    if (!markup.isEmpty()) {
+        const QString expanded = expandSongMarkup(markup, s);
+        if (!expanded.trimmed().isEmpty())
+            return expanded;
+    }
+    return displayTitle(s);
+}
+
 } // namespace
+
+QString playlistColumnKey(int column)
+{
+    switch (column) {
+    case PlaylistModel::TitleColumn:  return QStringLiteral("title");
+    case PlaylistModel::ArtistColumn: return QStringLiteral("artist");
+    case PlaylistModel::AlbumColumn:  return QStringLiteral("album");
+    case PlaylistModel::TimeColumn:   return QStringLiteral("time");
+    }
+    return {};
+}
+
+int playlistColumnForKey(const QString &key)
+{
+    for (int column = 0; column < PlaylistModel::ColumnCount; ++column) {
+        if (playlistColumnKey(column) == key)
+            return column;
+    }
+    return -1;
+}
+
+QString expandSongMarkup(const QString &markup, const SongEntry &song)
+{
+    QString out;
+    for (int i = 0; i < markup.size(); ++i) {
+        if (markup.at(i) != QLatin1Char('$')) {
+            out += markup.at(i);
+            continue;
+        }
+
+        int end = i + 1;
+        while (end < markup.size() && markup.at(end).isLetter())
+            ++end;
+
+        const QString token = markup.mid(i + 1, end - i - 1);
+        if (token.isEmpty()) {
+            out += QLatin1Char('$');   // «$$» или одиночный $ на конце
+            continue;
+        }
+
+        if (token == QLatin1String("title"))
+            out += song.title;
+        else if (token == QLatin1String("artist"))
+            out += song.artist;
+        else if (token == QLatin1String("album"))
+            out += song.album;
+        else if (token == QLatin1String("duration"))
+            out += formatDuration(song.duration);
+        else if (token == QLatin1String("file"))
+            out += fileNameOf(song.uri);
+        else
+            out += QLatin1Char('$') + token;   // чужой токен не трогаем
+
+        i = end - 1;
+    }
+    return out;
+}
 
 SongEntry songEntryFromMpd(const mpd_song *song)
 {
@@ -94,7 +169,7 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const
         // Колонки, а не одна «artist — title»: сортировка и фильтр работают по
         // каждой колонке отдельно.
         switch (index.column()) {
-        case TitleColumn:  return displayTitle(s);
+        case TitleColumn:  return titleText(s);
         case ArtistColumn: return s.artist;
         case AlbumColumn:  return s.album;
         case TimeColumn:   return formatDuration(s.duration);
@@ -108,7 +183,7 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const
         // Сортировка по DisplayRole сравнивала бы «10:00» и «9:00» как текст, из-за
         // чего десятиминутный трек встал бы раньше девятисекундного.
         switch (index.column()) {
-        case TitleColumn:  return displayTitle(s);
+        case TitleColumn:  return titleText(s);
         case ArtistColumn: return s.artist;
         case AlbumColumn:  return s.album;
         case TimeColumn:   return s.duration;

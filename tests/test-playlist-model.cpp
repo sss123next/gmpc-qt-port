@@ -15,8 +15,20 @@
 #include <QSignalSpy>
 #include <QSortFilterProxyModel>
 #include <QStringList>
+#include <QTemporaryDir>
 
+#include "core/config.h"
 #include "core/playlist-model.h"
+
+// Config — синглтон над общим INI-файлом, а модель читает из него форматную
+// строку: без своего каталога соседний сьют (или прошлый прогон) подсунул бы
+// чужие значения. Живёт до конца процесса.
+static QTemporaryDir *g_configHome = new QTemporaryDir();
+
+/// Выставить XDG_CONFIG_HOME раньше первого обращения к Config и QApplication.
+struct PrivateConfigHome {
+    PrivateConfigHome() { qputenv("XDG_CONFIG_HOME", g_configHome->path().toUtf8()); }
+} privateConfigHome;
 
 static int argc = 1;
 static char arg0[] = "gmpc-qt-test";
@@ -595,4 +607,78 @@ TEST_CASE("a refresh that does not match its row is ignored")
     CHECK_EQ(model.index(1, PlaylistModel::TitleColumn).data(Qt::DisplayRole).toString(),
              QStringLiteral("second"));
     CHECK(changed.isEmpty());
+}
+
+// ── Форматная строка заголовка (аналог `mpc --format`) ─────────────────────
+
+namespace {
+
+/// Настройка живёт в Config, а он на весь процесс: кейс обязан её за собой убрать.
+struct MarkupGuard {
+    explicit MarkupGuard(const QString &markup)
+    { Config::instance().setPlaylistHeaderMarkup(markup); }
+    ~MarkupGuard() { Config::instance().setPlaylistHeaderMarkup(QString()); }
+};
+
+} // namespace
+
+TEST_CASE("expandSongMarkup substitutes tags and keeps foreign tokens")
+{
+    SongEntry s = makeSong(1, 0, "Title");
+    s.uri = QStringLiteral("/music/dir/song.flac");
+
+    CHECK_EQ(expandSongMarkup(QStringLiteral("$artist — $title"), s),
+             QStringLiteral("artist — Title"));
+    // Длительность форматируется как в колонке: «1:40», а не секунды.
+    CHECK_EQ(expandSongMarkup(QStringLiteral("[$album] $file ($duration)"), s),
+             QStringLiteral("[album] song.flac (1:40)"));
+
+    // Чужой токен, удвоенный и хвостовой доллар остаются как есть: подстановка
+    // не «съедает» ни одного символа исходной строки.
+    CHECK_EQ(expandSongMarkup(QStringLiteral("100% $genre $$ $"), s),
+             QStringLiteral("100% $genre $$ $"));
+}
+
+TEST_CASE("expandSongMarkup leaves a missing tag empty")
+{
+    SongEntry s = makeSong(1, 0, "Title");
+    s.artist.clear();
+
+    CHECK_EQ(expandSongMarkup(QStringLiteral("<$artist>$title"), s),
+             QStringLiteral("<>Title"));
+}
+
+TEST_CASE("playlist title column follows the markup setting")
+{
+    MarkupGuard guard(QStringLiteral("$artist - $title"));
+
+    PlaylistModel model;
+    model.setSongs({makeSong(101, 0, "first")});
+
+    CHECK_EQ(model.index(0, PlaylistModel::TitleColumn).data(Qt::DisplayRole).toString(),
+             QStringLiteral("artist - first"));
+}
+
+TEST_CASE("markup that substitutes nothing falls back to the plain title")
+{
+    MarkupGuard guard(QStringLiteral("$album"));
+
+    SongEntry s = makeSong(101, 0, "first");
+    s.album.clear();   // развёртка даёт пустую строку — ячейка не имеет права опустеть
+    PlaylistModel model;
+    model.setSongs({s});
+
+    CHECK_EQ(model.index(0, PlaylistModel::TitleColumn).data(Qt::DisplayRole).toString(),
+             QStringLiteral("first"));
+}
+
+TEST_CASE("column keys map to their column and back")
+{
+    for (int column = 0; column < PlaylistModel::ColumnCount; ++column) {
+        const QString key = playlistColumnKey(column);
+        CHECK_FALSE(key.isEmpty());
+        // Ключ переживает смену порядка колонок только если он однозначен.
+        CHECK_EQ(playlistColumnForKey(key), column);
+    }
+    CHECK_EQ(playlistColumnForKey(QStringLiteral("no-such-column")), -1);
 }

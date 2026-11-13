@@ -101,6 +101,20 @@ QString Config::playlistHighlightColor() const
 void Config::setPlaylistHighlightColor(const QString &c)
     { s_.setValue("playlist/highlightColor", c); }
 
+bool Config::playlistColumnVisible(const QString &key) const
+    { return s_.value("playlist/columns/" + key, true).toBool(); }
+void Config::setPlaylistColumnVisible(const QString &key, bool visible)
+    { s_.setValue("playlist/columns/" + key, visible); }
+
+QStringList Config::playlistColumnsOrder() const
+{
+    // Пустая строка и «нет ключа» — одно: исходный порядок колонок модели.
+    const QString raw = s_.value("playlist/columnOrder", "").toString();
+    return raw.isEmpty() ? QStringList{} : raw.split(QLatin1Char(','), Qt::SkipEmptyParts);
+}
+void Config::setPlaylistColumnsOrder(const QStringList &keys)
+    { s_.setValue("playlist/columnOrder", keys.join(QLatin1Char(','))); }
+
 // ── Metadata ─────────────────────────────────────────────────────────────
 QString Config::discogsToken() const
     { return s_.value("metadata/discogsToken", "").toString(); }

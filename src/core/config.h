@@ -10,6 +10,7 @@
 
 #include <QSettings>
 #include <QString>
+#include <QStringList>
 #include <QList>
 
 /// One saved connection profile.
@@ -104,6 +105,20 @@ public:
     /** @brief Highlight colour for the current track (empty = default). */
     QString playlistHighlightColor() const;
     void setPlaylistHighlightColor(const QString &c);
+
+    // ── Playlist columns ───────────────────────────────────────────
+    /** @brief Видимость колонки очереди по её ключу (`PlaylistModel::columnKey`).
+     *
+     *  Оригинал хранил это у каждой таблицы под своим именем
+     *  (`<treeview>-colshow/<колонка>`, egg/eggcolumnmodel.c); нам хватает
+     *  одной очереди, поэтому ключ один. По умолчанию колонка видна.
+     */
+    bool playlistColumnVisible(const QString &key) const;
+    void setPlaylistColumnVisible(const QString &key, bool visible);
+
+    /** @brief Порядок колонок очереди (ключи). Пустой список — исходный порядок. */
+    QStringList playlistColumnsOrder() const;
+    void setPlaylistColumnsOrder(const QStringList &keys);
 
     // ── Metadata ────────────────────────────────────────────────────
     QString discogsToken() const;
