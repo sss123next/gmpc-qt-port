@@ -125,6 +125,8 @@ set(TOOL_SOURCES
     src/tools/log.h
     src/tools/async-download.cpp
     src/tools/async-download.h
+    src/tools/ipc.cpp
+    src/tools/ipc.h
 )
 
 set(MPRIS_SOURCES

@@ -90,6 +90,11 @@ public:
     bool proxyEnabled() const;
     void setProxyEnabled(bool v);
 
+    // ── General ────────────────────────────────────────────────────────
+    /// Allow multiple GUI instances (skip IPC single-instance check).
+    bool allowMultiple() const;
+    void setAllowMultiple(bool v);
+
     // ── Server ────────────────────────────────────────────────────────
     QString musicDirectory() const;
     void setMusicDirectory(const QString &d);

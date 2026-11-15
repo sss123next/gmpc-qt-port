@@ -364,3 +364,13 @@ target_link_libraries(test-server-info-dialog PRIVATE testcore Qt6::Widgets
     doctest::doctest trompeloeil::trompeloeil PkgConfig::LIBMPDCLIENT)
 target_include_directories(test-server-info-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-server-info-dialog COMMAND test-server-info-dialog)
+
+# ── IPC: локальный roundtrip через QLocalSocket ─────────────────────────────
+# Не зависит от testcore — только QLocalServer/QLocalSocket, Qt::Test для spy.
+
+add_executable(test-ipc test-ipc.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/ipc.cpp)
+target_link_libraries(test-ipc PRIVATE Qt6::Core Qt6::Network Qt6::Test
+    doctest::doctest)
+target_include_directories(test-ipc PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-ipc COMMAND test-ipc)

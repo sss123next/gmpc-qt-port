@@ -77,6 +77,12 @@ int Config::proxyPort() const
 void Config::setProxyPort(int p)
     { s_.setValue("proxy/port", p); }
 
+// ── General ───────────────────────────────────────────────────────────────
+bool Config::allowMultiple() const
+    { return s_.value("general/allowMultiple", false).toBool(); }
+void Config::setAllowMultiple(bool v)
+    { s_.setValue("general/allowMultiple", v); }
+
 // ── Server ─────────────────────────────────────────────────────────────────
 QString Config::musicDirectory() const
     { return s_.value("server/musicDirectory", "").toString(); }

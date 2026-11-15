@@ -2,18 +2,22 @@
  * @file main.cpp
  * @brief Application entry point.
  *
- * Initialises QApplication, loads settings, and shows MainWindow.
+ * Initialises QApplication, parses command-line arguments, checks for a
+ * running instance via IPC (QLocalServer), and shows MainWindow.
  * Configuration is serialised via the Config singleton (QSettings).
  */
 
 #include <QApplication>
 #include <QLoggingCategory>
+#include <QLocalServer>
 #include "gui/mainwindow.h"
 #include "core/config.h"
 #include "core/mpd-env.h"
+#include "tools/ipc.h"
 
 int main(int argc, char *argv[])
 {
+    // Must be created early so that QCommandLineParser can use it.
     QApplication app(argc, argv);
     app.setApplicationName("gmpc-qt");
     app.setApplicationVersion("0.1.0");
@@ -33,7 +37,60 @@ int main(int argc, char *argv[])
         qInfo().noquote() << "MPD target from environment:" << target;
     }
 
+    // ── Parse command-line arguments ──────────────────────────────────
+    IpcCommand ipcCmd = parseIpcCommandLine(argc, argv);
+
+    // ── Single-instance check (unless allowMultiple is set) ───────────
+    if (!Config::instance().allowMultiple()) {
+        if (sendIpcCommand(ipcCmd)) {
+            // Another instance accepted our command — we are done.
+            return 0;
+        }
+        // No other instance is running.
+        if (ipcCmd.kind == IpcCommandKind::Quit) {
+            qInfo("IPC: no running instance to quit.");
+            return 0;
+        }
+    } else {
+        // Multiple instances allowed — IPC commands make no sense.
+        if (ipcCmd.kind == IpcCommandKind::Quit) {
+            qInfo("Multiple instances allowed, --quit ignored.");
+            return 0;
+        }
+    }
+
+    // ── We are the first instance; start the IPC server ───────────────
+    IpcServer *ipcServer = new IpcServer(&app);
+
+    // Remove any stale socket left by a crashed previous instance.
+    QLocalServer::removeServer(ipcSocketPath());
+
     MainWindow w;
+    // Wire IPC commands to window slots *before* show() so that any
+    // command arriving during window construction is queued correctly.
+    QObject::connect(ipcServer, &IpcServer::showRequested,
+                     &w, &MainWindow::showWindow);
+    QObject::connect(ipcServer, &IpcServer::hideRequested,
+                     &w, &MainWindow::hideWindow);
+    QObject::connect(ipcServer, &IpcServer::toggleRequested,
+                     &w, &MainWindow::toggleVisibility);
+    QObject::connect(ipcServer, &IpcServer::quitRequested,
+                     &w, &MainWindow::handleIpcQuit);
+    QObject::connect(ipcServer, &IpcServer::preferencesRequested,
+                     &w, &MainWindow::showPreferences);
+    QObject::connect(ipcServer, &IpcServer::showNotificationRequested,
+                     &w, &MainWindow::handleIpcShowNotification);
+    QObject::connect(ipcServer, &IpcServer::urlRequested,
+                     &w, &MainWindow::handleIpcUrl);
+    QObject::connect(ipcServer, &IpcServer::streamRequested,
+                     &w, &MainWindow::handleIpcUrl);
+
+    // Start listening AFTER connecting signals so no race is possible.
+    if (!ipcServer->start()) {
+        // Should not happen — we already verified no other instance runs.
+        qWarning("IPC: failed to start server, continuing without IPC.");
+    }
+
     w.show();
 
     return app.exec();

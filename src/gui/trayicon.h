@@ -28,6 +28,13 @@ public:
 
     /// Show or hide the tray icon.
     void setVisible(bool v);
+    /// Whether the tray icon is currently visible.
+    bool isVisible() const { return icon_->isVisible(); }
+
+    /// Show a balloon notification from the tray icon.
+    void showMessage(const QString &title, const QString &msg,
+                     QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information,
+                     int msecs = 10000);
 
 private:
     /// Build the right-click context menu.

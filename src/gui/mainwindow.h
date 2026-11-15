@@ -72,6 +72,23 @@ public:
     /// Transport-level command helper.
     MpdCommands *commands() const { return cmds_; }
 
+    // ── IPC-handler slots ───────────────────────────────────────────────
+    /// Show and raise the main window.
+    void showWindow();
+    /// Hide the main window (minimise to tray if tray enabled).
+    void hideWindow();
+    /// Toggle window visibility.
+    void toggleVisibility();
+    /// Quit the application gracefully.
+    void handleIpcQuit();
+    /// Show a tray notification with current song info.
+    void handleIpcShowNotification();
+    /// Handle a URL from IPC (stream or easycommand url) — delegates to addUrl.
+    void handleIpcUrl(const QString &url);
+
+    /// Show the preferences dialog.
+    void showPreferences();
+
 private slots:
     /// Called when the MPD connection is established.
     void onConnected();
@@ -80,8 +97,6 @@ private slots:
     /// Called on every MPD status update (play state, volume, etc.).
     void onStatusChanged(const Connection::Status &s);
 
-    /// Show the preferences dialog.
-    void showPreferences();
     /// Показать (или поднять уже открытое) окно «Server Information».
     void showServerInfo();
 

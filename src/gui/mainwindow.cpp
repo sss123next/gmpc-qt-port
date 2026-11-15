@@ -709,6 +709,59 @@ void MainWindow::showAbout()
            "Based on the original gmpc (C) Qball Cow 2003-2011"));
 }
 
+// ── IPC slots ────────────────────────────────────────────────────────────────
+
+void MainWindow::showWindow()
+{
+    showNormal();       // Де-иконизация, если было минимизировано.
+    raise();
+    activateWindow();
+}
+
+void MainWindow::hideWindow()
+{
+    // Если трей включён — в трей (как оригинал); иначе просто скрываем окно.
+    if (trayIcon_ && trayIcon_->isVisible())
+        hide();
+    else
+        showMinimized();
+}
+
+void MainWindow::toggleVisibility()
+{
+    if (isVisible() && !isMinimized())
+        hideWindow();
+    else
+        showWindow();
+}
+
+void MainWindow::handleIpcQuit()
+{
+    QApplication::quit();
+}
+
+void MainWindow::handleIpcShowNotification()
+{
+    // Последний известный трэк уже есть в трее; если его нет — нет и нотификации.
+    if (trayIcon_)
+        trayIcon_->showMessage(tr("gmpc-qt"), tr("Playing..."));
+}
+
+void MainWindow::handleIpcUrl(const QString &url)
+{
+    if (url.isEmpty())
+        return;
+
+    // Если не подключены — команда уйдёт в никуда (оригинал молча делал то же
+    // самое, только с UniqueApp). Соединение могло быть разорвано между моментом
+    // отправки IPC-команды и её приёмом.
+    if (cmds_ && conn_->isConnected())
+        cmds_->addUrl(url);
+    else
+        qWarning("IPC: cannot handle URL <%s> — not connected",
+                 qPrintable(url));
+}
+
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
 
 void MainWindow::setupShortcuts()

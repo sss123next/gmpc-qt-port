@@ -77,3 +77,9 @@ void TrayIcon::setVisible(bool v)
 {
     icon_->setVisible(v);
 }
+
+void TrayIcon::showMessage(const QString &title, const QString &msg,
+                           QSystemTrayIcon::MessageIcon icon, int msecs)
+{
+    icon_->showMessage(title, msg, icon, msecs);
+}
