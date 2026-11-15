@@ -924,7 +924,40 @@ TEST_CASE("без адреса команды активации молчат и
     cmds.findAddSongs({{MPD_TAG_ARTIST, QStringLiteral("Nobody")}});
     cmds.loadStoredPlaylist(QStringLiteral("nobody"));
     cmds.deletePlaylistPosition(QStringLiteral("nobody"), 0);
+    cmds.addUrl(QStringLiteral("/nonexistent.flac"));
     CHECK_FALSE(conn.isConnected());
+}
+
+/** @brief Пункт «Add URL»: адрес уходит серверу, а его отказ не клинит соединение.
+ *
+ *  Адрес разворачивает сам демон своим обработчиком схемы (`urlhandlers` из stats);
+ *  заведомо недоступный хост даёт команадную ошибку. Ценно здесь именно то, что после
+ *  неё соединение живо и очередь читается: `RUN()` разбирает error-state сам.
+ */
+TEST_CASE("адрес отдаётся серверу, а его отказ не клинит соединение")
+{
+    const MpdEndpoint ep = endpointFromEnv();
+    if (!ep.isValid()) {
+        MESSAGE(kSkipRead);
+        return;
+    }
+
+    Connection conn;
+    REQUIRE(openAppConnection(&conn, ep));
+    MpdCommands cmds(&conn);
+
+    // Домен `.invalid` заведомо не разрешается (RFC 2606), так что качать серверу
+    // оттуда ничено — а вот ответить он обязан.
+    const QueueSnapshot before = readQueue(ep);
+    cmds.addUrl(QStringLiteral("http://gmpc-qt.invalid/nosuch.m3u"));
+
+    CHECK(conn.isConnected());
+    // Следующая команда проходит: отказ адреса не оставил соединение в error-state.
+    const QueueSnapshot after = readQueue(ep);
+    MESSAGE("очередь до адреса " << before.uris.size() << ", после — "
+                                  << after.uris.size());
+    // Недоступный хост ничено и не добавляет: очередь та же, что была.
+    CHECK_EQ(after.uris.size(), before.uris.size());
 }
 
 } // TEST_SUITE

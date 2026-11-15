@@ -110,6 +110,15 @@ target_link_libraries(test-preferences-dialog PRIVATE testcore Qt6::Widgets doct
 target_include_directories(test-preferences-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-preferences-dialog COMMAND test-preferences-dialog)
 
+# ── Окно «Add URL»: поле адреса и гаснущая на пустоте кнопка Add ───────────
+# Транспорт не участвует: окно отдаёт лишь строку, а команду шлёт вызвавший.
+
+add_executable(test-add-url-dialog test-add-url-dialog.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/add-url-dialog.cpp)
+target_link_libraries(test-add-url-dialog PRIVATE Qt6::Widgets doctest::doctest)
+target_include_directories(test-add-url-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-add-url-dialog COMMAND test-add-url-dialog)
+
 # ── Выбор колонок очереди: окно и применение раскладки видом ─────────────────
 
 add_executable(test-column-chooser-dialog test-column-chooser-dialog.cpp
