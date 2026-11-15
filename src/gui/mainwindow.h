@@ -84,6 +84,18 @@ private slots:
     void showPreferences();
     /// Показать (или поднять уже открытое) окно «Server Information».
     void showServerInfo();
+
+    /** @brief Спрасить адрес и отдать его серверу (`load`).
+     *
+     *  Оригинал держал это командой `gmpc url`; пункт меню — то же действие
+     *  без IPC, которого у нас пока нет.
+     */
+    void showAddUrl();
+    /// Сохранить очередь как список (`save`) — спрашивает имя окном.
+    void saveCurrentQueue();
+    /// Очистить очередь с подтверждением (`clear`).
+    void clearCurrentQueue();
+
     /// Show the About dialog.
     void showAbout();
 

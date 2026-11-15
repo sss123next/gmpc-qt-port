@@ -403,22 +403,33 @@ void CurrentPlaylist::showContextMenu(const QPoint &pos)
     } else if (paths.copyPath && chosen == paths.copyPath) {
         QApplication::clipboard()->setText(copyTextFor(intents, musicDir));
     } else if (chosen == clearAct) {
-        const auto answer = QMessageBox::question(this, tr("Clear queue"),
-            tr("Remove all %1 song(s) from the queue?").arg(model_->rowCount({})));
-        if (answer == QMessageBox::Yes) {
-            cmds_->clearQueue();
-            model_->clear();
-        }
+        clearQueueWithConfirm();
     } else if (chosen == saveAct) {
-        bool ok = false;
-        const QString name = QInputDialog::getText(this, tr("Save queue as"),
-                                                   tr("Playlist name:"),
-                                                   QLineEdit::Normal, {}, &ok);
-        if (ok && !name.trimmed().isEmpty())
-            cmds_->saveQueueAs(name.trimmed());
+        saveQueueAs();
     } else if (chosen == colsAct) {
         editColumns();
     }
+}
+
+void CurrentPlaylist::saveQueueAs()
+{
+    bool ok = false;
+    const QString name = QInputDialog::getText(this, tr("Save queue as"),
+                                               tr("Playlist name:"),
+                                               QLineEdit::Normal, {}, &ok);
+    if (ok && !name.trimmed().isEmpty())
+        cmds_->saveQueueAs(name.trimmed());
+}
+
+void CurrentPlaylist::clearQueueWithConfirm()
+{
+    const auto answer = QMessageBox::question(this, tr("Clear queue"),
+        tr("Remove all %1 song(s) from the queue?").arg(model_->rowCount({})));
+    if (answer != QMessageBox::Yes)
+        return;
+
+    cmds_->clearQueue();
+    model_->clear();
 }
 
 void CurrentPlaylist::onFilterChanged(const QString &text)

@@ -234,6 +234,18 @@ void MpdCommands::loadStoredPlaylist(const QString &name) {
     RUN("load", mpd_run_load(MPD, n.constData()));
 }
 
+void MpdCommands::addUrl(const QString &url) {
+    CHECK;
+    const QByteArray u = url.toUtf8();
+    if (u.isEmpty())
+        return;
+
+    // Та же команда `load`, что и у списка: адрес разворачивает сервер своим
+    // обработчиком схемы (`urlhandlers` из stats), а клиент ничего не качает —
+    // ровно путь оригинала для MPD ≥ 0.16.
+    RUN("load", mpd_run_load(MPD, u.constData()));
+}
+
 void MpdCommands::deletePlaylistPosition(const QString &name, int position) {
     CHECK;
     const QByteArray n = name.toUtf8();

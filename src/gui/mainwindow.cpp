@@ -25,6 +25,7 @@
 #include "browsers/playlist-editor.h"
 #include "browsers/now-playing.h"
 
+#include "gui/add-url-dialog.h"
 #include "gui/server-info-dialog.h"
 #include "gui/song-info-dialog.h"
 
@@ -266,6 +267,33 @@ void MainWindow::setupUi()
 void MainWindow::setupMenuBar()
 {
     auto *file = menuBar()->addMenu(tr("&File"));
+
+    // ── Очередь: адрес, сохранение и очистка ─────────────────────────
+    //
+    // В оригинале это были команды (`gmpc url`, `save <имя>`, `clear`), а не пункты
+    // меню; без IPC им место здесь — рядом с «Preferences», потому что все три
+    // действуют на текущей очереди, как и она.
+    QAction *addUrlAct = file->addAction(tr("Add &URL..."), this,
+                                         &MainWindow::showAddUrl);
+    QAction *saveQueueAct = file->addAction(tr("Save Queue as &Playlist..."),
+                                            this, &MainWindow::saveCurrentQueue);
+    QAction *clearQueueAct = file->addAction(tr("Clear &Queue"), this,
+                                             &MainWindow::clearCurrentQueue);
+
+    // Доступность считается при каждом откритии меню: соединение живёт своей
+    // жизнью, а пустую очередь сохранять и чистить нечего.
+    connect(file, &QMenu::aboutToShow, this,
+            [this, addUrlAct, saveQueueAct, clearQueueAct] {
+        const bool connected = conn_->isConnected();
+        // Адрес отдавать серверу некому вне соединения; очередь пуста — сохранять
+        // и чистить нечего. Число строк берём у модели: она зеркалит сервер.
+        addUrlAct->setEnabled(connected);
+        const bool hasQueue = connected && playlistModel_->rowCount({}) > 0;
+        saveQueueAct->setEnabled(hasQueue);
+        clearQueueAct->setEnabled(hasQueue);
+    });
+
+    file->addSeparator();
     file->addAction(tr("&Preferences..."), this, &MainWindow::showPreferences);
     file->addSeparator();
 
@@ -646,6 +674,31 @@ void MainWindow::showServerInfo()
     serverInfo_->show();
     serverInfo_->raise();
     serverInfo_->activateWindow();
+}
+
+void MainWindow::showAddUrl()
+{
+    AddUrlDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    // Пустое поле окно не закроет (кнопка гаснет), но проверка дешёвая: адрес
+    // без единого символа серверу отдавать незачем.
+    const QString url = dlg.url();
+    if (url.isEmpty())
+        return;
+
+    cmds_->addUrl(url);
+}
+
+void MainWindow::saveCurrentQueue()
+{
+    currentPlaylist_->saveQueueAs();
+}
+
+void MainWindow::clearCurrentQueue()
+{
+    currentPlaylist_->clearQueueWithConfirm();
 }
 
 void MainWindow::showAbout()

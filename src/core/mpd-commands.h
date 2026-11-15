@@ -162,6 +162,17 @@ public slots:
      */
     virtual void loadStoredPlaylist(const QString &name);
 
+    /** @brief Отдать серверу произвольный адрес (`load <адрес>`) — пункт «Add URL».
+     *
+     *  Оригинал (`Tools/url-fetcher.c:555`, `url_start_real()`) на сервере ≥ 0.16
+     *  отдавал адрес самому MPD и только при его отказе качал клиентом своим
+     *  фетчером; клентского фетчера у нас нет, поэтому отказ виден в логе
+     *  (`consumeError`) — врать «добавлено» на него не будем.
+     *
+     *  @param url адрес схемы (`http://…`), имя сохранённого списка или путь
+     */
+    virtual void addUrl(const QString &url);
+
     /** @brief Удалить позицию из сохранённого списка воспроизведения.
      *  @param name      Имя списка, как его отдаёт `listplaylists`.
      *  @param position  Номер строки в этом списке (не в очереди).
