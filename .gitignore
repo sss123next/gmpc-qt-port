@@ -1,9 +1,11 @@
 # ── Build artifacts ────────────────────────────────────────────────────────────
 build/
+build-*/
 result
 *.o
 *.obj
 *.exe
+*.bin
 
 # ── IDE / editor cruft ─────────────────────────────────────────────────────────
 .idea/
@@ -11,21 +13,40 @@ result
 *.swp
 *.swo
 *~
+*.user
+*.autosave
 
 # ── Qt / CMake generated ───────────────────────────────────────────────────────
 moc_*.cpp
 qrc_*.cpp
 ui_*.h
+*_autogen/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+CTestTestfile.cmake
+DartConfiguration.tcl
+*.cmake
+!CMakeLists.txt
+!tests/CMakeLists.txt
+.qt/
+
+# ── Compiler / toolchain ───────────────────────────────────────────────────────
+Makefile
+*.make
+CMakeScripts/
+Testing/
 
 # ── Nix build artifacts ────────────────────────────────────────────────────────
 .envrc
 
 # ── Doxygen output (generated at build/docs) ──────────────────────────────────
 docs/doxygen/
+Doxyfile
 
 # ── Codex / opencode tooling ──────────────────────────────────────────────────
 .opencode/
 .playwright-mcp/
+
+# ── macOS ──────────────────────────────────────────────────────────────────────
+.DS_Store
