@@ -386,7 +386,8 @@ void MainWindow::setupMenuBar()
                 trayPopup_->show();
         }
     });
-    miniAct->setChecked(trayPopup_->isVisible());
+    // Поп-ап ещё не создан на момент setupMenuBar() — setChecked пропускаем,
+    // окно стартует скрытым, check state синхронизируется при первом клике.
 
     auto *help = menuBar()->addMenu(tr("&Help"));
     help->addAction(tr("&About"), this, &MainWindow::showAbout);
