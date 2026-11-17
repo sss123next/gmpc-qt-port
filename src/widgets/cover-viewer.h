@@ -2,10 +2,10 @@
 
 /**
  * @file cover-viewer.h
- * @brief Full-screen cover viewer — frameless, click-to-close.
+ * @brief Full-screen cover viewer — frameless, click/escape to close.
  *
  * Shows a full-resolution album-cover image centred on the screen.
- * Left-click, Escape or losing focus closes the window.
+ * Left-click or Escape hides the window (it is reused, not deleted on close).
  */
 
 #include <QWidget>

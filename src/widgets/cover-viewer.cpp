@@ -15,7 +15,6 @@ CoverViewer::CoverViewer(QWidget *parent)
 {
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint
                    | Qt::WindowStaysOnTopHint);
-    setAttribute(Qt::WA_DeleteOnClose);
     setAttribute(Qt::WA_ShowWithoutActivating);
     setStyleSheet("background: #111;");
 
