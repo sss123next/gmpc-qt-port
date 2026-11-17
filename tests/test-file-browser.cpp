@@ -10,7 +10,10 @@
  */
 
 #include <QApplication>
+#include <QString>
 #include <QTreeView>
+
+#include "core/connection.h"
 
 #include "browsers/file-browser.h"
 #include "browsers/file-system-model.h"
@@ -164,4 +167,91 @@ TEST_CASE("FileBrowser exposes both panes and ignores invalid activation")
 
     browser.enterDirectory({});   // невалидная строка правой панели — no-op
     CHECK_EQ(browser.contentView()->model()->rowCount({}), 0);
+}
+
+// ── Живой MPD: дерево файлов (политика тестирования, пункт «интеграция») ───
+
+namespace {
+
+const char *kSkipLive = "GMPC_QT_TEST_MPD не задан — интеграционная проверка пропущена";
+
+/// Открывает настоящее соединение по адресу из окружения; false — сервера нет.
+bool openLiveConnection(Connection *conn)
+{
+    const QString socket = qEnvironmentVariable("GMPC_QT_TEST_MPD");
+    if (socket.isEmpty())
+        return false;
+    return conn->connectToServer(socket, 0, {}, 5000);
+}
+
+} // namespace
+
+TEST_CASE("живой MPD: корень дерева файлов непуст и показывает basename")
+{
+    Connection conn;
+    if (!openLiveConnection(&conn)) {
+        MESSAGE(kSkipLive);
+        return;
+    }
+
+    FileSystemModel model(&conn);
+    REQUIRE(model.canFetchMore({}));
+    model.fetchMore({});
+
+    // Запрет «пусто = зелёный»: каталог музыки сервера обязан что-то отдать.
+    const int rows = model.rowCount({});
+    CHECK_GT(rows, 0);
+    for (int i = 0; i < rows && i < 20; ++i) {
+        const QModelIndex idx = model.index(i, 0);
+        REQUIRE(idx.isValid());
+        const QString path =
+            model.data(idx, FileSystemModel::UriRole).toString();
+        CHECK_FALSE(path.isEmpty());
+        // Имя узла — последний компонент пути (замер №3b: MPD отдаёт путь целиком).
+        CHECK_EQ(model.data(idx).toString(), mpdBasename(path));
+    }
+}
+
+TEST_CASE("живой MPD: спуск на уровень не выходит за префикс родителя")
+{
+    Connection conn;
+    if (!openLiveConnection(&conn)) {
+        MESSAGE(kSkipLive);
+        return;
+    }
+
+    FileSystemModel model(&conn);
+    model.fetchMore({});
+
+    int dirRow = -1;
+    const int rows = model.rowCount({});
+    for (int i = 0; i < rows && dirRow < 0; ++i) {
+        if (model.data(model.index(i, 0), FileSystemModel::TypeRole).toInt()
+            == static_cast<int>(FileNode::Directory))
+            dirRow = i;
+    }
+    REQUIRE_MESSAGE(dirRow >= 0, "в корне сервера нет ни одного каталога");
+
+    const QModelIndex parentIdx = model.index(dirRow, 0);
+    REQUIRE(parentIdx.isValid());
+    const QString parentPath =
+        model.data(parentIdx, FileSystemModel::UriRole).toString();
+    CHECK_FALSE(parentPath.isEmpty());
+
+    // Дерево обязано спускаться ниже корня (B4), а не показывать одни папки.
+    REQUIRE(model.canFetchMore(parentIdx));
+    model.fetchMore(parentIdx);
+    const int childRows = model.rowCount(parentIdx);
+    CHECK_GT(childRows, 0);
+
+    for (int i = 0; i < childRows && i < 20; ++i) {
+        const QModelIndex idx = model.index(i, 0, parentIdx);
+        REQUIRE(idx.isValid());
+        const QString path =
+            model.data(idx, FileSystemModel::UriRole).toString();
+        // Записи внутри папки приходят уже с префиксом родителя (замер №3b), а
+        // имя узла — только хвост: дублирования пути в имени быть не должно.
+        CHECK(path.startsWith(parentPath + QLatin1Char('/')));
+        CHECK_EQ(model.data(idx).toString(), mpdBasename(path));
+    }
 }
