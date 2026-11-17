@@ -119,7 +119,7 @@ void MiniPlayer::createLayout()
 
     root->addLayout(right, 1);
 
-    // Cursor for dragging (whole surface acts as title bar).
+    // Cursor hint for drag (may be disabled by config later).
     setCursor(Qt::OpenHandCursor);
 }
 
@@ -265,7 +265,7 @@ void MiniPlayer::restoreGeometry()
 
 void MiniPlayer::mousePressEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
+    if (draggable_ && event->button() == Qt::LeftButton) {
         dragStartPos_ = event->globalPosition().toPoint();
         dragging_ = true;
         setCursor(Qt::ClosedHandCursor);
@@ -286,6 +286,19 @@ void MiniPlayer::mouseMoveEvent(QMouseEvent *event)
         return;
     }
     QWidget::mouseMoveEvent(event);
+}
+
+// ── Drag enable/disable ─────────────────────────────────────────────────────
+
+void MiniPlayer::setDraggable(bool on)
+{
+    // If currently dragging while disabling, cancel.
+    if (!on && dragging_) {
+        dragging_ = false;
+        setCursor(Qt::ArrowCursor);
+    }
+    draggable_ = on;
+    setCursor(on ? Qt::OpenHandCursor : Qt::ArrowCursor);
 }
 
 // ── Hide event — save position ──────────────────────────────────────────────

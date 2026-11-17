@@ -269,6 +269,7 @@ void MainWindow::setupUi()
     miniPlayer_->setTargetScreen(cfg.miniPlayerScreen());
     miniPlayer_->setMarginX(cfg.miniPlayerMarginX());
     miniPlayer_->setMarginY(cfg.miniPlayerMarginY());
+    miniPlayer_->setDraggable(cfg.miniPlayerDraggable());
 
     // Connect transport buttons
     connect(miniPlayer_, &MiniPlayer::playPauseClicked,

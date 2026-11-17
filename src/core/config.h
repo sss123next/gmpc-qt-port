@@ -191,6 +191,9 @@ public:
     /// Saved height (for geometry restore).
     int miniPlayerH() const;
     void setMiniPlayerH(int h);
+    /// Enable mouse-drag repositioning (default off).
+    bool miniPlayerDraggable() const;
+    void setMiniPlayerDraggable(bool v);
 
     // ── Profiles ─────────────────────────────────────────────────────
     /** @brief All saved connection profiles (read from QSettings). */

@@ -78,6 +78,9 @@ public:
     void setMarginX(int px);
     int marginY() const { return marginY_; }
     void setMarginY(int px);
+    /// Enable/disable mouse-drag repositioning (default off).
+    void setDraggable(bool on);
+    bool isDraggable() const { return draggable_; }
 
 signals:
     void playPauseClicked();
@@ -132,6 +135,7 @@ private:
     QString presetBtnFg_;
 
     // Drag state
+    bool draggable_ = false;  ///< Whether mouse-drag is enabled.
     QPoint dragStartPos_;
     bool dragging_ = false;
 };

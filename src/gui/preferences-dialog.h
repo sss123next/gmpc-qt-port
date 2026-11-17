@@ -99,6 +99,7 @@ private:
     QComboBox    *trayPopupStyle_;     ///< Dark / Light.
     QCheckBox    *trayPopupShowCover_;
     QCheckBox    *trayPopupShowButtons_;
+    QCheckBox    *miniPlayerDraggable_;
 
     // Profiles group
     QListWidget  *profileList_;

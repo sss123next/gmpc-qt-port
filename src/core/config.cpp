@@ -220,6 +220,10 @@ int Config::miniPlayerH() const
     { return s_.value("miniPlayer/h", -1).toInt(); }
 void Config::setMiniPlayerH(int h)
     { s_.setValue("miniPlayer/h", h); }
+bool Config::miniPlayerDraggable() const
+    { return s_.value("miniPlayer/draggable", false).toBool(); }
+void Config::setMiniPlayerDraggable(bool v)
+    { s_.setValue("miniPlayer/draggable", v); }
 
 // ── Profiles ──────────────────────────────────────────────────────────────
 QList<ConnectionProfile> Config::profiles() const

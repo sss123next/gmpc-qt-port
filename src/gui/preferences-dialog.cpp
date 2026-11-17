@@ -271,6 +271,9 @@ void PreferencesDialog::setupUi()
     trayPopupShowButtons_ = new QCheckBox(tr("Show transport buttons"), this);
     popupForm->addRow(trayPopupShowButtons_);
 
+    miniPlayerDraggable_ = new QCheckBox(tr("Draggable (reposition with mouse)"), this);
+    popupForm->addRow(QString(), miniPlayerDraggable_);
+
     innerLay->addWidget(popupGroup);
 
     // ── Playlist group ──────────────────────────────────────────────
@@ -569,6 +572,7 @@ void PreferencesDialog::loadFromConfig()
     }
     trayPopupShowCover_->setChecked(cfg.trayPopupShowCover());
     trayPopupShowButtons_->setChecked(cfg.trayPopupShowButtons());
+    miniPlayerDraggable_->setChecked(cfg.miniPlayerDraggable());
 
     // Playlist
     headerMarkup_->setText(cfg.playlistHeaderMarkup());
@@ -664,6 +668,7 @@ void PreferencesDialog::accept()
     cfg.setTrayPopupStyle(trayPopupStyle_->currentData().toInt());
     cfg.setTrayPopupShowCover(trayPopupShowCover_->isChecked());
     cfg.setTrayPopupShowButtons(trayPopupShowButtons_->isChecked());
+    cfg.setMiniPlayerDraggable(miniPlayerDraggable_->isChecked());
 
     // Playlist
     cfg.setPlaylistHeaderMarkup(headerMarkup_->text());
