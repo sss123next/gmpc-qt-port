@@ -26,6 +26,9 @@
 #include <taglib/apetag.h>
 #include <taglib/apeitem.h>
 #include <taglib/wavpackfile.h>
+#include <taglib/matroskafile.h>
+#include <taglib/matroskaattachments.h>
+#include <taglib/matroskaattachedfile.h>
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Embedded cover art extraction
@@ -183,6 +186,39 @@ static EmbeddedCover coverFromApe(const QString &path)
 // Public API
 // ══════════════════════════════════════════════════════════════════════════════
 
+/// Try to read cover from a Matroska file (MKV/MKA attachments).
+static EmbeddedCover coverFromMatroska(const QString &path)
+{
+    TagLib::Matroska::File file(path.toUtf8().data());
+    if (!file.isValid())
+        return {};
+
+    auto *attachments = file.attachments();
+    if (!attachments)
+        return {};
+
+    const auto &files = attachments->attachedFileList();
+    for (const auto &att : files) {
+        const QString mime = QString::fromStdString(
+            att.mediaType().to8Bit(true));
+        // Look for any image-type attachment (cover art).
+        if (!mime.startsWith(QLatin1String("image/")))
+            continue;
+
+        const TagLib::ByteVector &raw = att.data();
+        if (raw.isEmpty())
+            continue;
+
+        EmbeddedCover c;
+        c.data = QByteArray(raw.data(), static_cast<int>(raw.size()));
+        c.mime = mime;
+        LOG_INFO("TagReader: embedded cover from Matroska (%1 bytes, %2)",
+                 c.data.size(), c.mime);
+        return c;
+    }
+    return {};
+}
+
 EmbeddedCover readEmbeddedCover(const QString &filePath)
 {
     if (filePath.isEmpty() || !QFileInfo::exists(filePath))
@@ -202,6 +238,8 @@ EmbeddedCover readEmbeddedCover(const QString &filePath)
         cover = coverFromMp4(filePath);
     else if (ext == "wv" || ext == "ape")
         cover = coverFromApe(filePath);
+    else if (ext == "mkv" || ext == "mka")
+        cover = coverFromMatroska(filePath);
     // WMA / ASF: not commonly embedded, skip for now.
     // AIFF, DSF, DFF: rarely carry embedded cover art.
 
