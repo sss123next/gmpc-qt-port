@@ -9,6 +9,7 @@
  * обложку, текст песни и вкладки с детальной информацией о трэке (теги MPD).
  */
 
+#include <QFormLayout>
 #include <QString>
 #include <QTabWidget>
 #include "browser-widget.h"
