@@ -72,7 +72,7 @@ NowPlaying::NowPlaying(QWidget *parent)
     // Artist is primary, title secondary, album tertiary — matches SongInfo order.
     artistLabel_->setStyleSheet(QStringLiteral("font-size: 15pt; font-weight: bold;"));
     titleLabel_->setStyleSheet(QStringLiteral("font-size: 13pt;"));
-    albumLabel_->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    albumLabel_->setStyleSheet(QStringLiteral("color: palette(disabled, windowText);"));
     for (QLabel *l : {artistLabel_, titleLabel_, albumLabel_}) {
         l->setWordWrap(true);
         l->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
