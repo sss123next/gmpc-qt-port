@@ -17,6 +17,7 @@ class QLabel;
 class QPlainTextEdit;
 class QTabWidget;
 class CoverWidget;
+class CoverViewer;
 class MetadataManager;
 class Connection;
 struct SongEntry;
@@ -59,7 +60,8 @@ private:
 
     Connection      *conn_ = nullptr;
     MetadataManager *mgr_ = nullptr;
-    CoverWidget *cover_;
+    CoverWidget *cover_ = nullptr;
+    CoverViewer *coverViewer_ = nullptr;
     QLabel *titleLabel_;
     QLabel *artistLabel_;
     QLabel *albumLabel_;

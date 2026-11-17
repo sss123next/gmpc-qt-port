@@ -17,6 +17,7 @@
 
 class MetadataManager;
 class CoverWidget;
+class CoverViewer;
 struct SongEntry;
 
 /// Borderless mini‑player with cover, song info, and transport controls.
@@ -104,6 +105,7 @@ private:
 
     MetadataManager *mgr_ = nullptr;
     CoverWidget *coverWidget_ = nullptr;
+    CoverViewer *coverViewer_ = nullptr;
 
     StylePreset style_ = Dark;
     int timeoutSec_ = 0;

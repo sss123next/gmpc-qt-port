@@ -118,12 +118,13 @@ NowPlaying::NowPlaying(QWidget *parent)
 
     showNothing();
 
-    // Click on cover → full-screen viewer.
+    // Click on cover → full-screen viewer (single instance, reused).
     connect(cover_, &CoverWidget::clicked, this, [this] {
         const QPixmap pm = cover_->pixmap();
         if (!pm.isNull()) {
-            auto *viewer = new CoverViewer();
-            viewer->show(pm);
+            if (!coverViewer_)
+                coverViewer_ = new CoverViewer();
+            coverViewer_->show(pm);
         }
     });
 }
@@ -436,6 +437,8 @@ void NowPlaying::showNothing()
     curArtist_.clear();
     curTitle_.clear();
     curUri_.clear();
+    if (coverViewer_)
+        coverViewer_->close();
 }
 
 void NowPlaying::onConnectionChanged(bool connected)
