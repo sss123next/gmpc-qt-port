@@ -87,6 +87,7 @@ private:
 
     // Tray group
     QCheckBox    *trayEnabled_;
+    QCheckBox    *closeToTray_;
 
     // Tray Popup group
     QCheckBox    *trayPopupEnabled_;

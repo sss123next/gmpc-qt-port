@@ -206,6 +206,8 @@ void PreferencesDialog::setupUi()
     auto *trayForm = new QFormLayout(trayGroup);
     trayEnabled_ = new QCheckBox(tr("Enable system tray icon"), this);
     trayForm->addRow(trayEnabled_);
+    closeToTray_ = new QCheckBox(tr("Close to tray instead of quitting"), this);
+    trayForm->addRow(closeToTray_);
     innerLay->addWidget(trayGroup);
 
     // ── Tray Popup group ─────────────────────────────────────────────
@@ -539,6 +541,7 @@ void PreferencesDialog::loadFromConfig()
                                  ? cfg.connectionTimeout() : 5000);
 
     trayEnabled_->setChecked(cfg.trayEnabled());
+    closeToTray_->setChecked(cfg.closeToTray());
 
     // Tray Popup
     trayPopupEnabled_->setChecked(cfg.trayPopupEnabled());
@@ -648,6 +651,7 @@ void PreferencesDialog::accept()
     cfg.setConnectionTimeout(connectionTimeout_->value());
 
     cfg.setTrayEnabled(trayEnabled_->isChecked());
+    cfg.setCloseToTray(closeToTray_->isChecked());
 
     // Tray Popup
     cfg.setTrayPopupEnabled(trayPopupEnabled_->isChecked());

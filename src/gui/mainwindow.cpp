@@ -1093,7 +1093,13 @@ void MainWindow::closeEvent(QCloseEvent *event)
     cfg.setWindowPos(x(), y());
     cfg.setWindowMaximized(isMaximized());
     cfg.sync();
-    event->accept();
+
+    if (cfg.trayEnabled() && cfg.closeToTray()) {
+        hide();
+        event->ignore();
+    } else {
+        event->accept();
+    }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)

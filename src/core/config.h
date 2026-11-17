@@ -138,6 +138,9 @@ public:
     // ── Tray ─────────────────────────────────────────────────────────
     bool trayEnabled() const;
     void setTrayEnabled(bool v);
+    /// Close the main window to tray instead of quitting (requires tray enabled).
+    bool closeToTray() const;
+    void setCloseToTray(bool v);
 
     // ── Tray Popup ─────────────────────────────────────────────────────
     bool trayPopupEnabled() const;

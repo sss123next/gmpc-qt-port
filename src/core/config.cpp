@@ -140,6 +140,10 @@ bool Config::trayEnabled() const
     { return s_.value("tray/enabled", true).toBool(); }
 void Config::setTrayEnabled(bool v)
     { s_.setValue("tray/enabled", v); }
+bool Config::closeToTray() const
+    { return s_.value("tray/closeToTray", false).toBool(); }
+void Config::setCloseToTray(bool v)
+    { s_.setValue("tray/closeToTray", v); }
 
 // ── Tray Popup ────────────────────────────────────────────────────────────
 bool Config::trayPopupEnabled() const
