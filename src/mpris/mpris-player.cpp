@@ -4,6 +4,8 @@
  */
 
 #include "mpris-player.h"
+#include "metadata-map.h"
+
 #include "core/mpd-commands.h"
 
 #include <QDBusConnection>
@@ -57,9 +59,10 @@ QString MprisPlayerAdaptor::playbackStatus() const
 
 QVariantMap MprisPlayerAdaptor::metadata() const
 {
-    QVariantMap m;
-    // Basic metadata — real song data would need PlaylistModel lookup.
-    // For now identify the track by MPD song ID.
+    // Теги трэка приходят из кэша (`refreshSongTags`), а не запрашиваются здесь:
+    // metadata() вызывется на каждое событие статуса, в том числе дважды в секунду.
+    QVariantMap m = mprisTextMetadata(songTitle_, songArtist_, songAlbum_,
+                                      lastStatus_.totalDuration);
     //
     // MPRIS wants mpris:trackid as a D-Bus object path (type "o") and reserves
     // /org/mpris for itself, hence the vendor prefix.  Qt refuses to marshall a
@@ -68,13 +71,34 @@ QVariantMap MprisPlayerAdaptor::metadata() const
     QString id = QString::number(lastStatus_.songId, 16);
     if (!id.contains(QRegularExpression("^[A-Za-z0-9_]+$")))
         id = QStringLiteral("none");
-    m.insert("mpris:trackid",
+   m.insert("mpris:trackid",
              QVariant::fromValue(QDBusObjectPath(
                  QStringLiteral("%1%2").arg(MprisPlayer::kTrackPathPrefix, id))));
-    if (lastStatus_.totalDuration > 0)
-        m.insert("mpris:length",
-                 static_cast<qlonglong>(lastStatus_.totalDuration * 1000000));
     return m;
+}
+
+void MprisPlayerAdaptor::refreshSongTags(int songId)
+{
+    if (songId == cachedSongId_)
+        return;
+
+    // Смена песни — единственный момент, когда теги надо спросить: `status` их не
+    // несёт вовсе. Ничего не играет (`-1`) — кэш чистится целиком.
+    cachedSongId_ = songId;
+    songTitle_.clear();
+    songArtist_.clear();
+    songAlbum_.clear();
+
+    if (songId < 0 || !cmds_)
+        return;
+
+    const auto found = cmds_->currentSong();
+    if (!found)
+        return;   // сервер не отдал трэк — показывать нечего
+
+    songTitle_ = found->title;
+    songArtist_ = found->artist;
+    songAlbum_ = found->album;
 }
 
 double MprisPlayerAdaptor::volume() const
@@ -160,6 +184,7 @@ void MprisPlayerAdaptor::OpenUri(const QString &uri)
 void MprisPlayerAdaptor::onStatusChanged(const Connection::Status &s)
 {
     lastStatus_ = s;
+    refreshSongTags(s.songId);
 
     QVariantMap changed;
     changed.insert("PlaybackStatus", playbackStatus());

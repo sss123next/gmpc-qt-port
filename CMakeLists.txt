@@ -132,6 +132,9 @@ set(TOOL_SOURCES
 set(MPRIS_SOURCES
     src/mpris/mpris-player.cpp
     src/mpris/mpris-player.h
+    # Сборка полей MPRIS `Metadata` — чистая функция, тестируется отдельно от DBus.
+    src/mpris/metadata-map.cpp
+    src/mpris/metadata-map.h
 )
 
 set(MAIN_SOURCE

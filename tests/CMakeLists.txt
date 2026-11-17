@@ -365,6 +365,16 @@ target_link_libraries(test-server-info-dialog PRIVATE testcore Qt6::Widgets
 target_include_directories(test-server-info-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-server-info-dialog COMMAND test-server-info-dialog)
 
+# ── MPRIS `Metadata`: теги трэка в карте внешнего интерфейса ────────────────
+# Сбока полей — чистая функция без DBus: сьюту не нужен ни сессионный шина,
+# ни сервер, поэтому он идёт первым из тех, что проверяют MPRIS.
+
+add_executable(test-mpris-metadata test-mpris-metadata.cpp
+    ${CMAKE_SOURCE_DIR}/src/mpris/metadata-map.cpp)
+target_link_libraries(test-mpris-metadata PRIVATE Qt6::Widgets doctest::doctest)
+target_include_directories(test-mpris-metadata PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-mpris-metadata COMMAND test-mpris-metadata)
+
 # ── IPC: локальный roundtrip через QLocalSocket ─────────────────────────────
 # Не зависит от testcore — только QLocalServer/QLocalSocket, Qt::Test для spy.
 

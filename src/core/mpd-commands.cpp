@@ -138,6 +138,23 @@ std::optional<SongEntry> MpdCommands::songForUri(const QString &uri) const {
     return found;   // ResponseScope завершит ответ и снимет error-state
 }
 
+std::optional<SongEntry> MpdCommands::currentSong() const {
+    if (!conn_->isConnected())
+        return std::nullopt;
+
+    // `mpd_run_current_song()` — короткая форма send+recv, поэтому ответ надо
+    // завершить целиком: брошенный список оставил бы соединение в error-state.
+    Connection::ResponseScope scope(*conn_, "currentsong");
+
+    struct mpd_song *song = mpd_run_current_song(MPD);
+    if (!song)
+        return std::nullopt;   // ошибка либо ничего не играет
+
+    const SongEntry e = songEntryFromMpd(song);
+    mpd_song_free(song);
+    return e;
+}
+
 void MpdCommands::activateUri(const QString &uri) {
     CHECK;
     if (uri.isEmpty())

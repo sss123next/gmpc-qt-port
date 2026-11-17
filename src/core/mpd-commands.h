@@ -246,6 +246,16 @@ public slots:
      */
     [[nodiscard]] std::optional<SongEntry> songForUri(const QString &uri) const;
 
+    /** @brief Теги играющего сейчас трэка (`currentsong`).
+     *
+     *  `status` отдаёт только идентификатор и длительность, а artist/title/album
+     *  знает лишь сервер. Строка очереди не годится как источник: её могли править,
+     *  да и очередь в GUI — зеркало.
+     *
+     *  @returns теги трэка либо nullopt (нет соединения или ничего не играет).
+     */
+    virtual std::optional<SongEntry> currentSong() const;
+
     // -- статистика сервера (окно «Server Information») ----------------------
     /** @brief Снимок `stats`: аптайм, время игры и размеры базы.
      *  @returns поля ответа либо nullopt (нет соединения или команда отвергнута).

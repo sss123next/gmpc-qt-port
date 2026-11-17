@@ -103,9 +103,19 @@ private slots:
 private:
     void notifyProperty(const char *name);
 
+    /// @brief Освежить теги трэка, если играет другой (один `currentsong` на смену).
+    void refreshSongTags(int songId);
+
     Connection *conn_;
     MpdCommands *cmds_;
     Connection::Status lastStatus_;
+
+    // Теги живут в кэше по идентификатору: спрашивать сервер на каждое событие
+    // статуса (тик прогресс-бара) значило бы round-trip дважды в секунду.
+    int cachedSongId_ = -1;
+    QString songTitle_;
+    QString songArtist_;
+    QString songAlbum_;
 };
 
 /// Top-level orchestrator: owns both adaptors and registers on the bus.
