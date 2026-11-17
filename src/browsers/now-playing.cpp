@@ -44,8 +44,11 @@ static QLabel *kvLabel(const QString &val)
 /// Add a row to a QFormLayout if @p value is non-empty.
 static void addRow(QFormLayout *form, const QString &label, const QString &value)
 {
-    if (!value.isEmpty())
-        form->addRow(label + QStringLiteral(":"), new QLabel(value));
+    if (!value.isEmpty()) {
+        QLabel *vl = kvLabel(value);
+        if (vl)
+            form->addRow(label + QStringLiteral(":"), vl);
+    }
 }
 
 // ── Constructor ─────────────────────────────────────────────────────────────
