@@ -55,6 +55,9 @@ public:
     /// Очистить очередь с подтверждением (`clear`): команда необратима.
     void clearQueueWithConfirm();
 
+    /** @brief Toggle live filtering (textChanged) vs Enter-only search. */
+    void setSearchAsType(bool on);
+
 protected:
     /** @brief Разбирает событие дропа: Qt умеет рисовать индикатор и собирать
      *  mimeData, но команду перестановки очереди знает только этот виджет. */
@@ -104,4 +107,5 @@ private:
     QTreeView *view_;
     QLineEdit *filterEdit_;
     QSortFilterProxyModel *proxy_;
+    QMetaObject::Connection textChangedConn_;  ///< tracking for setSearchAsType
 };

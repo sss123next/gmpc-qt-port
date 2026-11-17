@@ -94,6 +94,9 @@ public:
     /// Allow multiple GUI instances (skip IPC single-instance check).
     bool allowMultiple() const;
     void setAllowMultiple(bool v);
+    /// Search-as-you-type (live filtering) in playlist and search browsers.
+    bool searchAsType() const;
+    void setSearchAsType(bool v);
 
     // ── Server ────────────────────────────────────────────────────────
     QString musicDirectory() const;

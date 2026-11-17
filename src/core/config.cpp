@@ -82,6 +82,10 @@ bool Config::allowMultiple() const
     { return s_.value("general/allowMultiple", false).toBool(); }
 void Config::setAllowMultiple(bool v)
     { s_.setValue("general/allowMultiple", v); }
+bool Config::searchAsType() const
+    { return s_.value("general/searchAsType", false).toBool(); }
+void Config::setSearchAsType(bool v)
+    { s_.setValue("general/searchAsType", v); }
 
 // ── Server ─────────────────────────────────────────────────────────────────
 QString Config::musicDirectory() const

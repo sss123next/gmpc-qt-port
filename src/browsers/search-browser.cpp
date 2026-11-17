@@ -4,6 +4,7 @@
  */
 
 #include "search-browser.h"
+#include "core/config.h"
 #include "core/connection.h"
 #include "core/mpd-commands.h"
 
@@ -183,9 +184,11 @@ SearchBrowser::SearchBrowser(Connection *conn, MpdCommands *cmds, QWidget *paren
     debounceTimer_->setSingleShot(true);
     debounceTimer_->setInterval(kDebounceMs);
     connect(debounceTimer_, &QTimer::timeout, this, &SearchBrowser::executeSearch);
-    connect(searchEdit_, &QLineEdit::textChanged, this, &SearchBrowser::scheduleSearch);
+    // Always search on Enter.
     connect(searchEdit_, &QLineEdit::returnPressed,
             this, &SearchBrowser::executeSearch);
+    // textChanged managed by setSearchAsType(); fieldCombo is always
+    // connected but checks the config internally.
     connect(fieldCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SearchBrowser::onFieldChanged);
 
@@ -509,10 +512,20 @@ void SearchBrowser::applyResults(const QVector<SearchHit> &hits, int total)
 
 void SearchBrowser::onFieldChanged(int index)
 {
-    // Смена поля меняет смысл уже набранного текста, поэтому ищем сразу, не дожидаясь
-    // конца дебаунса.
     Q_UNUSED(index);
     searchEdit_->setFocus();
-    if (currentQuery().isValid())
+    // Auto-search on field change only when search-as-you-type is on
+    // (otherwise wait for Enter).
+    if (currentQuery().isValid() && Config::instance().searchAsType())
         executeSearch();
+}
+
+void SearchBrowser::setSearchAsType(bool on)
+{
+    // textChanged → scheduleSearch (live / debounced).
+    disconnect(textChangedConn_);
+    if (on) {
+        textChangedConn_ = connect(searchEdit_, &QLineEdit::textChanged,
+                                   this, &SearchBrowser::scheduleSearch);
+    }
 }

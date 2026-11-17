@@ -417,6 +417,11 @@ void MainWindow::setupCentralArea()
     nowPlaying_      = new NowPlaying(this);
     nowPlaying_->setMetadataManager(metadataMgr_);
 
+    // Apply search-as-you-type config.
+    const bool searchLive = Config::instance().searchAsType();
+    currentPlaylist_->setSearchAsType(searchLive);
+    searchBrowser_->setSearchAsType(searchLive);
+
     // Order here defines the stack index and must match setupBrowserTabs(),
     browserStack_->addBrowser(nowPlaying_);
     browserStack_->addBrowser(currentPlaylist_);

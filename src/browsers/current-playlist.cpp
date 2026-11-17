@@ -80,8 +80,10 @@ CurrentPlaylist::CurrentPlaylist(Connection *conn, MpdCommands *cmds,
 
     setupUi();
 
-    connect(filterEdit_, &QLineEdit::textChanged,
-            this, &CurrentPlaylist::onFilterChanged);
+    // Filter activated by Config — see setSearchAsType() called from MainWindow.
+    connect(filterEdit_, &QLineEdit::returnPressed, this, [this] {
+        onFilterChanged(filterEdit_->text());
+    });
 }
 
 void CurrentPlaylist::setupUi()
@@ -435,4 +437,13 @@ void CurrentPlaylist::clearQueueWithConfirm()
 void CurrentPlaylist::onFilterChanged(const QString &text)
 {
     proxy_->setFilterFixedString(text);
+}
+
+void CurrentPlaylist::setSearchAsType(bool on)
+{
+    disconnect(textChangedConn_);
+    if (on) {
+        textChangedConn_ = connect(filterEdit_, &QLineEdit::textChanged,
+                                   this, &CurrentPlaylist::onFilterChanged);
+    }
 }

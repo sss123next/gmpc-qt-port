@@ -109,6 +109,7 @@ private:
     // Playlist group
     QLineEdit    *headerMarkup_;
     QPushButton  *highlightColorBtn_;   ///< opens QColorDialog; shows chosen colour
+    QCheckBox    *searchAsType_;
 
     // Metadata group
     QFontComboBox *metadataFontCombo_;

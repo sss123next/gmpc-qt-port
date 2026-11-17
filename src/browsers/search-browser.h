@@ -130,6 +130,9 @@ public:
      */
     [[nodiscard]] QVector<BrowserIntent> selectedIntents() const;
 
+    /** @brief Toggle live search (textChanged) vs Enter-only. */
+    void setSearchAsType(bool on);
+
     /** @brief Сколько строк результата уже показано (для тестов автодогрузки). */
     [[nodiscard]] int shownCount() const { return model_->rowCount({}); }
 
@@ -205,4 +208,7 @@ private:
     static constexpr int kDebounceMs = 300;
     /// Сколько терминов помним для Ctrl+↑ (переживает только сессию виджета).
     static constexpr int kHistoryMax = 20;
+
+    /// Tracking connection for setSearchAsType toggle.
+    QMetaObject::Connection textChangedConn_;
 };

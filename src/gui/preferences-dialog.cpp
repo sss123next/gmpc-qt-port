@@ -306,6 +306,10 @@ void PreferencesDialog::setupUi()
     hlRow->addStretch();
     playlistForm->addRow(tr("Highlight colour:"), hlRow);
 
+    searchAsType_ = new QCheckBox(
+        tr("Search as you type (live filter)"), this);
+    playlistForm->addRow(QString(), searchAsType_);
+
     innerLay->addWidget(playlistGroup);
 
     // ── Metadata group ──────────────────────────────────────────────
@@ -574,6 +578,7 @@ void PreferencesDialog::loadFromConfig()
             QStringLiteral("background: %1").arg(hlColor));
         highlightColorBtn_->setProperty("color", QColor(hlColor));
     }
+    searchAsType_->setChecked(cfg.searchAsType());
 
     // Metadata
     const QString mFont = cfg.metadataFont();
@@ -666,6 +671,7 @@ void PreferencesDialog::accept()
         QVariant v = highlightColorBtn_->property("color");
         cfg.setPlaylistHighlightColor(v.isValid() ? v.toString() : QString());
     }
+    cfg.setSearchAsType(searchAsType_->isChecked());
 
     // Metadata
     {
