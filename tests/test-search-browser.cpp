@@ -252,6 +252,7 @@ TEST_CASE("empty input never reaches the engine and clears the screen") {
     auto *model = browser.treeView()->model();
     auto *edit = browser.findChild<QLineEdit *>();
     REQUIRE(edit != nullptr);
+    browser.setSearchAsType(true);
 
     Q_EMIT browser.engine()->resultsReady(1, {makeHit("/a.mp3", "A", "T")}, 1,
                                          QString());
@@ -259,6 +260,30 @@ TEST_CASE("empty input never reaches the engine and clears the screen") {
 
     // Пробел — не запрос: сервер обошёл бы базу целиком ради нуля строк.
     edit->setText("   ");
+    QCoreApplication::processEvents();
+    CHECK_EQ(model->rowCount({}), 0);
+}
+
+TEST_CASE("enter-only mode preserves results on whitespace input") {
+    MockConnection conn;
+    SearchBrowser browser(&conn);
+    auto *model = browser.treeView()->model();
+    auto *edit = browser.findChild<QLineEdit *>();
+    REQUIRE(edit != nullptr);
+    // setSearchAsType(false) — умолчание, но явно для наглядности.
+    browser.setSearchAsType(false);
+
+    Q_EMIT browser.engine()->resultsReady(1, {makeHit("/b.mp3", "B", "U")}, 1,
+                                         QString());
+    REQUIRE_EQ(model->rowCount({}), 1);
+
+    // В режиме Enter-only пробел не сбрасывает результаты сам по себе.
+    edit->setText("   ");
+    QCoreApplication::processEvents();
+    CHECK_EQ(model->rowCount({}), 1);
+
+    // Enter с пустым запросом — очищает.
+    Q_EMIT edit->returnPressed();
     QCoreApplication::processEvents();
     CHECK_EQ(model->rowCount({}), 0);
 }

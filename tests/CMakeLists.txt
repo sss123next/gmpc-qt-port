@@ -334,6 +334,7 @@ add_test(NAME test-playlist-editor-commands COMMAND test-playlist-editor-command
 add_executable(test-now-playing test-now-playing.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/now-playing.cpp
     ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
+    ${CMAKE_SOURCE_DIR}/src/widgets/cover-viewer.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
