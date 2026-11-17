@@ -360,7 +360,8 @@ void NowPlaying::refreshMetadata()
 
     if (tabs_->count() > 0) {
         tabs_->setVisible(true);
-        tabs_->setCurrentIndex(qMin(prevTab, tabs_->count() - 1));
+        tabs_->setCurrentIndex(prevTab >= 0 && prevTab < tabs_->count()
+                               ? prevTab : 0);
     } else {
         tabs_->setVisible(false);
     }
