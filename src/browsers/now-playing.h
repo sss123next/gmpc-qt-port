@@ -58,6 +58,15 @@ private:
     /// Дозапросить полные теги у MPD и обновить вкладки.
     void refreshMetadata();
 
+    /// Построить вкладки метаданных один раз (лениво, при первом refreshMetadata).
+    void buildTabs();
+
+    /** @brief Обновить текст и видимость строки в форме.
+     *  Если @p text пуст — строка прячется. */
+    static void setFormField(QLabel *label, const QString &text);
+    /** @brief Создать строку «подпись: значение» и вернуть QLabel значения. */
+    static QLabel *addFormField(QFormLayout *form, const QString &label);
+
     Connection      *conn_ = nullptr;
     MetadataManager *mgr_ = nullptr;
     CoverWidget *cover_ = nullptr;
@@ -67,8 +76,29 @@ private:
     QLabel *albumLabel_;
     QPlainTextEdit *lyricsView_;
     QTabWidget *tabs_;
-    /// Строка состояния страницы («ничего не играет», «лирика ищется…»).
     QLabel *hintLabel_;
+
+    // ── Вкладки метаданных (создаются один раз, текст обновляется на месте) ──
+    bool tabsBuilt_ = false;
+    QWidget *detailsTab_ = nullptr;   QLabel *detTrack_ = nullptr, *detDisc_ = nullptr;
+    QLabel *detYear_ = nullptr, *detOrigDate_ = nullptr, *detGenre_ = nullptr;
+    QLabel *detAlbumArtist_ = nullptr, *detDuration_ = nullptr;
+
+    QWidget *creditsTab_ = nullptr;   QLabel *credComposer_ = nullptr, *credPerformer_ = nullptr;
+    QLabel *credConductor_ = nullptr, *credEnsemble_ = nullptr, *credGrouping_ = nullptr;
+    QLabel *credMood_ = nullptr, *credLocation_ = nullptr, *credLabel_ = nullptr;
+    QLabel *credWork_ = nullptr, *credMovement_ = nullptr, *credMovNum_ = nullptr;
+
+    QWidget *idsTab_ = nullptr;       QLabel *idTitleSort_ = nullptr, *idArtistSort_ = nullptr;
+    QLabel *idAlbumSort_ = nullptr, *idAlbumArtSort_ = nullptr, *idCompSort_ = nullptr;
+    QLabel *idComment_ = nullptr;
+    QLabel *idMbArtist_ = nullptr, *idMbAlbum_ = nullptr, *idMbAlbumArt_ = nullptr;
+    QLabel *idMbTrack_ = nullptr, *idMbWork_ = nullptr, *idMbRelTrack_ = nullptr;
+    QLabel *idMbRelGroup_ = nullptr;
+
+    QWidget *techTab_ = nullptr;      QLabel *techSampleRate_ = nullptr, *techBitDepth_ = nullptr;
+    QLabel *techChannels_ = nullptr, *techBitrate_ = nullptr, *techFormat_ = nullptr;
+    QLabel *techFile_ = nullptr;
 
     QString curArtist_;   ///< артист трэка, для которого ждём лирику
     QString curTitle_;    ///< название того же трэка

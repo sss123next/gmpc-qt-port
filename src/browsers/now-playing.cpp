@@ -25,42 +25,36 @@
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 /// Safely read a single MPD tag value (first instance).
-
-/** @brief Delete all tab-page widgets.  QTabWidget::clear() does NOT delete
- *  the widgets it removes — they'd leak on every track change otherwise. */
-static void clearTabPages(QTabWidget *tabs)
-{
-    while (tabs->count() > 0) {
-        QWidget *w = tabs->widget(0);
-        tabs->removeTab(0);
-        delete w;
-    }
-}
-
 static QString tag(const mpd_song *song, mpd_tag_type type)
 {
     const char *v = mpd_song_get_tag(song, type, 0);
     return v ? QString::fromUtf8(v) : QString();
 }
 
-/// Build a «Key: Value» label for a tab.
-static QLabel *kvLabel(const QString &val)
+/// Обновить текст строки формы; если @p text пуст — строку прячем.
+void NowPlaying::setFormField(QLabel *label, const QString &text)
 {
-    if (val.isEmpty()) return nullptr;
-    auto *l = new QLabel(val);
-    l->setWordWrap(true);
-    l->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    return l;
+    if (!label) return;
+    const bool visible = !text.isEmpty();
+    if (visible)
+        label->setText(text);
+    // Прячем и сам label значения, и его заголовок (QFormLayout создаёт
+    // отдельный QLabel для метки строки).
+    if (auto *form = qobject_cast<QFormLayout*>(label->parentWidget()->layout())) {
+        if (auto *header = form->labelForField(label))
+            header->setVisible(visible);
+    }
+    label->setVisible(visible);
 }
 
-/// Add a row to a QFormLayout if @p value is non-empty.
-static void addRow(QFormLayout *form, const QString &label, const QString &value)
+/// Создать строку «подпись: значение» в форме и вернуть QLabel значения.
+QLabel *NowPlaying::addFormField(QFormLayout *form, const QString &label)
 {
-    if (!value.isEmpty()) {
-        QLabel *vl = kvLabel(value);
-        if (vl)
-            form->addRow(label + QStringLiteral(":"), vl);
-    }
+    auto *vl = new QLabel;
+    vl->setWordWrap(true);
+    vl->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    form->addRow(label + QStringLiteral(":"), vl);
+    return vl;
 }
 
 // ── Constructor ─────────────────────────────────────────────────────────────
@@ -192,19 +186,91 @@ void NowPlaying::setSong(const SongEntry *song)
     mgr_->requestLyrics(curArtist_, curTitle_, curUri_);
 }
 
+// ── Построение вкладок метаданных (один раз) ────────────────────────────────
+
+void NowPlaying::buildTabs()
+{
+    if (tabsBuilt_) return;
+    tabsBuilt_ = true;
+
+    auto mkTab = [&](const QString &title) {
+        auto *w = new QWidget;
+        auto *f = new QFormLayout(w);
+        f->setContentsMargins(8, 8, 8, 8);
+        tabs_->addTab(w, title);
+        return f;
+    };
+
+    // ── Tab: Details ──
+    {
+        auto *f = mkTab(tr("Details"));
+        detTrack_       = addFormField(f, tr("Track"));
+        detDisc_        = addFormField(f, tr("Disc"));
+        detYear_        = addFormField(f, tr("Year"));
+        detOrigDate_    = addFormField(f, tr("Original date"));
+        detGenre_       = addFormField(f, tr("Genre"));
+        detAlbumArtist_ = addFormField(f, tr("Album artist"));
+        detDuration_    = addFormField(f, tr("Duration"));
+    }
+
+    // ── Tab: Credits ──
+    {
+        auto *f = mkTab(tr("Credits"));
+        credComposer_  = addFormField(f, tr("Composer"));
+        credPerformer_ = addFormField(f, tr("Performer"));
+        credConductor_ = addFormField(f, tr("Conductor"));
+        credEnsemble_  = addFormField(f, tr("Ensemble"));
+        credGrouping_  = addFormField(f, tr("Grouping"));
+        credMood_      = addFormField(f, tr("Mood"));
+        credLocation_  = addFormField(f, tr("Location"));
+        credLabel_     = addFormField(f, tr("Label"));
+        credWork_      = addFormField(f, tr("Work"));
+        credMovement_  = addFormField(f, tr("Movement"));
+        credMovNum_    = addFormField(f, tr("Movement No."));
+    }
+
+    // ── Tab: IDs & Sort ──
+    {
+        auto *f = mkTab(tr("IDs & Sort"));
+        idTitleSort_     = addFormField(f, tr("Title sort"));
+        idArtistSort_    = addFormField(f, tr("Artist sort"));
+        idAlbumSort_     = addFormField(f, tr("Album sort"));
+        idAlbumArtSort_  = addFormField(f, tr("Album artist sort"));
+        idCompSort_      = addFormField(f, tr("Composer sort"));
+        idComment_       = addFormField(f, tr("Comment"));
+        idMbArtist_      = addFormField(f, tr("MB Artist ID"));
+        idMbAlbum_       = addFormField(f, tr("MB Album ID"));
+        idMbAlbumArt_    = addFormField(f, tr("MB Album Artist ID"));
+        idMbTrack_       = addFormField(f, tr("MB Track ID"));
+        idMbWork_        = addFormField(f, tr("MB Work ID"));
+        idMbRelTrack_    = addFormField(f, tr("MB Release Track ID"));
+        idMbRelGroup_    = addFormField(f, tr("MB Release Group ID"));
+    }
+
+    // ── Tab: Technical ──
+    {
+        auto *f = mkTab(tr("Technical"));
+        techSampleRate_ = addFormField(f, tr("Sample rate"));
+        techBitDepth_   = addFormField(f, tr("Bit depth"));
+        techChannels_   = addFormField(f, tr("Channels"));
+        techBitrate_    = addFormField(f, tr("Bitrate"));
+        techFormat_     = addFormField(f, tr("Format"));
+        techFile_       = addFormField(f, tr("File"));
+    }
+}
+
 // ── Metadata refresh (fetch full tags + status from MPD) ────────────────────
 
 void NowPlaying::refreshMetadata()
 {
-    // Save selected tab title before rebuilding — index may shift if
-    // the new track has fewer or differently ordered tabs.
     const QString prevTab = tabs_->currentIndex() >= 0
         ? tabs_->tabText(tabs_->currentIndex()) : QString();
 
-    // Clear old tabs — QTabWidget::clear() does NOT delete the widgets.
-    clearTabPages(tabs_);
-    tabs_->setVisible(false);
+    // Build tabs once
+    buildTabs();
 
+    // Скрываем все вкладки — покажем только те, где есть данные.
+    tabs_->setVisible(false);
     if (!conn_ || !conn_->isConnected() || !conn_->hasHandle())
         return;
 
@@ -214,8 +280,7 @@ void NowPlaying::refreshMetadata()
         Connection::ResponseScope scope(*conn_, "currentsong");
         mpd = mpd_run_current_song(conn_->raw());
     }
-    if (!mpd)
-        return;   // nothing playing or error
+    if (!mpd) return;
 
     // Collect tags.
     const QString track      = tag(mpd, MPD_TAG_TRACK);
@@ -238,7 +303,6 @@ void NowPlaying::refreshMetadata()
     const QString mov        = tag(mpd, MPD_TAG_MOVEMENT);
     const QString movNum     = tag(mpd, MPD_TAG_MOVEMENTNUMBER);
 
-    // Additional MPD tags — not present in the simplified SongEntry.
     const QString albumArtist  = tag(mpd, MPD_TAG_ALBUM_ARTIST);
     const QString grouping     = tag(mpd, MPD_TAG_GROUPING);
     const QString mood         = tag(mpd, MPD_TAG_MOOD);
@@ -274,84 +338,50 @@ void NowPlaying::refreshMetadata()
         }
     }
 
-    // Format duration.
     const QString durStr = dur > 0
-        ? QStringLiteral("%1:%2")
-              .arg(dur / 60).arg(dur % 60, 2, 10, QLatin1Char('0'))
+        ? QStringLiteral("%1:%2").arg(dur / 60).arg(dur % 60, 2, 10, QLatin1Char('0'))
         : QString();
+    const QString ext = curUri_.isEmpty() ? QString()
+        : QFileInfo(curUri_).suffix().toUpper();
 
-    // ── Tab 1: Details ──────────────────────────────────────────────
-    auto *detForm = new QFormLayout;
-    detForm->setContentsMargins(8, 8, 8, 8);
-    addRow(detForm, tr("Track"),         track);
-    addRow(detForm, tr("Disc"),          disc);
-    addRow(detForm, tr("Year"),          date);
-    if (!origDate.isEmpty() && origDate != date)
-        addRow(detForm, tr("Original date"), origDate);
-    addRow(detForm, tr("Genre"),         genre);
-    addRow(detForm, tr("Album artist"),  albumArtist);
-    addRow(detForm, tr("Duration"),      durStr);
-    if (detForm->rowCount() > 0) {
-        auto *w = new QWidget;
-        w->setLayout(detForm);
-        tabs_->addTab(w, tr("Details"));
-    } else {
-        delete detForm;
-    }
+    // ── Обновляем текст строк, пустые прячем ─────────────────────────
+    setFormField(detTrack_,       track);
+    setFormField(detDisc_,        disc);
+    setFormField(detYear_,        date);
+    // Original date: показываем только если отличается от года
+    setFormField(detOrigDate_,    (!origDate.isEmpty() && origDate != date) ? origDate : QString());
+    setFormField(detGenre_,       genre);
+    setFormField(detAlbumArtist_, albumArtist);
+    setFormField(detDuration_,    durStr);
 
-    // ── Tab 2: Credits ──────────────────────────────────────────────
-    auto *credForm = new QFormLayout;
-    credForm->setContentsMargins(8, 8, 8, 8);
-    addRow(credForm, tr("Composer"),     composer);
-    addRow(credForm, tr("Performer"),    perform);
-    addRow(credForm, tr("Conductor"),    cond);
-    addRow(credForm, tr("Ensemble"),     ens);
-    addRow(credForm, tr("Grouping"),     grouping);
-    addRow(credForm, tr("Mood"),         mood);
-    addRow(credForm, tr("Location"),     location);
-    addRow(credForm, tr("Label"),        label);
-    addRow(credForm, tr("Work"),         work);
-    addRow(credForm, tr("Movement"),     mov);
-    if (!movNum.isEmpty())
-        addRow(credForm, tr("Movement No."), movNum);
-    if (credForm->rowCount() > 0) {
-        auto *w = new QWidget;
-        w->setLayout(credForm);
-        tabs_->addTab(w, tr("Credits"));
-    } else {
-        delete credForm;
-    }
+    setFormField(credComposer_,  composer);
+    setFormField(credPerformer_, perform);
+    setFormField(credConductor_, cond);
+    setFormField(credEnsemble_,  ens);
+    setFormField(credGrouping_,  grouping);
+    setFormField(credMood_,      mood);
+    setFormField(credLocation_,  location);
+    setFormField(credLabel_,     label);
+    setFormField(credWork_,      work);
+    setFormField(credMovement_,  mov);
+    setFormField(credMovNum_,    movNum);
 
-    // ── Tab 3: IDs & Sort ───────────────────────────────────────────
-    auto *idForm = new QFormLayout;
-    idForm->setContentsMargins(8, 8, 8, 8);
-    addRow(idForm, tr("Title sort"),        titleSort);
-    addRow(idForm, tr("Artist sort"),       asort);
-    addRow(idForm, tr("Album sort"),        alsort);
-    addRow(idForm, tr("Album artist sort"), alsortArt);
-    addRow(idForm, tr("Composer sort"),     compSort);
-    addRow(idForm, tr("Comment"),           comment);
-    addRow(idForm, tr("MB Artist ID"),      mbArtist);
-    addRow(idForm, tr("MB Album ID"),       mbAlbum);
-    addRow(idForm, tr("MB Album Artist ID"), mbAlbumArt);
-    addRow(idForm, tr("MB Track ID"),       mbTrack);
-    addRow(idForm, tr("MB Work ID"),        mbWork);
-    addRow(idForm, tr("MB Release Track ID"), mbRelTrack);
-    addRow(idForm, tr("MB Release Group ID"), mbRelGroup);
-    if (idForm->rowCount() > 0) {
-        auto *w = new QWidget;
-        w->setLayout(idForm);
-        tabs_->addTab(w, tr("IDs & Sort"));
-    } else {
-        delete idForm;
-    }
+    setFormField(idTitleSort_,     titleSort);
+    setFormField(idArtistSort_,    asort);
+    setFormField(idAlbumSort_,     alsort);
+    setFormField(idAlbumArtSort_,  alsortArt);
+    setFormField(idCompSort_,      compSort);
+    setFormField(idComment_,       comment);
+    setFormField(idMbArtist_,      mbArtist);
+    setFormField(idMbAlbum_,       mbAlbum);
+    setFormField(idMbAlbumArt_,    mbAlbumArt);
+    setFormField(idMbTrack_,       mbTrack);
+    setFormField(idMbWork_,        mbWork);
+    setFormField(idMbRelTrack_,    mbRelTrack);
+    setFormField(idMbRelGroup_,    mbRelGroup);
 
-    // ── Tab 4: Technical (audio format & file info) ─────────────────
-    auto *techForm = new QFormLayout;
-    techForm->setContentsMargins(8, 8, 8, 8);
-    if (sampleRate > 0)
-        addRow(techForm, tr("Sample rate"),
-               QStringLiteral("%1 Hz").arg(sampleRate));
+    setFormField(techSampleRate_, sampleRate > 0
+        ? QStringLiteral("%1 Hz").arg(sampleRate) : QString());
     if (bits > 0) {
         QString bitStr;
         if (bits == MPD_SAMPLE_FORMAT_FLOAT)
@@ -360,45 +390,29 @@ void NowPlaying::refreshMetadata()
             bitStr = QStringLiteral("DSD");
         else
             bitStr = QStringLiteral("%1 bit").arg(bits);
-        addRow(techForm, tr("Bit depth"), bitStr);
-    }
-    if (channels > 0)
-        addRow(techForm, tr("Channels"),
-               QString::number(channels));
-    if (bitrate > 0)
-        addRow(techForm, tr("Bitrate"),
-               QStringLiteral("%1 kbps").arg(bitrate));
-    // File format from URI extension.
-    if (!curUri_.isEmpty()) {
-        const QString ext = QFileInfo(curUri_).suffix().toUpper();
-        if (!ext.isEmpty())
-            addRow(techForm, tr("Format"), ext);
-        addRow(techForm, tr("File"), curUri_);
-    }
-    if (techForm->rowCount() > 0) {
-        auto *w = new QWidget;
-        w->setLayout(techForm);
-        tabs_->addTab(w, tr("Technical"));
+        setFormField(techBitDepth_, bitStr);
     } else {
-        delete techForm;
+        setFormField(techBitDepth_, QString());
     }
+    setFormField(techChannels_, channels > 0 ? QString::number(channels) : QString());
+    setFormField(techBitrate_,  bitrate > 0 ? QStringLiteral("%1 kbps").arg(bitrate) : QString());
+    setFormField(techFormat_,   ext);
+    setFormField(techFile_,     curUri_);
 
-    if (tabs_->count() > 0) {
-        tabs_->setVisible(true);
-        // Restore previously selected tab by title (index-safe).
-        int restoreIdx = 0;
-        if (!prevTab.isEmpty()) {
-            for (int i = 0; i < tabs_->count(); ++i) {
-                if (tabs_->tabText(i) == prevTab) {
-                    restoreIdx = i;
-                    break;
-                }
+    // Показываем вкладки, только если хоть одна строка непустая
+    tabs_->setVisible(true);
+
+    // Restore previously selected tab
+    int restoreIdx = 0;
+    if (!prevTab.isEmpty()) {
+        for (int i = 0; i < tabs_->count(); ++i) {
+            if (tabs_->tabText(i) == prevTab) {
+                restoreIdx = i;
+                break;
             }
         }
-        tabs_->setCurrentIndex(restoreIdx);
-    } else {
-        tabs_->setVisible(false);
     }
+    tabs_->setCurrentIndex(restoreIdx);
 }
 
 // ── Lyrics callbacks ───────────────────────────────────────────────────────
@@ -434,7 +448,6 @@ void NowPlaying::showNothing()
     artistLabel_->clear();
     albumLabel_->clear();
     lyricsView_->clear();
-    clearTabPages(tabs_);
     tabs_->setVisible(false);
     hintLabel_->setText(tr("Nothing is playing"));
     curArtist_.clear();

@@ -402,6 +402,27 @@ target_link_libraries(test-ipc PRIVATE Qt6::Core Qt6::Network Qt6::Test
 target_include_directories(test-ipc PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-ipc COMMAND test-ipc)
 
+# ── Cover load leak stress-test: 100 cycles with real QPixmap ──────────────
+# Exercises the full path: CoverWidget → MetadataManager → CoverProvider
+# cascade (local file or network fail) → QPixmap decode → render → clear.
+# Run under ASan detect_leaks=1.
+
+add_executable(test-cover-load-leak test-cover-load-leak.cpp
+    ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp)
+target_link_libraries(test-cover-load-leak PRIVATE Qt6::Widgets Qt6::Network
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
+    doctest::doctest)
+target_include_directories(test-cover-load-leak PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-cover-load-leak COMMAND test-cover-load-leak)
+
 # ── Leak stress-test: 100 track changes through the metadata pipeline ──────
 # No network access, no real files — cascade fails fast at every step.
 # Run under ASan (detect_leaks=1) to verify zero per-cycle growth.
