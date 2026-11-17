@@ -20,6 +20,7 @@ void CoverWidget::setMetadataManager(MetadataManager *mgr)
                        const QByteArray &data) {
                     Q_UNUSED(artist);
                     Q_UNUSED(album);
+                    lastCoverData_ = data;
                     QPixmap pm;
                     if (pm.loadFromData(data))
                         setCover(pm);
@@ -62,6 +63,7 @@ void CoverWidget::clear()
 {
     setPixmap(QPixmap());          // must come before setText (clears text)
     setText(tr("No cover"));
+    lastCoverData_.clear();
 }
 
 void CoverWidget::mousePressEvent(QMouseEvent *event)

@@ -11,6 +11,7 @@
 
 #include <QLabel>
 #include <QString>
+#include <QByteArray>
 #include <QMouseEvent>
 
 class MetadataManager;
@@ -37,6 +38,10 @@ public:
     /// Clear the displayed cover.
     void clear();
 
+    /** @brief Original raw cover data (maximum available resolution).
+     *  Empty if no cover loaded. Used by CoverViewer for full-screen display. */
+    const QByteArray &coverData() const { return lastCoverData_; }
+
 signals:
     /// Emitted on left-click when a cover is displayed.
     void clicked();
@@ -47,5 +52,6 @@ protected:
 private:
     MetadataManager *mgr_ = nullptr;
     int coverPx_ = 128;   ///< сторона квадрата отрисовки, px
+    QByteArray lastCoverData_;  ///< оригинальные данные для полноэкранного просмотра
 };
 

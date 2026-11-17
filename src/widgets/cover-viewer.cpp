@@ -26,18 +26,23 @@ CoverViewer::CoverViewer(QWidget *parent)
     lay->addWidget(label_);
 }
 
-void CoverViewer::show(const QPixmap &pixmap)
+void CoverViewer::show(const QByteArray &data)
 {
-    if (pixmap.isNull())
+    if (data.isEmpty())
+        return;
+
+    QPixmap pm;
+    if (!pm.loadFromData(data))
         return;
 
     // Scale to fit the screen, preserving aspect ratio.
     const QScreen *screen = QApplication::primaryScreen();
-    if (!screen) { deleteLater(); return; }
+    if (!screen)
+        return;
     const QSize screenSize = screen->availableSize();
 
-    QPixmap scaled = pixmap.scaled(screenSize, Qt::KeepAspectRatio,
-                                    Qt::SmoothTransformation);
+    QPixmap scaled = pm.scaled(screenSize, Qt::KeepAspectRatio,
+                               Qt::SmoothTransformation);
     label_->setPixmap(scaled);
 
     resize(screenSize);
@@ -48,10 +53,16 @@ void CoverViewer::show(const QPixmap &pixmap)
     raise();
 }
 
+void CoverViewer::clear()
+{
+    label_->setPixmap(QPixmap());
+    QWidget::hide();
+}
+
 void CoverViewer::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Escape) {
-        close();
+        clear();
         return;
     }
     QWidget::keyPressEvent(event);
@@ -60,7 +71,7 @@ void CoverViewer::keyPressEvent(QKeyEvent *event)
 void CoverViewer::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
-        close();
+        clear();
         return;
     }
     QWidget::mousePressEvent(event);

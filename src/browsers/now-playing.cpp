@@ -120,12 +120,11 @@ NowPlaying::NowPlaying(QWidget *parent)
 
     // Click on cover → full-screen viewer (single instance, reused).
     connect(cover_, &CoverWidget::clicked, this, [this] {
-        const QPixmap pm = cover_->pixmap();
-        if (!pm.isNull()) {
-            if (!coverViewer_)
-                coverViewer_ = new CoverViewer();
-            coverViewer_->show(pm);
-        }
+        if (cover_->coverData().isEmpty())
+            return;
+        if (!coverViewer_)
+            coverViewer_ = new CoverViewer();
+        coverViewer_->show(cover_->coverData());
     });
 }
 
@@ -438,7 +437,7 @@ void NowPlaying::showNothing()
     curTitle_.clear();
     curUri_.clear();
     if (coverViewer_)
-        coverViewer_->close();
+        coverViewer_->clear();
 }
 
 void NowPlaying::onConnectionChanged(bool connected)

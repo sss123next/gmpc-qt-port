@@ -10,17 +10,22 @@
 
 #include <QWidget>
 #include <QPixmap>
+#include <QByteArray>
 #include <QLabel>
 #include <QKeyEvent>
+#include <QMouseEvent>
 
-/// Transient full-screen cover display.
+/// Full-screen cover display (reused, not deleted on close).
 class CoverViewer : public QWidget {
     Q_OBJECT
 public:
     explicit CoverViewer(QWidget *parent = nullptr);
 
-    /// Display the given pixmap full-screen.
-    void show(const QPixmap &pixmap);
+    /// Load @p data (JPEG/PNG raw bytes) and display full-screen.
+    void show(const QByteArray &data);
+
+    /// Release the pixmap memory (call on hide / track change).
+    void clear();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

@@ -48,12 +48,11 @@ MiniPlayer::MiniPlayer(QWidget *parent)
 
     // Click on cover → full-screen viewer (single instance, reused).
     connect(coverWidget_, &CoverWidget::clicked, this, [this] {
-        const QPixmap pm = coverWidget_->pixmap();
-        if (!pm.isNull()) {
-            if (!coverViewer_)
-                coverViewer_ = new CoverViewer();
-            coverViewer_->show(pm);
-        }
+        if (coverWidget_->coverData().isEmpty())
+            return;
+        if (!coverViewer_)
+            coverViewer_ = new CoverViewer();
+        coverViewer_->show(coverWidget_->coverData());
     });
 }
 
@@ -179,7 +178,7 @@ void MiniPlayer::clear()
     albumLabel_->clear();
     coverWidget_->clear();
     if (coverViewer_)
-        coverViewer_->close();
+        coverViewer_->clear();
 }
 
 // ── Positioning ─────────────────────────────────────────────────────────────
