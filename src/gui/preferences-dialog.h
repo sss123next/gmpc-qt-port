@@ -88,6 +88,16 @@ private:
     // Tray group
     QCheckBox    *trayEnabled_;
 
+    // Tray Popup group
+    QCheckBox    *trayPopupEnabled_;
+    QComboBox    *trayPopupPosition_;
+    QSpinBox     *trayPopupTimeout_;
+    QComboBox    *trayPopupStyle_;
+    QCheckBox    *trayPopupShowCover_;
+    QCheckBox    *trayPopupShowButtons_;
+    QSpinBox     *trayPopupXOffset_;
+    QSpinBox     *trayPopupYOffset_;
+
     // Profiles group
     QListWidget  *profileList_;
     QPushButton  *addProfileBtn_;

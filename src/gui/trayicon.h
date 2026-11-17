@@ -5,15 +5,16 @@
  * @brief System-tray icon with popup menu and rich tooltip.
  *
  * Provides quick access to play/pause/stop/next/prev, show/hide window,
- * connect/disconnect MPD, and application quit.  Tooltip reflects the
+ * and toggle popup with cover art and song info.  Tooltip reflects the
  * current song info when playing.
  */
 
 #include <QSystemTrayIcon>
 #include "core/connection.h"
+#include "core/playlist-model.h"
 
 class MpdCommands;
-struct SongEntry;
+class TrayPopup;
 
 /// Tray icon with a popup menu for MPD transport and window management.
 class TrayIcon : public QObject {
@@ -36,7 +37,17 @@ public:
                      QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information,
                      int msecs = 10000);
 
+    /// Attach a popup widget that toggles on tray-icon activation.
+    /// Owned by caller (typically MainWindow).
+    void setPopup(TrayPopup *popup);
+
+    /// Screen position of the tray icon (for popup positioning).
+    QPoint iconScreenPos() const;
+
 private:
+    /// Show/hide the attached popup.
+    void togglePopup();
+
     /// Build the right-click context menu.
     void setupMenu();
 
@@ -44,5 +55,11 @@ private:
     Connection *conn_;
     MpdCommands *cmds_;
     QWidget *mainWindow_;
+    TrayPopup *popup_ = nullptr;
+
+    // Cached song data for popup
+    Connection::Status lastStatus_;
+    SongEntry lastSong_;
+    bool haveSong_ = false;
 };
 

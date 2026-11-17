@@ -27,18 +27,27 @@ public:
     /// @param cachePath     Path to the SQLite cache database.
     /// @param lastFmApiKey  API key for Last.FM (empty = disabled).
     /// @param discogsToken  Discogs personal access token (empty = unauthenticated).
+    /// @param musicDir      MPD music directory (for local cover file lookup). Empty = skip.
     explicit MetadataManager(const QString &cachePath,
                              const QString &lastFmApiKey,
                              const QString &discogsToken,
+                             const QString &musicDir = QString(),
                              QObject *parent = nullptr);
 
     ~MetadataManager() override;
 
-    /// Start a cover-art fetch.  May return cached data immediately.
-    void requestCover(const QString &artist, const QString &album);
+    /** @brief Start a cover-art fetch.  May return cached data immediately.
+     *  @param uri  Song file URI from MPD (relative to music dir), for local file lookup.
+     *              Empty string skips local file search. */
+    void requestCover(const QString &artist, const QString &album,
+                      const QString &uri = QString());
 
     /// Start a lyrics fetch.
     void requestLyrics(const QString &artist, const QString &title);
+
+    /** @brief Update music directory for local cover file lookup.
+     *  Passes through to CoverProvider::setMusicDir(). */
+    void setMusicDir(const QString &dir);
 
 signals:
     /// Emitted when cover image data is ready.

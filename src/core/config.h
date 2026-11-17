@@ -139,6 +139,24 @@ public:
     bool trayEnabled() const;
     void setTrayEnabled(bool v);
 
+    // ── Tray Popup ─────────────────────────────────────────────────────
+    bool trayPopupEnabled() const;
+    void setTrayPopupEnabled(bool v);
+    int trayPopupPosition() const;
+    void setTrayPopupPosition(int pos);
+    int trayPopupTimeout() const;
+    void setTrayPopupTimeout(int sec);
+    int trayPopupStyle() const;
+    void setTrayPopupStyle(int s);
+    bool trayPopupShowCover() const;
+    void setTrayPopupShowCover(bool v);
+    bool trayPopupShowButtons() const;
+    void setTrayPopupShowButtons(bool v);
+    int trayPopupXOffset() const;
+    void setTrayPopupXOffset(int x);
+    int trayPopupYOffset() const;
+    void setTrayPopupYOffset(int y);
+
     // ── Profiles ─────────────────────────────────────────────────────
     /** @brief All saved connection profiles (read from QSettings). */
     QList<ConnectionProfile> profiles() const;

@@ -65,6 +65,9 @@ class MainWindow : public QMainWindow {
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
+    /// Отключает все сигналы ДО того, как Qt начнёт разрушать детей в ~QObject.
+    /// Это предотвращает ASSERT, когда дочерний объект испускает сигнал при своём
+    /// разрушении, а vtable MainWindow уже переключена на базовый класс.
     ~MainWindow() override;
 
     /// The shared MPD connection.

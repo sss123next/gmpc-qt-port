@@ -53,6 +53,8 @@ set(GUI_SOURCES
     src/gui/statusbar.h
     src/gui/trayicon.cpp
     src/gui/trayicon.h
+    src/gui/tray-popup.cpp
+    src/gui/tray-popup.h
     src/gui/add-url-dialog.cpp
     src/gui/add-url-dialog.h
     src/gui/column-chooser-dialog.cpp

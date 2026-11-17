@@ -28,7 +28,9 @@ public:
     void setCoverSize(int px);
 
     /// Fetch cover art for artist/album from the active pipeline.
-    void fetchCover(const QString &artist, const QString &album);
+    /// @param uri  MPD song URI for local file lookup.
+    void fetchCover(const QString &artist, const QString &album,
+                    const QString &uri = QString());
     /// Immediately display a pre-loaded pixmap.
     void setCover(const QPixmap &pixmap);
     /// Clear the displayed cover.

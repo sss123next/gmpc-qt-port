@@ -208,6 +208,69 @@ void PreferencesDialog::setupUi()
     trayForm->addRow(trayEnabled_);
     innerLay->addWidget(trayGroup);
 
+    // ── Tray Popup group ─────────────────────────────────────────────
+    auto *popupGroup = new QGroupBox(tr("Tray Popup"), this);
+    auto *popupForm = new QFormLayout(popupGroup);
+
+    trayPopupEnabled_ = new QCheckBox(tr("Show popup on tray icon click"), this);
+    popupForm->addRow(trayPopupEnabled_);
+
+    // Position combo
+    trayPopupPosition_ = new QComboBox(this);
+    trayPopupPosition_->addItem(tr("At cursor"),         0);
+    trayPopupPosition_->addItem(tr("Top-left of icon"),  1);
+    trayPopupPosition_->addItem(tr("Top-right of icon"), 2);
+    trayPopupPosition_->addItem(tr("Bottom-left of icon"),  3);
+    trayPopupPosition_->addItem(tr("Bottom-right of icon"), 4);
+    popupForm->addRow(tr("Position:"), trayPopupPosition_);
+
+    // Timeout
+    trayPopupTimeout_ = new QSpinBox(this);
+    trayPopupTimeout_->setRange(2, 120);
+    trayPopupTimeout_->setSuffix(tr(" sec"));
+    trayPopupTimeout_->setValue(10);
+    popupForm->addRow(tr("Timeout:"), trayPopupTimeout_);
+
+    // Style preset
+    trayPopupStyle_ = new QComboBox(this);
+    trayPopupStyle_->addItem(tr("Dark"),  0);
+    trayPopupStyle_->addItem(tr("Light"), 1);
+    popupForm->addRow(tr("Style:"), trayPopupStyle_);
+
+    // Content: cover + buttons
+    trayPopupShowCover_ = new QCheckBox(tr("Show album cover"), this);
+    popupForm->addRow(trayPopupShowCover_);
+    trayPopupShowButtons_ = new QCheckBox(tr("Show transport buttons"), this);
+    popupForm->addRow(trayPopupShowButtons_);
+
+    // Offset
+    auto *offsetRow = new QHBoxLayout();
+    trayPopupXOffset_ = new QSpinBox(this);
+    trayPopupXOffset_->setRange(-200, 200);
+    trayPopupXOffset_->setPrefix(tr("X: "));
+    offsetRow->addWidget(trayPopupXOffset_);
+    trayPopupYOffset_ = new QSpinBox(this);
+    trayPopupYOffset_->setRange(-200, 200);
+    trayPopupYOffset_->setPrefix(tr("Y: "));
+    offsetRow->addWidget(trayPopupYOffset_);
+    offsetRow->addStretch();
+    popupForm->addRow(tr("Offset:"), offsetRow);
+
+    // Enable/disable popup sub-controls based on the checkbox
+    connect(trayPopupEnabled_, &QCheckBox::toggled, this, [this](bool on) {
+        trayPopupPosition_->setEnabled(on);
+        trayPopupTimeout_->setEnabled(on);
+        trayPopupStyle_->setEnabled(on);
+        trayPopupShowCover_->setEnabled(on);
+        trayPopupShowButtons_->setEnabled(on);
+        trayPopupXOffset_->setEnabled(on);
+        trayPopupYOffset_->setEnabled(on);
+    });
+    // Start enabled (will be refined by loadFromConfig)
+    trayPopupEnabled_->setChecked(true);
+
+    innerLay->addWidget(popupGroup);
+
     // ── Playlist group ──────────────────────────────────────────────
     auto *playlistGroup = new QGroupBox(tr("Playlist"), this);
     auto *playlistForm = new QFormLayout(playlistGroup);
@@ -477,6 +540,33 @@ void PreferencesDialog::loadFromConfig()
 
     trayEnabled_->setChecked(cfg.trayEnabled());
 
+    // Tray Popup
+    trayPopupEnabled_->setChecked(cfg.trayPopupEnabled());
+    {
+        const QSignalBlocker blockPos(trayPopupPosition_);
+        trayPopupPosition_->setCurrentIndex(
+            trayPopupPosition_->findData(cfg.trayPopupPosition()));
+    }
+    trayPopupTimeout_->setValue(cfg.trayPopupTimeout());
+    {
+        const QSignalBlocker blockStyle(trayPopupStyle_);
+        trayPopupStyle_->setCurrentIndex(
+            trayPopupStyle_->findData(cfg.trayPopupStyle()));
+    }
+    trayPopupShowCover_->setChecked(cfg.trayPopupShowCover());
+    trayPopupShowButtons_->setChecked(cfg.trayPopupShowButtons());
+    trayPopupXOffset_->setValue(cfg.trayPopupXOffset());
+    trayPopupYOffset_->setValue(cfg.trayPopupYOffset());
+    // Apply initial enable state of sub-controls
+    const bool popupOn = cfg.trayPopupEnabled();
+    trayPopupPosition_->setEnabled(popupOn);
+    trayPopupTimeout_->setEnabled(popupOn);
+    trayPopupStyle_->setEnabled(popupOn);
+    trayPopupShowCover_->setEnabled(popupOn);
+    trayPopupShowButtons_->setEnabled(popupOn);
+    trayPopupXOffset_->setEnabled(popupOn);
+    trayPopupYOffset_->setEnabled(popupOn);
+
     // Playlist
     headerMarkup_->setText(cfg.playlistHeaderMarkup());
     const QString hlColor = cfg.playlistHighlightColor();
@@ -558,6 +648,16 @@ void PreferencesDialog::accept()
     cfg.setConnectionTimeout(connectionTimeout_->value());
 
     cfg.setTrayEnabled(trayEnabled_->isChecked());
+
+    // Tray Popup
+    cfg.setTrayPopupEnabled(trayPopupEnabled_->isChecked());
+    cfg.setTrayPopupPosition(trayPopupPosition_->currentData().toInt());
+    cfg.setTrayPopupTimeout(trayPopupTimeout_->value());
+    cfg.setTrayPopupStyle(trayPopupStyle_->currentData().toInt());
+    cfg.setTrayPopupShowCover(trayPopupShowCover_->isChecked());
+    cfg.setTrayPopupShowButtons(trayPopupShowButtons_->isChecked());
+    cfg.setTrayPopupXOffset(trayPopupXOffset_->value());
+    cfg.setTrayPopupYOffset(trayPopupYOffset_->value());
 
     // Playlist
     cfg.setPlaylistHeaderMarkup(headerMarkup_->text());

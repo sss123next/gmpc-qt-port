@@ -39,10 +39,11 @@ void CoverWidget::setCoverSize(int px)
     setMinimumSize(coverPx_, coverPx_);
 }
 
-void CoverWidget::fetchCover(const QString &artist, const QString &album)
+void CoverWidget::fetchCover(const QString &artist, const QString &album,
+                             const QString &uri)
 {
     if (mgr_) {
-        mgr_->requestCover(artist, album);
+        mgr_->requestCover(artist, album, uri);
     } else {
         clear();
     }

@@ -3,6 +3,7 @@
 #include "controlbar.h"
 #include "statusbar.h"
 #include "trayicon.h"
+#include "tray-popup.h"
 #include "preferences-dialog.h"
 
 #include "core/connection.h"
@@ -168,7 +169,20 @@ MainWindow::MainWindow(QWidget *parent)
     tryAutoConnect();
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow()
+{
+    // explicit disconnect from known senders whose lambda connections
+    // use this as context — QObject::disconnect() only removes
+    // sender/receiver entries, not the context records in the sender's
+    // list, so they survive into ~QObject where the vtable is already
+    // promoted and the assertObjectType<MainWindow> check fails.
+    // Use the static QObject::disconnect because Connection and other
+    // subclasses may hide the member disconnect().
+    QObject::disconnect(conn_, nullptr, this, nullptr);
+    QObject::disconnect(idle_, nullptr, this, nullptr);
+    QObject::disconnect(queueSync_, nullptr, this, nullptr);
+    disconnect();
+}
 
 // ── UI construction ───────────────────────────────────────────────────────────
 
@@ -199,7 +213,8 @@ void MainWindow::setupUi()
     const QString cacheDir = QStandardPaths::writableLocation(
         QStandardPaths::AppDataLocation);
     metadataMgr_ = new MetadataManager(cacheDir, QString(),
-                                        cfg.discogsToken(), this);
+                                        cfg.discogsToken(),
+                                        cfg.musicDirectory(), this);
 
     // ── Widgets for the control bar ──────────────────────────────────────
     coverWidget_ = new CoverWidget(this);
@@ -240,6 +255,32 @@ void MainWindow::setupUi()
     // Tray icon (mainWindow = this for show/hide toggle)
     trayIcon_ = new TrayIcon(conn_, cmds_, this, this);
     trayIcon_->setVisible(cfg.trayEnabled());
+
+    // ── Tray popup (borderless window with cover + info) ──────────
+    if (cfg.trayPopupEnabled()) {
+        auto *popup = new TrayPopup(this);
+        popup->setMetadataManager(metadataMgr_);
+        popup->setPosition(
+            static_cast<TrayPopup::Position>(cfg.trayPopupPosition()));
+        popup->setStylePreset(
+            static_cast<TrayPopup::StylePreset>(cfg.trayPopupStyle()));
+        popup->setTimeoutSec(cfg.trayPopupTimeout());
+        popup->setShowCover(cfg.trayPopupShowCover());
+        popup->setShowButtons(cfg.trayPopupShowButtons());
+        popup->setOffsets(cfg.trayPopupXOffset(), cfg.trayPopupYOffset());
+
+        // Connect transport buttons
+        connect(popup, &TrayPopup::playPauseClicked,
+                cmds_, &MpdCommands::togglePause);
+        connect(popup, &TrayPopup::stopClicked,
+                cmds_, &MpdCommands::stop);
+        connect(popup, &TrayPopup::nextClicked,
+                cmds_, &MpdCommands::next);
+        connect(popup, &TrayPopup::previousClicked,
+                cmds_, &MpdCommands::previous);
+
+        trayIcon_->setPopup(popup);
+    }
 
     // MPRIS DBus interface
     mpris_ = new MprisPlayer(conn_, cmds_, this);
@@ -359,12 +400,12 @@ void MainWindow::setupCentralArea()
     nowPlaying_->setMetadataManager(metadataMgr_);
 
     // Order here defines the stack index and must match setupBrowserTabs(),
+    browserStack_->addBrowser(nowPlaying_);
     browserStack_->addBrowser(currentPlaylist_);
     browserStack_->addBrowser(databaseBrowser_);
     browserStack_->addBrowser(fileBrowser_);
     browserStack_->addBrowser(searchBrowser_);
     browserStack_->addBrowser(playlistEditor_);
-    browserStack_->addBrowser(nowPlaying_);
 
     // Browsers start disabled; onConnected() hands them the connection.
     browserStack_->setConnected(conn_->isConnected());
@@ -421,12 +462,12 @@ void MainWindow::setupCentralArea()
 void MainWindow::setupBrowserTabs()
 {
     tabBar_ = new QTabBar(this);
+    tabBar_->addTab(tr("Now Playing"));
     tabBar_->addTab(tr("Current"));
     tabBar_->addTab(tr("Database"));
     tabBar_->addTab(tr("Files"));
     tabBar_->addTab(tr("Search"));
     tabBar_->addTab(tr("Playlist Editor"));
-    tabBar_->addTab(tr("Now Playing"));
     tabBar_->setExpanding(false);
 
     connect(tabBar_, &QTabBar::currentChanged, this, [this](int idx) {
@@ -550,6 +591,20 @@ void MainWindow::onConnected()
     // Очередь сюда приходит от QueueSync (см. connectSignals): перечитывать её здесь
     // означало бы стоять в GUI-потоке все ~914 мс на 65 тыс. позиций.
     browserStack_->setConnected(true);
+
+    // ── Получаем music_directory от MPD для локального поиска обложек ──
+    // Если пользователь не указал каталог в Preferences, используем то,
+    // что возвращает сервер. Это позволяет локальным обложкам работать
+    // без ручной настройки.
+    auto &cfg = Config::instance();
+    if (cfg.musicDirectory().isEmpty()) {
+        const auto mpdDir = cmds_->musicDirectory();
+        if (mpdDir.has_value() && !mpdDir->isEmpty()) {
+            cfg.setMusicDirectory(*mpdDir);
+            metadataMgr_->setMusicDir(*mpdDir);
+            qDebug() << "  music_directory from MPD:" << *mpdDir;
+        }
+    }
 }
 
 void MainWindow::onDisconnected()
@@ -593,7 +648,7 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     // а лирику она тянет сама (ключ внутри гасит повторные запросы).
     nowPlaying_->setSong(song);
     if (song && !song->artist.isEmpty() && !song->album.isEmpty()) {
-        coverWidget_->fetchCover(song->artist, song->album);
+        coverWidget_->fetchCover(song->artist, song->album, song->uri);
     }
 
     // ── Tray notification on track change ────────────────────────────

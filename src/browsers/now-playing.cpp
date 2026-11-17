@@ -69,6 +69,9 @@ void NowPlaying::setMetadataManager(MetadataManager *mgr)
     if (!mgr_)
         return;
 
+    // CoverWidget тоже должен знать о менеджере, иначе fetchCover() чистит обложку.
+    cover_->setMetadataManager(mgr_);
+
     connect(mgr_, &MetadataManager::lyricsReady,
             this, &NowPlaying::onLyricsReady);
     connect(mgr_, &MetadataManager::lyricsNotFound,
@@ -125,7 +128,7 @@ void NowPlaying::setSong(const SongEntry *song)
     if (song->artist.isEmpty() || song->album.isEmpty())
         cover_->clear();
     else
-        cover_->fetchCover(song->artist, song->album);
+        cover_->fetchCover(song->artist, song->album, song->uri);
 
     curArtist_ = song->artist;
     curTitle_  = name;

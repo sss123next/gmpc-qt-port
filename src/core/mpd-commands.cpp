@@ -444,6 +444,27 @@ QStringList MpdCommands::urlSchemes() const
     return readUrlSchemes(conn_);
 }
 
+std::optional<QString> MpdCommands::musicDirectory() const
+{
+    if (!conn_->isConnected())
+        return std::nullopt;
+
+    Connection::ResponseScope scope(*conn_, "config");
+    if (!mpd_send_command(MPD, "config", NULL))
+        return std::nullopt;
+
+    struct mpd_pair *pair;
+    while ((pair = mpd_recv_pair(MPD)) != NULL) {
+        const bool matched = pair->name
+            && QLatin1String(pair->name) == QLatin1String("music_directory");
+        const QString value = QString::fromUtf8(pair->value);
+        mpd_return_pair(MPD, pair);
+        if (matched)
+            return value;
+    }
+    return std::nullopt;
+}
+
 QStringList MpdCommands::tagValues(enum mpd_tag_type tag) const
 {
     QStringList out;

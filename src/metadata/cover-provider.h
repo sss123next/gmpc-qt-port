@@ -24,17 +24,23 @@ class CoverProvider : public QObject {
 public:
     /// @param lastFmApiKey  Empty string disables Last.FM.
     /// @param discogsToken  Empty string = unauthenticated (25 req/min).
+    /// @param musicDir      MPD music directory (for local file lookup).  Empty = skip.
     explicit CoverProvider(const QString &lastFmApiKey,
                            const QString &discogsToken,
                            const QString &cachePath,
+                           const QString &musicDir = QString(),
                            QObject *parent = nullptr);
     ~CoverProvider() override;
 
     /// Initiate an async cover fetch for artist/album.
-    void fetchCover(const QString &artist, const QString &album);
+    /// @param uri  Song file URI from MPD (relative to music dir), for local file lookup.
+    void fetchCover(const QString &artist, const QString &album,
+                    const QString &uri = QString());
 
     /// Use a custom downloader (for test injection).
     void setDownloader(AsyncDownload *dl);
+    /// Update music directory after construction (e.g. from MPD config).
+    void setMusicDir(const QString &dir) { musicDir_ = dir; }
 
 signals:
     /// Emitted with the raw image data (JPEG/PNG) on success.
@@ -59,6 +65,12 @@ private:
     void onDiscogsError(const QString &msg);
     void tryComplete(const QByteArray &data, const QString &label);
 
+    /** @brief Check for local cover files in the song's directory.
+     *  Looks for cover.jpg, cover.png, folder.jpg, folder.png, album.jpg, album.png
+     *  in the directory where the song resides (musicDir + dirname(uri)).
+     *  @returns true if a local file was found and loaded. */
+    bool tryLocalFile(const QString &uri);
+
     QString cacheKey() const;
     QString lastFmApiKey_;
     QString discogsToken_;
@@ -68,6 +80,7 @@ private:
     bool ownsDl_ = true;
     QString artist_;
     QString album_;
+    QString musicDir_;   ///< MPD music directory from Config.
 };
 
 // ── Deezer provider (standalone for testability) ────────────────────────────

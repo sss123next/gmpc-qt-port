@@ -7,9 +7,10 @@
 MetadataManager::MetadataManager(const QString &cachePath,
                                  const QString &lastFmApiKey,
                                  const QString &discogsToken,
+                                 const QString &musicDir,
                                  QObject *parent)
     : QObject(parent)
-    , coverProvider_(new CoverProvider(lastFmApiKey, discogsToken, cachePath, this))
+    , coverProvider_(new CoverProvider(lastFmApiKey, discogsToken, cachePath, musicDir, this))
     , lyricsProvider_(new LrcLibProvider(this))
     , lyricsFallback_(new LyricsOvhProvider(this))
     , cache_(new CacheSqlite(cachePath))
@@ -92,7 +93,8 @@ MetadataManager::MetadataManager(const QString &cachePath,
 
 MetadataManager::~MetadataManager() = default;
 
-void MetadataManager::requestCover(const QString &artist, const QString &album)
+void MetadataManager::requestCover(const QString &artist, const QString &album,
+                                   const QString &uri)
 {
     // Check cache first
     QString key = QString("cover:%1:%2").arg(artist, album);
@@ -106,8 +108,8 @@ void MetadataManager::requestCover(const QString &artist, const QString &album)
     pendingArtist_ = artist;
     pendingAlbum_  = album;
 
-    // Forward to CoverProvider
-    coverProvider_->fetchCover(artist, album);
+    // Forward to CoverProvider (which handles local files first, then cascade)
+    coverProvider_->fetchCover(artist, album, uri);
 }
 
 void MetadataManager::requestLyrics(const QString &artist, const QString &title)
@@ -124,6 +126,11 @@ void MetadataManager::requestLyrics(const QString &artist, const QString &title)
     pendingTitleLyrics_ = title;
 
     lyricsProvider_->fetchLyrics(artist, title);
+}
+
+void MetadataManager::setMusicDir(const QString &dir)
+{
+    coverProvider_->setMusicDir(dir);
 }
 
 void MetadataManager::onCoverData(const QString &artist, const QString &album,

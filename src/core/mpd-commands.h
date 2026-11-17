@@ -269,6 +269,13 @@ public slots:
      */
     virtual QStringList urlSchemes() const;
 
+    /** @brief MPD music_directory из команды `config`.
+     *
+     *  Позволяет найти локальные обложки без ручной настройки.
+     *  @returns абсолютный путь к корню музыки либо nullopt.
+     */
+    [[nodiscard]] virtual std::optional<QString> musicDirectory() const;
+
     /** @brief Значения одного тега по всей базе (`list <tag>`) — строки таблицы
      *  «Tag statistics».
      *

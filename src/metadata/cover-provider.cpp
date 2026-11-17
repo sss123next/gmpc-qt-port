@@ -8,6 +8,9 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QNetworkRequest>
+#include <QFileInfo>
+#include <QDir>
+#include <QFile>
 #include <QDebug>
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -17,6 +20,7 @@
 CoverProvider::CoverProvider(const QString &lastFmApiKey,
                              const QString &discogsToken,
                              const QString &cachePath,
+                             const QString &musicDir,
                              QObject *parent)
     : QObject(parent)
     , lastFmApiKey_(lastFmApiKey)
@@ -25,6 +29,7 @@ CoverProvider::CoverProvider(const QString &lastFmApiKey,
     , dl_(new AsyncDownload(this))
     , discogs_(new DiscogsProvider(discogsToken_, this))
     , ownsDl_(true)
+    , musicDir_(musicDir)
 {
     // Forward Discogs signals
     connect(discogs_, &DiscogsProvider::coverFound,
@@ -37,6 +42,8 @@ CoverProvider::CoverProvider(const QString &lastFmApiKey,
 
 CoverProvider::~CoverProvider()
 {
+    if (dl_)
+        dl_->cancel();
     if (!ownsDl_) dl_ = nullptr;
 }
 
@@ -54,19 +61,32 @@ QString CoverProvider::cacheKey() const
     return QString("cover:%1:%2").arg(artist_, album_);
 }
 
-void CoverProvider::fetchCover(const QString &artist, const QString &album)
+void CoverProvider::fetchCover(const QString &artist, const QString &album,
+                               const QString &uri)
 {
     artist_ = artist;
     album_  = album;
 
+    qDebug() << "CoverProvider::fetchCover" << artist << album << "uri:" << uri;
+
     // Step 1 — check cache
     QByteArray cached = cache_.get(cacheKey());
     if (!cached.isEmpty()) {
+        qDebug() << "  → cache hit";
         emit coverReady(cached);
         return;
     }
 
-    // Step 2 — MusicBrainz (primary, key-free)
+    // Step 2 — local file alongside the song
+    if (!uri.isEmpty() && !musicDir_.isEmpty()) {
+        if (tryLocalFile(uri)) {
+            // tryLocalFile emits coverReady on success
+            return;
+        }
+    }
+
+    qDebug() << "  → cache + local miss, trying MusicBrainz";
+    // Step 3 — MusicBrainz (primary, key-free)
     tryMusicBrainz();
 }
 
@@ -80,11 +100,64 @@ void CoverProvider::tryCache()
     }
 }
 
+// ── Local file lookup ───────────────────────────────────────────────────────
+
+static const char *kLocalCoverNames[] = {
+    "cover.jpg", "cover.png",
+    "folder.jpg", "folder.png",
+    "album.jpg", "album.png",
+    "front.jpg", "front.png",
+    nullptr   // sentinel
+};
+
+bool CoverProvider::tryLocalFile(const QString &uri)
+{
+    // URI — относительный путь внутри music_directory, как его отдал MPD.
+    // Например: "local/Penumbra/2002 - The Last Bewitchment/08_A_Torrent_of_Fears.opus"
+    // Ничего не обрезаем: это честный путь.
+    const QFileInfo fi(uri);
+    const QString songDir = fi.path();  // e.g. "local/Penumbra/2002 - The Last Bewitchment"
+
+    // Build absolute directory path
+    const QDir dir(musicDir_ + QLatin1Char('/') + songDir);
+    if (!dir.exists()) {
+        qDebug() << "  tryLocalFile: dir not found:" << dir.absolutePath();
+        return false;
+    }
+
+    qDebug() << "  tryLocalFile: searching in" << dir.absolutePath();
+    for (const char **name = kLocalCoverNames; *name != nullptr; ++name) {
+        const QString path = dir.absoluteFilePath(QLatin1StringView(*name));
+        QFile file(path);
+        if (!file.exists())
+            continue;
+
+        qDebug() << "  local cover found:" << path;
+        if (!file.open(QIODevice::ReadOnly))
+            continue;
+
+        const QByteArray data = file.readAll();
+        file.close();
+
+        if (data.isEmpty())
+            continue;
+
+        qDebug() << "  local cover loaded:" << data.size() << "bytes";
+        // Cache and emit
+        cache_.put(cacheKey(), data);
+        emit coverReady(data);
+        return true;
+    }
+
+    qDebug() << "  tryLocalFile: no cover file found in" << dir.absolutePath();
+    return false;
+}
+
 // ── MusicBrainz ─────────────────────────────────────────────────────────────
 
 static const char *kMBSearchUrl = "https://musicbrainz.org/ws/2/release/";
 static const char *kCAAUrl      = "https://coverartarchive.org/release/";
-static const char *kUserAgent   = "GMPC-Qt/0.1";
+static const char *kUserAgent   = "GMPC-Qt/0.1 ( Qt/" QT_VERSION_STR " )";
 
 void CoverProvider::tryMusicBrainz()
 {
@@ -96,21 +169,25 @@ void CoverProvider::tryMusicBrainz()
     q.addQueryItem("limit", "1");
     url.setQuery(q);
 
+    qDebug() << "  MusicBrainz: GET" << url.toString();
+
     QNetworkRequest req(url);
     req.setRawHeader("User-Agent", kUserAgent);
     req.setRawHeader("Accept", "application/json");
 
     dl_->get(req, [this](bool ok, const QByteArray &data) {
-        if (!ok) { onMBError(tr("MusicBrainz: network error")); return; }
+        if (!ok) { qDebug() << "  MusicBrainz: network error"; onMBError(tr("MusicBrainz: network error")); return; }
 
         QJsonDocument doc = QJsonDocument::fromJson(data);
-        if (!doc.isObject()) { onMBError(tr("MusicBrainz: invalid JSON")); return; }
+        if (!doc.isObject()) { qDebug() << "  MusicBrainz: invalid JSON"; onMBError(tr("MusicBrainz: invalid JSON")); return; }
 
         QJsonArray releases = doc.object().value("releases").toArray();
-        if (releases.isEmpty()) { onMBNotFound(); return; }
+        if (releases.isEmpty()) { qDebug() << "  MusicBrainz: no releases found"; onMBNotFound(); return; }
 
         QString mbid = releases[0].toObject().value("id").toString();
-        if (mbid.isEmpty()) { onMBNotFound(); return; }
+        if (mbid.isEmpty()) { qDebug() << "  MusicBrainz: empty MBID"; onMBNotFound(); return; }
+
+        qDebug() << "  MusicBrainz: found MBID" << mbid;
 
         // Fetch from Cover Art Archive
         QUrl caaUrl(QString("%1%2/front").arg(kCAAUrl, mbid));
@@ -118,8 +195,9 @@ void CoverProvider::tryMusicBrainz()
         caaReq.setRawHeader("User-Agent", kUserAgent);
 
         dl_->get(caaReq, [this](bool ok2, const QByteArray &data2) {
-            if (!ok2) { onMBNotFound(); return; }
-            if (data2.isEmpty()) { onMBNotFound(); return; }
+            if (!ok2) { qDebug() << "  CAA: network error"; onMBNotFound(); return; }
+            if (data2.isEmpty()) { qDebug() << "  CAA: empty response"; onMBNotFound(); return; }
+            qDebug() << "  CAA: got" << data2.size() << "bytes";
             tryComplete(data2, "MusicBrainz/CAA");
         });
     });
@@ -305,6 +383,8 @@ DeezerProvider::DeezerProvider(QObject *parent)
 
 DeezerProvider::~DeezerProvider()
 {
+    if (dl_)
+        dl_->cancel();
     if (!ownsDl_) dl_ = nullptr;
 }
 

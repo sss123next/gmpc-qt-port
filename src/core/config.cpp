@@ -141,6 +141,40 @@ bool Config::trayEnabled() const
 void Config::setTrayEnabled(bool v)
     { s_.setValue("tray/enabled", v); }
 
+// ── Tray Popup ────────────────────────────────────────────────────────────
+bool Config::trayPopupEnabled() const
+    { return s_.value("tray/popupEnabled", true).toBool(); }
+void Config::setTrayPopupEnabled(bool v)
+    { s_.setValue("tray/popupEnabled", v); }
+int Config::trayPopupPosition() const
+    { return s_.value("tray/popupPosition", 0).toInt(); }
+void Config::setTrayPopupPosition(int pos)
+    { s_.setValue("tray/popupPosition", pos); }
+int Config::trayPopupTimeout() const
+    { return s_.value("tray/popupTimeout", 10).toInt(); }
+void Config::setTrayPopupTimeout(int sec)
+    { s_.setValue("tray/popupTimeout", sec); }
+int Config::trayPopupStyle() const
+    { return s_.value("tray/popupStyle", 0).toInt(); }
+void Config::setTrayPopupStyle(int s)
+    { s_.setValue("tray/popupStyle", s); }
+bool Config::trayPopupShowCover() const
+    { return s_.value("tray/popupShowCover", true).toBool(); }
+void Config::setTrayPopupShowCover(bool v)
+    { s_.setValue("tray/popupShowCover", v); }
+bool Config::trayPopupShowButtons() const
+    { return s_.value("tray/popupShowButtons", true).toBool(); }
+void Config::setTrayPopupShowButtons(bool v)
+    { s_.setValue("tray/popupShowButtons", v); }
+int Config::trayPopupXOffset() const
+    { return s_.value("tray/popupXOffset", 0).toInt(); }
+void Config::setTrayPopupXOffset(int x)
+    { s_.setValue("tray/popupXOffset", x); }
+int Config::trayPopupYOffset() const
+    { return s_.value("tray/popupYOffset", 0).toInt(); }
+void Config::setTrayPopupYOffset(int y)
+    { s_.setValue("tray/popupYOffset", y); }
+
 // ── Profiles ──────────────────────────────────────────────────────────────
 QList<ConnectionProfile> Config::profiles() const
 {
