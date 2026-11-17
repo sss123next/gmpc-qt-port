@@ -104,6 +104,13 @@ void MetadataManager::requestCover(const QString &artist, const QString &album,
         return;
     }
 
+    // Тот же artist/album уже в полёте — не обрываем и не перезапускаем.
+    // Иначе два потребителя (coverWidget_ и nowPlaying_->cover_),
+    // вызывающие requestCover для одного трэка, будут каскадно отменять
+    // друг друга через AsyncDownload::cancel(), удваивая время загрузки.
+    if (pendingArtist_ == artist && pendingAlbum_ == album)
+        return;
+
     // Stash for signal forwarding
     pendingArtist_ = artist;
     pendingAlbum_  = album;
