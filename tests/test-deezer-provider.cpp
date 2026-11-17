@@ -1,54 +1,92 @@
-#define DOCTEST_CONFIG_IMPLEMENT
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
-
-#include <QCoreApplication>
-#include <QObject>
-#include <QUrl>
 
 /**
  * @file test-deezer-provider.cpp
- * @brief Tests for DeezerProvider — construction and non-crash verification.
+ * @brief DeezerProvider tests — seam-based, no network.
  *
- * AsyncDownload::get() is not virtual, so we cannot mock it via subclassing.
- * These tests verify that the API contract doesn't crash on construction/fetch.
- * Full pipeline coverage is verified via CacheSqlite + CoverWidget + integration tests.
- *
- * fetchCover() leaves a reply in flight when the case returns, hence the
- * explicit main() and the drains — see test-network-drain.h.
+ * Feeds crafted JSON into onSearchReply / onImageReply through
+ * the testInject*() seams.  The heavy fuzz coverage lives in
+ * test-provider-parsers.cpp; this file keeps focused cases that
+ * verify the basic signal contracts.
  */
 
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+
 #include "metadata/cover-provider.h"
-#include "test-network-drain.h"
 
-TEST_CASE("DeezerProvider construction and fetchCover does not crash")
+TEST_CASE("Deezer: image found → coverFound fires")
 {
     DeezerProvider prov;
-    bool called = false;
+    bool gotCover = false;
     QObject ctx;
-    QObject::connect(&prov, &DeezerProvider::notFound, &ctx, [&]() { called = true; });
-    QObject::connect(&prov, &DeezerProvider::error, &ctx, [&](const QString &) { called = true; });
-    // May hit real network — test only checks no crash
-    prov.fetchCover("__gmpc_test_nonexistent__", "__gmpc_test_nonexistent__");
-    CHECK(true);
-    waitForIdle();
+    QObject::connect(&prov, &DeezerProvider::coverFound, &ctx,
+                     [&](const QByteArray &) { gotCover = true; });
+
+    prov.testInjectImageReply(true, QByteArray("jpeg_data"));
+    CHECK(gotCover);
 }
 
-TEST_CASE("DeezerProvider multiple fetchCover calls don't crash")
+TEST_CASE("Deezer: image empty → error fires")
 {
     DeezerProvider prov;
-    prov.fetchCover("A", "B");
-    prov.fetchCover("C", "D");
-    CHECK(true);
-    waitForIdle();
+    QString errorMsg;
+    QObject ctx;
+    QObject::connect(&prov, &DeezerProvider::error, &ctx,
+                     [&](const QString &m) { errorMsg = m; });
+
+    prov.testInjectImageReply(true, QByteArray());
+    CHECK(errorMsg.contains("failed", Qt::CaseInsensitive));
 }
 
-int main(int argc, char *argv[])
+TEST_CASE("Deezer: image network error → error fires")
 {
-    doctest::Context ctx(argc, argv);
-    QCoreApplication app(argc, argv);
-    int result = ctx.run();
-    // Flush whatever the cases left in flight while the application — and the
-    // network manager's worker thread — are still alive.
-    waitForIdle(kDrainMs);
-    return result;
+    DeezerProvider prov;
+    QString errorMsg;
+    QObject ctx;
+    QObject::connect(&prov, &DeezerProvider::error, &ctx,
+                     [&](const QString &m) { errorMsg = m; });
+
+    prov.testInjectImageReply(false, QByteArray("data"));
+    CHECK(errorMsg.contains("failed", Qt::CaseInsensitive));
+}
+
+TEST_CASE("Deezer: search empty data → notFound")
+{
+    DeezerProvider prov;
+    bool notFound = false;
+    QObject ctx;
+    QObject::connect(&prov, &DeezerProvider::notFound, &ctx,
+                     [&]() { notFound = true; });
+
+    QJsonObject root; root["data"] = QJsonArray();
+    prov.testInjectSearchReply(true, QJsonDocument(root).toJson());
+    CHECK(notFound);
+}
+
+TEST_CASE("Deezer: search missing data → notFound")
+{
+    DeezerProvider prov;
+    bool notFound = false;
+    QObject ctx;
+    QObject::connect(&prov, &DeezerProvider::notFound, &ctx,
+                     [&]() { notFound = true; });
+
+    QJsonObject root; root["foo"] = "bar";
+    prov.testInjectSearchReply(true, QJsonDocument(root).toJson());
+    CHECK(notFound);
+}
+
+TEST_CASE("Deezer: search with valid result triggers image download (no crash)")
+{
+    DeezerProvider prov;
+    QJsonObject artist; artist["name"] = "Test";
+    QJsonObject item; item["artist"] = artist; item["cover_big"] = "https://example.com/c.jpg";
+    QJsonArray data; data.append(item);
+    QJsonObject root; root["data"] = data;
+    // Создаёт dl_->get() на реальный URL — сигнал не придёт, но краша быть не должно.
+    prov.testInjectSearchReply(true, QJsonDocument(root).toJson());
+    CHECK(true);
 }

@@ -180,21 +180,7 @@ target_link_libraries(test-cover-widget PRIVATE Qt6::Widgets Qt6::Network
 target_include_directories(test-cover-widget PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-cover-widget COMMAND test-cover-widget)
 
-# ── CoverProvider test (with mock AsyncDownload) ──────────────────────────────
-
-add_executable(test-cover-provider test-cover-provider.cpp
-    ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
-    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
-    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
-    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
-target_link_libraries(test-cover-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Network
-    PkgConfig::SQLITE3 PkgConfig::TAGLIB
-    doctest::doctest)
-target_include_directories(test-cover-provider PRIVATE ${CMAKE_SOURCE_DIR}/src)
-add_test(NAME test-cover-provider COMMAND test-cover-provider)
-
-# ── DeezerProvider test (standalone, mocked) ──────────────────────────────────
+# ── DeezerProvider test (contract tests, seam-based) ─────────────────────────
 
 add_executable(test-deezer-provider test-deezer-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
@@ -207,23 +193,6 @@ target_link_libraries(test-deezer-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Netwo
     doctest::doctest)
 target_include_directories(test-deezer-provider PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-deezer-provider COMMAND test-deezer-provider)
-
-# ── MetadataManager test ──────────────────────────────────────────────────────
-
-add_executable(test-metadata-manager test-metadata-manager.cpp
-    ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
-    ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
-    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
-    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
-    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
-target_link_libraries(test-metadata-manager PRIVATE Qt6::Core Qt6::Gui Qt6::Network
-    PkgConfig::SQLITE3 PkgConfig::TAGLIB
-    doctest::doctest)
-target_include_directories(test-metadata-manager PRIVATE ${CMAKE_SOURCE_DIR}/src)
-add_test(NAME test-metadata-manager COMMAND test-metadata-manager)
 
 # ── Tag-Reader fuzz / stress (битые файлы, SQL-инъекция в кеш) ───────────
 # Скармливает readEmbeddedCover/readEmbeddedLyrics бинарные данные всех

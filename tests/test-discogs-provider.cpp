@@ -1,53 +1,98 @@
-#define DOCTEST_CONFIG_IMPLEMENT
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include <QCoreApplication>
+/**
+ * @file test-discogs-provider.cpp
+ * @brief DiscogsProvider tests — seam-based, no network.
+ *
+ * Feeds crafted JSON into onSearchReply / onImageReply through
+ * the testInject*() seams.  The heavy fuzz coverage lives in
+ * test-provider-parsers.cpp; this file keeps focused contract tests.
+ *
+ * Set DISCOGS_TEST_TOKEN to run the optional live integration case.
+ */
+
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
 
-/**
- * @file test-discogs-provider.cpp
- * @brief Tests for DiscogsProvider (standalone, no mock).
- *
- * AsyncDownload::get() is non-virtual so mocking requires real HTTP calls.
- * These are smoke tests — construct, call fetchCover, verify signals fire.
- * Default test: no token = unauthenticated mode (25 req/min).
- *
- * For a real integration test, set DISCOGS_TEST_TOKEN env var.
- *
- * fetchCover() starts real HTTP traffic that outlives the case, hence the
- * explicit main() and the drains — see test-network-drain.h.
- */
-
 #include "providers/discogs.h"
-#include "test-network-drain.h"
 
-TEST_CASE("DiscogsProvider construction with empty token")
+TEST_CASE("Discogs: search found → triggers image download")
 {
     DiscogsProvider prov(QString(), nullptr);
-    CHECK(true);  // no crash
-}
-
-TEST_CASE("DiscogsProvider smoke — nonexistent artist")
-{
-    DiscogsProvider prov(QString(), nullptr);
-    bool gotNotFound = false;
-    bool gotError = false;
-    QObject ctx;
-    QObject::connect(&prov, &DiscogsProvider::notFound, &ctx, [&]() { gotNotFound = true; });
-    QObject::connect(&prov, &DiscogsProvider::error, &ctx, [&](const QString &) { gotError = true; });
-
-    prov.fetchCover("zzz_nonexistent_artist_9876", "zzz_nonexistent_album_5432");
-
-    // Smoke test: should not crash. Actual result depends on network availability.
-    // If network is down or rate-limited, either notFound or error will fire.
-    // Test passes either way — we just verify the async flow completes sanely.
+    QJsonObject result;
+    result["cover_image"] = "https://example.com/c.jpg";
+    QJsonArray results; results.append(result);
+    QJsonObject root; root["results"] = results;
+    // Создаёт dl_->get() на реальный URL — не крашит, хотя сигнал не придёт.
+    prov.testInjectSearchReply(true, QJsonDocument(root).toJson());
     CHECK(true);
-    waitForIdle();
 }
 
-TEST_CASE("DiscogsProvider with token from env")
+TEST_CASE("Discogs: search empty results → notFound")
+{
+    DiscogsProvider prov(QString(), nullptr);
+    bool notFound = false;
+    QObject ctx;
+    QObject::connect(&prov, &DiscogsProvider::notFound, &ctx,
+                     [&]() { notFound = true; });
+
+    QJsonObject root; root["results"] = QJsonArray();
+    prov.testInjectSearchReply(true, QJsonDocument(root).toJson());
+    CHECK(notFound);
+}
+
+TEST_CASE("Discogs: search error → error signal")
+{
+    DiscogsProvider prov(QString(), nullptr);
+    QString errorMsg;
+    QObject ctx;
+    QObject::connect(&prov, &DiscogsProvider::error, &ctx,
+                     [&](const QString &m) { errorMsg = m; });
+
+    QJsonObject root; root["message"] = "rate limited";
+    prov.testInjectSearchReply(true, QJsonDocument(root).toJson());
+    CHECK(errorMsg.contains("rate", Qt::CaseInsensitive));
+}
+
+TEST_CASE("Discogs: search binary garbage → error signal")
+{
+    DiscogsProvider prov(QString(), nullptr);
+    QString errorMsg;
+    QObject ctx;
+    QObject::connect(&prov, &DiscogsProvider::error, &ctx,
+                     [&](const QString &m) { errorMsg = m; });
+
+    prov.testInjectSearchReply(true, QByteArray(4096, '\x00'));
+    CHECK(errorMsg.contains("invalid", Qt::CaseInsensitive));
+}
+
+TEST_CASE("Discogs: image found → coverFound")
+{
+    DiscogsProvider prov(QString(), nullptr);
+    bool gotCover = false;
+    QObject ctx;
+    QObject::connect(&prov, &DiscogsProvider::coverFound, &ctx,
+                     [&](const QByteArray &) { gotCover = true; });
+
+    prov.testInjectImageReply(true, QByteArray("image_data"));
+    CHECK(gotCover);
+}
+
+TEST_CASE("Discogs: image empty → error")
+{
+    DiscogsProvider prov(QString(), nullptr);
+    QString errorMsg;
+    QObject ctx;
+    QObject::connect(&prov, &DiscogsProvider::error, &ctx,
+                     [&](const QString &m) { errorMsg = m; });
+
+    prov.testInjectImageReply(true, QByteArray());
+    CHECK(errorMsg.contains("failed", Qt::CaseInsensitive));
+}
+
+TEST_CASE("Discogs: live integration (DISCOGS_TEST_TOKEN)")
 {
     const char *envToken = getenv("DISCOGS_TEST_TOKEN");
     if (!envToken || !*envToken) {
@@ -57,26 +102,11 @@ TEST_CASE("DiscogsProvider with token from env")
 
     DiscogsProvider prov(QString::fromLatin1(envToken), nullptr);
     bool gotCover = false;
-    bool gotNotFound = false;
     QObject ctx;
-    QObject::connect(&prov, &DiscogsProvider::coverFound, &ctx, [&](const QByteArray &) { gotCover = true; });
-    QObject::connect(&prov, &DiscogsProvider::notFound, &ctx, [&]() { gotNotFound = true; });
+    QObject::connect(&prov, &DiscogsProvider::coverFound, &ctx,
+                     [&](const QByteArray &) { gotCover = true; });
 
-    // Known release that should exist
     prov.fetchCover("The Beatles", "Abbey Road");
-
-    // Test is async — we just verify setup doesn't crash
+    // Асинхронно — проверяем только что не упало
     CHECK(true);
-    waitForIdle();
-}
-
-int main(int argc, char *argv[])
-{
-    doctest::Context ctx(argc, argv);
-    QCoreApplication app(argc, argv);
-    int result = ctx.run();
-    // Flush whatever the cases left in flight while the application — and the
-    // network manager's worker thread — are still alive.
-    waitForIdle(kDrainMs);
-    return result;
 }
