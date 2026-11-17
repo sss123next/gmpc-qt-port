@@ -416,6 +416,7 @@ void MainWindow::setupCentralArea()
     playlistEditor_  = new PlaylistEditor(conn_, cmds_, this);
     // Странице нужен менеджер метаданных: она единственный потребитель лирики.
     nowPlaying_      = new NowPlaying(this);
+    nowPlaying_->setConnection(conn_);
     nowPlaying_->setMetadataManager(metadataMgr_);
 
     // Apply search-as-you-type config.

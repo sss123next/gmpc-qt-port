@@ -23,6 +23,17 @@ struct SongEntry {
     QString album;
     QString uri;        ///< file name/URI — fallback when there is no Title tag
     int duration = 0;   ///< seconds
+    // ── Additional MPD tags (empty if missing) ───────────────────────
+    QString track;           ///< track number  ("1" / "1/10")
+    QString disc;            ///< disc number   ("1" / "1/2")
+    QString date;            ///< date / year   ("2001" / "2001-03-13")
+    QString genre;
+    QString composer;
+    QString performer;
+    QString label;           ///< record label / publisher
+    QString comment;
+    QString musicbrainzArtistId;
+    QString musicbrainzAlbumId;
 };
 
 struct mpd_song;
