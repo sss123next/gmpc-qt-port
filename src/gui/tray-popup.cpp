@@ -11,9 +11,8 @@
 #include <QPixmap>
 #include <QPainter>
 #include <QPainterPath>
-#include <QEnterEvent>
 #include <QStyleOption>
-#include <QWindow>
+#include <QDebug>
 
 // ── Geometry constants ──────────────────────────────────────────────────────
 
@@ -22,22 +21,18 @@ static constexpr int kMaxPopupW     = 400;  ///< Maximum popup width.
 static constexpr int kRadius        = 8;    ///< Corner radius for the background.
 static constexpr int kMinPopupW     = 260;  ///< Minimum popup width.
 static constexpr int kPopupMargin   = 8;    ///< Internal margin around content.
-static constexpr int kIconGap       = 4;    ///< Gap between popup and tray icon.
 
 // ── Constructor ─────────────────────────────────────────────────────────────
 
 TrayPopup::TrayPopup(QWidget *parent)
     : QWidget(parent)
 {
-    // Frameless popup window, always on top.  Qt::ToolTip avoids taskbar entry
-    // and keeps the window manager from stealing focus from the main window.
+    // Frameless window, always on top, no taskbar entry.
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint
                    | Qt::WindowStaysOnTopHint | Qt::ToolTip);
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_ShowWithoutActivating);
     setAttribute(Qt::WA_OpaquePaintEvent, false);
-    // Mouse tracking for enter/leave while cursor is over the popup.
-    setMouseTracking(true);
 
     autoHideTimer_ = new QTimer(this);
     autoHideTimer_->setSingleShot(true);
@@ -78,7 +73,6 @@ void TrayPopup::createLayout()
     titleLabel_->setTextFormat(Qt::PlainText);
     titleLabel_->setSizePolicy(QSizePolicy::MinimumExpanding,
                                QSizePolicy::Preferred);
-    // Ellipsis when too long.
     titleLabel_->setStyleSheet(QStringLiteral("font-weight: bold; border: none;"));
     titleLabel_->setTextInteractionFlags(Qt::NoTextInteraction);
 
@@ -109,7 +103,6 @@ void TrayPopup::createLayout()
         b->setFixedSize(24, 24);
         b->setFlat(true);
         b->setCursor(Qt::PointingHandCursor);
-        // Borderless: style inherits from container.
         return b;
     };
 
@@ -150,16 +143,23 @@ void TrayPopup::setMetadataManager(MetadataManager *mgr)
         connect(mgr_, &MetadataManager::coverReady, this,
                 [this](const QString &artist, const QString &album,
                        const QByteArray &data) {
-                    // Ignore stale responses for older songs.
-                    if (artist != lastArtist_ || album != lastAlbum_)
+                    qDebug() << "TrayPopup::coverReady" << artist << album
+                             << "lastArtist_" << lastArtist_ << "lastAlbum_" << lastAlbum_
+                             << "data.size()" << data.size();
+                    if (artist != lastArtist_ || album != lastAlbum_) {
+                        qDebug() << "  → stale, ignoring";
                         return;
+                    }
                     QPixmap pm;
                     if (pm.loadFromData(data)) {
+                        qDebug() << "  → setting pixmap";
                         QPixmap scaled = pm.scaled(
                             kCoverPx, kCoverPx, Qt::KeepAspectRatio,
                             Qt::SmoothTransformation);
                         coverLabel_->setPixmap(scaled);
                         coverLabel_->setText({});
+                    } else {
+                        qDebug() << "  → loadFromData FAILED";
                     }
                 });
         connect(mgr_, &MetadataManager::coverNotFound, this,
@@ -172,7 +172,7 @@ void TrayPopup::setMetadataManager(MetadataManager *mgr)
 
 // ── Show / Update ───────────────────────────────────────────────────────────
 
-void TrayPopup::showSong(const SongEntry *song, const QPoint &iconPos)
+void TrayPopup::showSong(const SongEntry *song)
 {
     if (!song) {
         clear();
@@ -184,11 +184,13 @@ void TrayPopup::showSong(const SongEntry *song, const QPoint &iconPos)
                          ? song->uri
                          : song->title);
     artistLabel_->setText(song->artist);
-    const QString albumText = song->album;
-    albumLabel_->setText(albumText);
+    albumLabel_->setText(song->album);
 
     // Update cover if artist/album changed.
     if (song->artist != lastArtist_ || song->album != lastAlbum_) {
+        qDebug() << "TrayPopup::showSong cover changed"
+                 << "artist:" << lastArtist_ << "→" << song->artist
+                 << "album:" << lastAlbum_ << "→" << song->album;
         lastArtist_ = song->artist;
         lastAlbum_  = song->album;
         if (mgr_ && !song->artist.isEmpty() && !song->album.isEmpty()) {
@@ -198,6 +200,8 @@ void TrayPopup::showSong(const SongEntry *song, const QPoint &iconPos)
             coverLabel_->setPixmap(QPixmap());
             coverLabel_->setText(QStringLiteral("♪"));
         }
+    } else {
+        qDebug() << "TrayPopup::showSong cover unchanged — skipping fetch";
     }
 
     // Resize to fit content, clamp to reasonable width.
@@ -207,7 +211,7 @@ void TrayPopup::showSong(const SongEntry *song, const QPoint &iconPos)
     container_->resize(w, container_->minimumSizeHint().height());
     adjustSize();
 
-    reposition(iconPos);
+    positionOnScreen();
     startAutoHide();
 
     if (!isVisible())
@@ -229,47 +233,18 @@ void TrayPopup::clear()
 
 // ── Positioning ─────────────────────────────────────────────────────────────
 
-void TrayPopup::reposition(const QPoint &iconPos)
+void TrayPopup::positionOnScreen()
 {
-    const QScreen *screen = QApplication::screenAt(iconPos);
-    if (!screen)
-        screen = QApplication::primaryScreen();
-    const QRect screenGeom = screen ? screen->availableGeometry()
-                                    : QRect(0, 0, 1920, 1080);
-
+    const QScreen *screen = QApplication::primaryScreen();
+    if (!screen) {
+        move(100, 100);
+        return;
+    }
+    const QRect g = screen->availableGeometry();
     const int pw = frameGeometry().width();
     const int ph = frameGeometry().height();
-
-    int x = 0, y = 0;
-
-    switch (position_) {
-    case AtCursor:
-        x = QCursor::pos().x();
-        y = QCursor::pos().y() + kIconGap;
-        break;
-    case NearTrayTopLeft:
-        x = iconPos.x() + kIconGap + xOffset_;
-        y = iconPos.y() - ph - kIconGap + yOffset_;
-        break;
-    case NearTrayTopRight:
-        x = iconPos.x() - pw - kIconGap + xOffset_;
-        y = iconPos.y() - ph - kIconGap + yOffset_;
-        break;
-    case NearTrayBottomLeft:
-        x = iconPos.x() + kIconGap + xOffset_;
-        y = iconPos.y() + kIconGap + yOffset_;
-        break;
-    case NearTrayBottomRight:
-        x = iconPos.x() - pw - kIconGap + xOffset_;
-        y = iconPos.y() + kIconGap + yOffset_;
-        break;
-    }
-
-    // Clamp to screen.
-    x = qBound(screenGeom.left(), x, screenGeom.right() - pw);
-    y = qBound(screenGeom.top(),  y, screenGeom.bottom() - ph);
-
-    move(x, y);
+    move((g.width()  - pw) / 2,
+         (g.height() - ph) / 2);
 }
 
 // ── Auto-hide ───────────────────────────────────────────────────────────────
@@ -286,18 +261,6 @@ void TrayPopup::stopAutoHide()
     autoHideTimer_->stop();
 }
 
-void TrayPopup::enterEvent(QEnterEvent * /*event*/)
-{
-    // Cursor entered popup — postpone auto-hide.
-    stopAutoHide();
-}
-
-void TrayPopup::leaveEvent(QEvent * /*event*/)
-{
-    // Cursor left popup — restart auto-hide.
-    startAutoHide();
-}
-
 // ── Paint: rounded-rect background ──────────────────────────────────────────
 
 void TrayPopup::paintEvent(QPaintEvent * /*event*/)
@@ -310,8 +273,6 @@ void TrayPopup::paintEvent(QPaintEvent * /*event*/)
     QPainterPath path;
     path.addRoundedRect(QRectF(cr), kRadius, kRadius);
 
-    // Fill with the ACTUAL preset colour, not the palette (which the
-    // stylesheet never touches).
     p.fillPath(path, QColor(presetBg_));
     p.setPen(QPen(QColor(presetFg_), 1));
     p.drawPath(path);
@@ -337,11 +298,8 @@ void TrayPopup::applyStyle()
         presetCoverBg_ = QStringLiteral("#ffffff");
     }
 
-    // Container draws NO background — paintEvent handles the rounded rect
-    // fill and border using presetBg_/presetFg_ directly.
     container_->setAttribute(Qt::WA_TranslucentBackground, true);
 
-    // Labels.
     const QString labelStyle = QStringLiteral(
         "color: %1; background: transparent; border: none; padding: 0;")
         .arg(presetFg_);
@@ -349,12 +307,10 @@ void TrayPopup::applyStyle()
     artistLabel_->setStyleSheet(labelStyle);
     albumLabel_->setStyleSheet(labelStyle);
 
-    // Cover background.
     coverLabel_->setStyleSheet(QStringLiteral(
         "background: %1; border: none; font-size: 28px; color: %2;")
         .arg(presetCoverBg_, presetFg_));
 
-    // Transport buttons.
     const QString btnStyle = QStringLiteral(
         "QPushButton { background: %1; color: %2; border: none;"
         "  border-radius: 3px; padding: 2px; }"
@@ -373,11 +329,6 @@ void TrayPopup::applyStyle()
 
 // ── Setters ─────────────────────────────────────────────────────────────────
 
-void TrayPopup::setPosition(Position pos)
-{
-    position_ = pos;
-}
-
 void TrayPopup::setStylePreset(StylePreset preset)
 {
     style_ = preset;
@@ -386,7 +337,7 @@ void TrayPopup::setStylePreset(StylePreset preset)
 
 void TrayPopup::setTimeoutSec(int sec)
 {
-    timeoutSec_ = qMax(1, sec);
+    timeoutSec_ = qMax(0, sec);
 }
 
 void TrayPopup::setShowCover(bool show)
@@ -401,10 +352,4 @@ void TrayPopup::setShowButtons(bool show)
     showButtons_ = show;
     buttonBar_->setVisible(show);
     adjustSize();
-}
-
-void TrayPopup::setOffsets(int x, int y)
-{
-    xOffset_ = x;
-    yOffset_ = y;
 }

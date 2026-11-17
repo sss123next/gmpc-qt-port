@@ -256,31 +256,24 @@ void MainWindow::setupUi()
     trayIcon_ = new TrayIcon(conn_, cmds_, this, this);
     trayIcon_->setVisible(cfg.trayEnabled());
 
-    // ── Tray popup (borderless window with cover + info) ──────────
-    if (cfg.trayPopupEnabled()) {
-        auto *popup = new TrayPopup(this);
-        popup->setMetadataManager(metadataMgr_);
-        popup->setPosition(
-            static_cast<TrayPopup::Position>(cfg.trayPopupPosition()));
-        popup->setStylePreset(
-            static_cast<TrayPopup::StylePreset>(cfg.trayPopupStyle()));
-        popup->setTimeoutSec(cfg.trayPopupTimeout());
-        popup->setShowCover(cfg.trayPopupShowCover());
-        popup->setShowButtons(cfg.trayPopupShowButtons());
-        popup->setOffsets(cfg.trayPopupXOffset(), cfg.trayPopupYOffset());
+    // ── Borderless mini-player window (detached from tray) ────────────
+    trayPopup_ = new TrayPopup(this);
+    trayPopup_->setMetadataManager(metadataMgr_);
+    trayPopup_->setStylePreset(
+        static_cast<TrayPopup::StylePreset>(cfg.trayPopupStyle()));
+    trayPopup_->setTimeoutSec(cfg.trayPopupTimeout());
+    trayPopup_->setShowCover(cfg.trayPopupShowCover());
+    trayPopup_->setShowButtons(cfg.trayPopupShowButtons());
 
-        // Connect transport buttons
-        connect(popup, &TrayPopup::playPauseClicked,
-                cmds_, &MpdCommands::togglePause);
-        connect(popup, &TrayPopup::stopClicked,
-                cmds_, &MpdCommands::stop);
-        connect(popup, &TrayPopup::nextClicked,
-                cmds_, &MpdCommands::next);
-        connect(popup, &TrayPopup::previousClicked,
-                cmds_, &MpdCommands::previous);
-
-        trayIcon_->setPopup(popup);
-    }
+    // Connect transport buttons
+    connect(trayPopup_, &TrayPopup::playPauseClicked,
+            cmds_, &MpdCommands::togglePause);
+    connect(trayPopup_, &TrayPopup::stopClicked,
+            cmds_, &MpdCommands::stop);
+    connect(trayPopup_, &TrayPopup::nextClicked,
+            cmds_, &MpdCommands::next);
+    connect(trayPopup_, &TrayPopup::previousClicked,
+            cmds_, &MpdCommands::previous);
 
     // MPRIS DBus interface
     mpris_ = new MprisPlayer(conn_, cmds_, this);
@@ -378,6 +371,22 @@ void MainWindow::setupMenuBar()
     auto *view = menuBar()->addMenu(tr("&View"));
     // Оригинал держал этот пункт в меню View («_View server information»).
     view->addAction(tr("Server &Information..."), this, &MainWindow::showServerInfo);
+    view->addSeparator();
+    auto *miniAct = view->addAction(tr("&Mini Player"));
+    miniAct->setCheckable(true);
+    miniAct->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
+    QObject::connect(miniAct, &QAction::triggered, this, [this]() {
+        if (trayPopup_->isVisible()) {
+            trayPopup_->hide();
+        } else {
+            const SongEntry *song = playlistModel_->currentSong();
+            if (song)
+                trayPopup_->showSong(song);
+            else
+                trayPopup_->show();
+        }
+    });
+    miniAct->setChecked(trayPopup_->isVisible());
 
     auto *help = menuBar()->addMenu(tr("&Help"));
     help->addAction(tr("&About"), this, &MainWindow::showAbout);
@@ -636,6 +645,14 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     playlistModel_->setCurrentSong(s.songId, s.songPos);
     const SongEntry *song = playlistModel_->currentSong();
     trayIcon_->updateStatus(s, song);
+
+    // Keep mini-player up-to-date when it's visible.
+    if (trayPopup_ && trayPopup_->isVisible()) {
+        if (song)
+            trayPopup_->showSong(song);
+        else
+            trayPopup_->clear();
+    }
 
     // Only update song-dependent widgets when the song actually changes.
     const int songId = song ? song->id : -1;
