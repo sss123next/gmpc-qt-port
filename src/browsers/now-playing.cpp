@@ -76,6 +76,7 @@ NowPlaying::NowPlaying(QWidget *parent)
     for (QLabel *l : {artistLabel_, titleLabel_, albumLabel_}) {
         l->setWordWrap(true);
         l->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+        l->setTextInteractionFlags(Qt::TextSelectableByMouse);
         infoCol->addWidget(l);
     }
     infoCol->addStretch(1);
