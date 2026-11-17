@@ -173,8 +173,10 @@ void NowPlaying::setSong(const SongEntry *song)
 
 void NowPlaying::refreshMetadata()
 {
-    // Save selected tab before rebuilding.
-    const int prevTab = tabs_->currentIndex();
+    // Save selected tab title before rebuilding — index may shift if
+    // the new track has fewer or differently ordered tabs.
+    const QString prevTab = tabs_->currentIndex() >= 0
+        ? tabs_->tabText(tabs_->currentIndex()) : QString();
 
     // Clear old tabs.
     tabs_->clear();
@@ -360,8 +362,17 @@ void NowPlaying::refreshMetadata()
 
     if (tabs_->count() > 0) {
         tabs_->setVisible(true);
-        tabs_->setCurrentIndex(prevTab >= 0 && prevTab < tabs_->count()
-                               ? prevTab : 0);
+        // Restore previously selected tab by title (index-safe).
+        int restoreIdx = 0;
+        if (!prevTab.isEmpty()) {
+            for (int i = 0; i < tabs_->count(); ++i) {
+                if (tabs_->tabText(i) == prevTab) {
+                    restoreIdx = i;
+                    break;
+                }
+            }
+        }
+        tabs_->setCurrentIndex(restoreIdx);
     } else {
         tabs_->setVisible(false);
     }
