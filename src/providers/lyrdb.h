@@ -42,6 +42,9 @@ signals:
     /// Emitted on network error.
     void error(const QString &message);
 
+public:   // ── Test seam (exposed for fuzz testing, no network) ──────────
+    void testInjectReply(bool ok, const QByteArray &data) { onReply(ok, data); }
+
 private:
     void onReply(bool ok, const QByteArray &data);
 

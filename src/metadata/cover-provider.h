@@ -42,6 +42,18 @@ public:
     /// Update music directory after construction (e.g. from MPD config).
     void setMusicDir(const QString &dir) { musicDir_ = dir; }
 
+    // ── Test seams (exposed for fuzz testing) ──────────────────────────────
+    /** @brief Inject artist/album so cacheKey() works without a prior
+     *         fetchCover() call. */
+    void testSetArtistAlbum(const QString &artist, const QString &album)
+        { artist_ = artist; album_ = album; }
+    /** @brief Feed a complete image directly (caches + emits coverReady).
+     *  Must call testSetArtistAlbum() first. */
+    void testInjectComplete(const QByteArray &data, const QString &label)
+        { if (!data.isEmpty()) tryComplete(data, label); }
+    /** @brief Force a local file scan with given URI.  Needs musicDir_ set. */
+    bool testTryLocalFile(const QString &uri) { return tryLocalFile(uri); }
+
 signals:
     /// Emitted with the raw image data (JPEG/PNG) on success.
     void coverReady(const QByteArray &data);
@@ -101,6 +113,12 @@ signals:
     void coverFound(const QByteArray &imageData);
     void notFound();
     void error(const QString &message);
+
+public:   // ── Test seams (exposed for fuzz testing, no network) ──────────
+    void testInjectSearchReply(bool ok, const QByteArray &data)
+        { onSearchReply(ok, data); }
+    void testInjectImageReply(bool ok, const QByteArray &data)
+        { onImageReply(ok, data); }
 
 private:
     void onSearchReply(bool ok, const QByteArray &data);

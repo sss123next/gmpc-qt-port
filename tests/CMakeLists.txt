@@ -168,13 +168,14 @@ add_executable(test-cover-widget test-cover-widget.cpp
     ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-cover-widget PRIVATE Qt6::Widgets Qt6::Network
-    PkgConfig::SQLITE3
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
     doctest::doctest)
 target_include_directories(test-cover-widget PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-cover-widget COMMAND test-cover-widget)
@@ -183,11 +184,12 @@ add_test(NAME test-cover-widget COMMAND test-cover-widget)
 
 add_executable(test-cover-provider test-cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-cover-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Network
-    PkgConfig::SQLITE3
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
     doctest::doctest)
 target_include_directories(test-cover-provider PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-cover-provider COMMAND test-cover-provider)
@@ -196,11 +198,12 @@ add_test(NAME test-cover-provider COMMAND test-cover-provider)
 
 add_executable(test-deezer-provider test-deezer-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-deezer-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Network
-    PkgConfig::SQLITE3
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
     doctest::doctest)
 target_include_directories(test-deezer-provider PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-deezer-provider COMMAND test-deezer-provider)
@@ -210,16 +213,30 @@ add_test(NAME test-deezer-provider COMMAND test-deezer-provider)
 add_executable(test-metadata-manager test-metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-metadata-manager PRIVATE Qt6::Core Qt6::Gui Qt6::Network
-    PkgConfig::SQLITE3
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
     doctest::doctest)
 target_include_directories(test-metadata-manager PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-metadata-manager COMMAND test-metadata-manager)
+
+# ── Tag-Reader fuzz / stress (битые файлы, SQL-инъекция в кеш) ───────────
+# Скармливает readEmbeddedCover/readEmbeddedLyrics бинарные данные всех
+# возможных форматов, в том числе заведомо битые / злонамеренные.
+
+add_executable(test-tag-reader-fuzz test-tag-reader-fuzz.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp)
+target_link_libraries(test-tag-reader-fuzz PRIVATE Qt6::Core Qt6::Gui
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
+    doctest::doctest)
+target_include_directories(test-tag-reader-fuzz PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-tag-reader-fuzz COMMAND test-tag-reader-fuzz)
 
 # ── DiscogsProvider test ────────────────────────────────────────────────────
 
@@ -230,6 +247,24 @@ target_link_libraries(test-discogs-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Netw
     doctest::doctest)
 target_include_directories(test-discogs-provider PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-discogs-provider COMMAND test-discogs-provider)
+
+# ── Парсеры сетевых провайдеров — fuzz / stress (без сети) ────────────────
+# Скармливает битые JSON-ответы прямо в onReply() через testInject*() швы.
+# Собирает ВСЕ provider-файлы, чтобы сигналы шли в настоящую реализацию.
+
+add_executable(test-provider-parsers test-provider-parsers.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp)
+target_link_libraries(test-provider-parsers PRIVATE Qt6::Core Qt6::Gui Qt6::Network
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
+    doctest::doctest)
+target_include_directories(test-provider-parsers PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-provider-parsers COMMAND test-provider-parsers)
 
 # ── MPD_* environment variable test ───────────────────────────────────────
 
@@ -255,6 +290,14 @@ target_link_libraries(test-mpd-error PRIVATE testcore Qt6::Widgets Qt6::Test
     doctest::doctest PkgConfig::LIBMPDCLIENT)
 target_include_directories(test-mpd-error PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-mpd-error COMMAND test-mpd-error)
+
+# ── Fuzz / stress тесты протокола MPD (битые пути, коды ошибок, env) ──────
+
+add_executable(test-mpd-fuzz test-mpd-fuzz.cpp)
+target_link_libraries(test-mpd-fuzz PRIVATE testcore Qt6::Core Qt6::Widgets Qt6::Test
+    doctest::doctest PkgConfig::LIBMPDCLIENT)
+target_include_directories(test-mpd-fuzz PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-mpd-fuzz COMMAND test-mpd-fuzz)
 
 # ── Движок поиска (сборка шагов протокола, отмена устаревших ответов) ───────
 
@@ -323,6 +366,7 @@ add_executable(test-now-playing test-now-playing.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/now-playing.cpp
     ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
@@ -330,7 +374,8 @@ add_executable(test-now-playing test-now-playing.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-now-playing PRIVATE testcore Qt6::Widgets Qt6::Network
-    PkgConfig::SQLITE3 doctest::doctest trompeloeil::trompeloeil)
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
+    doctest::doctest trompeloeil::trompeloeil)
 target_include_directories(test-now-playing PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-now-playing COMMAND test-now-playing)
 
@@ -342,6 +387,7 @@ add_test(NAME test-now-playing COMMAND test-now-playing)
 add_executable(test-song-info-dialog test-song-info-dialog.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/song-info-dialog.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
@@ -349,7 +395,8 @@ add_executable(test-song-info-dialog test-song-info-dialog.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
 target_link_libraries(test-song-info-dialog PRIVATE testcore Qt6::Widgets
-    Qt6::Network PkgConfig::SQLITE3 doctest::doctest trompeloeil::trompeloeil
+    Qt6::Network PkgConfig::SQLITE3 PkgConfig::TAGLIB
+    doctest::doctest trompeloeil::trompeloeil
     PkgConfig::LIBMPDCLIENT)
 target_include_directories(test-song-info-dialog PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-song-info-dialog COMMAND test-song-info-dialog)

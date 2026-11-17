@@ -37,6 +37,12 @@ signals:
     void notFound();
     void error(const QString &message);
 
+public:   // ── Test seams (exposed for fuzz testing, no network) ──────────
+    void testInjectSearchReply(bool ok, const QByteArray &data)
+        { onSearchReply(ok, data); }
+    void testInjectImageReply(bool ok, const QByteArray &data)
+        { onImageReply(ok, data); }
+
 private:
     void onSearchReply(bool ok, const QByteArray &data);
     void onImageReply(bool ok, const QByteArray &data);
