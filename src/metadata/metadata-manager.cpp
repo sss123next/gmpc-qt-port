@@ -95,7 +95,10 @@ MetadataManager::MetadataManager(const QString &cachePath,
             });
 }
 
-MetadataManager::~MetadataManager() = default;
+MetadataManager::~MetadataManager()
+{
+    delete cache_;
+}
 
 void MetadataManager::requestCover(const QString &artist, const QString &album,
                                    const QString &uri)

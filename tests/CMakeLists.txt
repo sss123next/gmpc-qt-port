@@ -401,3 +401,22 @@ target_link_libraries(test-ipc PRIVATE Qt6::Core Qt6::Network Qt6::Test
     doctest::doctest)
 target_include_directories(test-ipc PRIVATE ${CMAKE_SOURCE_DIR}/src)
 add_test(NAME test-ipc COMMAND test-ipc)
+
+# ── Leak stress-test: 100 track changes through the metadata pipeline ──────
+# No network access, no real files — cascade fails fast at every step.
+# Run under ASan (detect_leaks=1) to verify zero per-cycle growth.
+
+add_executable(test-metadata-leak test-metadata-leak.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp)
+target_link_libraries(test-metadata-leak PRIVATE Qt6::Core Qt6::Gui Qt6::Network
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
+    doctest::doctest)
+target_include_directories(test-metadata-leak PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test-metadata-leak COMMAND test-metadata-leak)
