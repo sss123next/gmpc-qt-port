@@ -1,6 +1,5 @@
 #include "controlbar.h"
 #include "core/mpd-commands.h"
-#include "widgets/cover-widget.h"
 #include "widgets/progress-slider.h"
 #include "widgets/song-info.h"
 #include "widgets/volume-widget.h"
@@ -8,7 +7,7 @@
 #include <QHBoxLayout>
 #include <QStyle>
 
-ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
+ControlBar::ControlBar(MpdCommands *cmds, SongInfo *info,
                        VolumeWidget *vol, QWidget *parent)
     : QWidget(parent), cmds_(cmds)
 {
@@ -69,19 +68,19 @@ ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
     connect(repeatBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleRepeat);
 
     randomBtn_ = new QPushButton(this);
-    randomBtn_->setIcon(themedIcon("media-shuffle", QStyle::SP_MediaPlay));
+    randomBtn_->setIcon(themedIcon("media-shuffle", QStyle::SP_MediaSkipForward));
     randomBtn_->setCheckable(true);
     randomBtn_->setToolTip(tr("Toggle random / shuffle"));
     connect(randomBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleRandom);
 
     singleBtn_ = new QPushButton(this);
-    singleBtn_->setIcon(themedIcon("media-repeat-single", QStyle::SP_MediaPlay));
+    singleBtn_->setIcon(themedIcon("media-repeat-single", QStyle::SP_MediaStop));
     singleBtn_->setCheckable(true);
     singleBtn_->setToolTip(tr("Toggle single track"));
     connect(singleBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleSingle);
 
     consumeBtn_ = new QPushButton(this);
-    consumeBtn_->setIcon(themedIcon("edit-delete", QStyle::SP_TrashIcon));
+    consumeBtn_->setIcon(themedIcon("media-playlist-consumed", QStyle::SP_ArrowForward));
     consumeBtn_->setCheckable(true);
     consumeBtn_->setToolTip(tr("Toggle consume"));
     connect(consumeBtn_, &QPushButton::clicked, cmds_, &MpdCommands::toggleConsume);
@@ -94,7 +93,6 @@ ControlBar::ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
     lay->addWidget(seekSlider_);
     lay->addWidget(timeLabel_);
     lay->addWidget(countdownBtn_);
-    lay->addWidget(cover);
     lay->addWidget(info);
     lay->addStretch();
     lay->addWidget(repeatBtn_);

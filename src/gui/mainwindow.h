@@ -121,8 +121,6 @@ protected:
 private:
     void setupUi();
     void setupMenuBar();
-    void setupSidebar();
-    void setupSidebarLabel();
     void setupCentralArea();
     void setupBrowserTabs();
     void connectSignals();
@@ -140,9 +138,6 @@ private:
     MetadataManager *metadataMgr_;
 
     // Browser navigation
-    QWidget *sidebarPanel_;           ///< Wraps sidebarLabel_ + sidebar_.
-    QLabel *sidebarLabel_;            ///< Artist image / label above sidebar tree.
-    QTreeView *sidebar_;              ///< Category tree (sidebar).
     QTabBar *tabBar_;                 ///< Breadcrumb tabs above central stack.
     QStackedWidget *centralStack_;    ///< Right panel stacked browsers.
     BrowserStack *browserStack_;      ///< Enable/activate lifecycle of the browsers.

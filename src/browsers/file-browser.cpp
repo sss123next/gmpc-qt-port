@@ -11,39 +11,6 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 
-// ── FileContentProxy ────────────────────────────────────────────────────────
-
-FileContentProxy::FileContentProxy(QObject *parent)
-    : QSortFilterProxyModel(parent)
-{
-    setDynamicSortFilter(true);
-}
-
-void FileContentProxy::setRootPath(const QString &path)
-{
-    beginResetModel();
-    rootPath_ = path;
-    endResetModel();
-}
-
-bool FileContentProxy::filterAcceptsRow(int sourceRow,
-                                        const QModelIndex &sourceParent) const
-{
-    // If no root path is set, show nothing
-    if (rootPath_.isEmpty())
-        return false;
-
-    // Accept only if the parent's URI matches our root path
-    QModelIndex parentIdx = sourceModel()->parent(
-        sourceModel()->index(sourceRow, 0, sourceParent));
-    if (!parentIdx.isValid())
-        return rootPath_.isEmpty(); // root item — accept only if root is selected
-
-    const QString parentPath = sourceModel()->data(
-        parentIdx, FileSystemModel::UriRole).toString();
-    return parentPath == rootPath_;
-}
-
 // ── FileBrowser ─────────────────────────────────────────────────────────────
 
 namespace {
@@ -93,7 +60,6 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
     : BrowserWidget(parent)
     , conn_(conn)
     , model_(new FileSystemModel(conn, this))
-    , contentProxy_(new FileContentProxy(this))
     , leftView_(new QTreeView(this))
     , rightView_(new QTreeView(this))
 {
@@ -110,9 +76,8 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
     leftView_->setSelectionBehavior(QAbstractItemView::SelectRows);
     leftView_->header()->setStretchLastSection(true);
 
-    // Right pane: file list
-    contentProxy_->setSourceModel(model_);
-    rightView_->setModel(contentProxy_);
+    // Right pane: content of selected directory (same model, flat subtree)
+    rightView_->setModel(model_);
     rightView_->setRootIsDecorated(false);
     rightView_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     rightView_->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -138,14 +103,12 @@ FileBrowser::~FileBrowser() = default;
 void FileBrowser::onLeftSelectionChanged()
 {
     QModelIndex idx = leftView_->currentIndex();
-    if (!idx.isValid()) {
-        contentProxy_->setRootPath({});
-        return;
-    }
+    // Правая панель показывает поддерево выбранного каталога как плоский список.
+    // Невалидный индекс — ничего не выбрано — правая панель пуста.
+    rightView_->setRootIndex(idx);
 
-    // Get the path from the model (UriRole)
-    const QString path = idx.data(FileSystemModel::UriRole).toString();
-    contentProxy_->setRootPath(path);
+    if (!idx.isValid())
+        return;
 
     // Auto-expand the right view columns
     for (int c = 0; c < rightView_->header()->count(); ++c)
@@ -154,14 +117,13 @@ void FileBrowser::onLeftSelectionChanged()
 
 void FileBrowser::enterDirectory(const QModelIndex &contentIndex)
 {
-    const QModelIndex source = contentProxy_->mapToSource(contentIndex);
-    if (!source.isValid())
+    if (!contentIndex.isValid())
         return;
 
-    // Правая панель показывает детей текущего узла, поэтому его родитель в левом
-    // дереве уже раскрыт и строку каталога есть куда выделить. Смена текущей строки
-    // сама дёргает onLeftSelectionChanged, то есть меняет корень правой панели.
-    leftView_->setCurrentIndex(source);
+    // Правая панель показывает данные той же модели, что и левая: индекс можно
+    // передавать напрямую. Смена текущей строки в левом дереве сама дёргает
+    // onLeftSelectionChanged, то есть меняет корень правой панели.
+    leftView_->setCurrentIndex(contentIndex);
 }
 
 QVector<BrowserIntent> FileBrowser::contentIntents() const

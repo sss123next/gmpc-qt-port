@@ -4,6 +4,7 @@
 
 StatusBar::StatusBar(QWidget *parent)
     : QWidget(parent)
+    , msgTimer_(new QTimer(this))
 {
     auto *lay = new QHBoxLayout(this);
     lay->setContentsMargins(4, 0, 4, 0);
@@ -18,10 +19,20 @@ StatusBar::StatusBar(QWidget *parent)
     lay->addWidget(infoLabel_, 0);
 
     setMaximumHeight(24);
+
+    msgTimer_->setSingleShot(true);
+    connect(msgTimer_, &QTimer::timeout, this, [this] {
+        showingMessage_ = false;
+        infoLabel_->clear();
+    });
 }
 
 void StatusBar::updateStatus(const Connection::Status &s)
 {
+    // Не перебивать временное сообщение статусом проигрывания.
+    if (showingMessage_)
+        return;
+
     QString text;
     if (s.state == MPD_STATE_PLAY)
         text = tr("Playing — %1 kbps").arg(s.bitRate);
@@ -47,6 +58,6 @@ void StatusBar::showDisconnected()
 void StatusBar::showMessage(const QString &msg, int timeoutMs)
 {
     infoLabel_->setText(msg);
-    if (timeoutMs > 0)
-        QTimer::singleShot(timeoutMs, this, [this] { infoLabel_->clear(); });
+    showingMessage_ = true;
+    msgTimer_->start(timeoutMs);
 }

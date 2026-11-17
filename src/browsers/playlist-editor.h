@@ -82,6 +82,11 @@ public:
      */
     void newPlaylistNamed(const QString &name);
 
+signals:
+    /** @brief Запрос на показ временного сообщения в статус-баре.
+     *  PlaylistEditor не знает о StatusBar напрямую — это сигнал для MainWindow. */
+    void statusMessage(const QString &msg, int timeoutMs);
+
 private slots:
     void onPlaylistSelected(int row);
     void onNewPlaylist();

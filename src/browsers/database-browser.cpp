@@ -54,6 +54,9 @@ DatabaseBrowser::DatabaseBrowser(Connection *conn, QWidget *parent)
     // раскрытием второй клик по альбому вываливал бы в очередь сотню трэков вместо
     // того, чтобы просто показать их. Разворачивают стрелку и клавиши Right/Left.
     view_->setExpandsOnDoubleClick(false);
+    view_->setSortingEnabled(true);
+    // Сортировка по умолчанию — по первой колонке (Artist / Album), A–Z.
+    view_->sortByColumn(0, Qt::AscendingOrder);
     lay->addWidget(view_, 1);
 }
 

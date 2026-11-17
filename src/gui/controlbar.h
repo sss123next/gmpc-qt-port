@@ -19,7 +19,6 @@
 #include "core/connection.h"
 
 class MpdCommands;
-class CoverWidget;
 class ProgressSlider;
 class SongInfo;
 class VolumeWidget;
@@ -29,11 +28,10 @@ class ControlBar : public QWidget {
     Q_OBJECT
 public:
     /// @param cmds   Transport commands.
-    /// @param cover  Cover-widget to display in the bar (owned by caller).
     /// @param info   Song-info panel to display (owned by caller).
     /// @param vol    Volume widget to display (owned by caller).
     /// @param parent Qt parent.
-    explicit ControlBar(MpdCommands *cmds, CoverWidget *cover, SongInfo *info,
+    explicit ControlBar(MpdCommands *cmds, SongInfo *info,
                         VolumeWidget *vol, QWidget *parent = nullptr);
 
     /// Refresh all widgets from a fresh MPD status snapshot.

@@ -35,14 +35,12 @@
 #include "mpris/mpris-player.h"
 
 #include <functional>
-#include <QStandardItemModel>
 #include <QApplication>
 #include <QClipboard>
 #include <QDesktopServices>
 #include <QUrl>
 #include <QMenuBar>
 #include <QMouseEvent>
-#include <QSplitter>
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QShortcut>
@@ -212,13 +210,11 @@ void MainWindow::setupUi()
             cmds_, &MpdCommands::setVolume);
 
     // ── Control bar at top ───────────────────────────────────────────────
-    controlBar_ = new ControlBar(cmds_, coverWidget_, songInfo_,
+    controlBar_ = new ControlBar(cmds_, songInfo_,
                                  volumeWidget_, this);
     layout->addWidget(controlBar_);
 
-    // Main splitter: sidebar | content (tab bar + stack)
-    auto *splitter = new QSplitter(Qt::Horizontal, this);
-    setupSidebar();
+    // Content area: tab bar + stacked browsers
     setupCentralArea();
     setupBrowserTabs();
 
@@ -229,24 +225,15 @@ void MainWindow::setupUi()
     rightLay->addWidget(tabBar_);
     rightLay->addWidget(centralStack_, 1);
 
-    setupSidebarLabel();
-    sidebarPanel_ = new QWidget(this);
-    auto *sideLay = new QVBoxLayout(sidebarPanel_);
-    sideLay->setContentsMargins(0, 0, 0, 0);
-    sideLay->setSpacing(0);
-    sideLay->addWidget(sidebarLabel_);
-    sideLay->addWidget(sidebar_, 1);
-
-    splitter->addWidget(sidebarPanel_);
-    splitter->addWidget(rightPanel);
-    splitter->setStretchFactor(0, 0);
-    splitter->setStretchFactor(1, 1);
-    splitter->setSizes({200, 600});
-    layout->addWidget(splitter, 1);
+    layout->addWidget(rightPanel, 1);
 
     // Status bar at bottom
     statusBar_ = new StatusBar(this);
     layout->addWidget(statusBar_);
+
+    // Соединяем сигналы, которым нужен уже созданный statusBar_
+    connect(playlistEditor_, &PlaylistEditor::statusMessage,
+            statusBar_, &StatusBar::showMessage);
 
     setCentralWidget(central);
 
@@ -348,42 +335,11 @@ void MainWindow::setupMenuBar()
     file->addAction(tr("&Quit"), QKeySequence::Quit, qApp, &QApplication::quit);
 
     auto *view = menuBar()->addMenu(tr("&View"));
-    view->addAction(tr("Toggle &Sidebar"), this, [this] {
-        sidebar_->setVisible(!sidebar_->isVisible());
-    });
     // Оригинал держал этот пункт в меню View («_View server information»).
-    view->addSeparator();
     view->addAction(tr("Server &Information..."), this, &MainWindow::showServerInfo);
 
     auto *help = menuBar()->addMenu(tr("&Help"));
     help->addAction(tr("&About"), this, &MainWindow::showAbout);
-}
-
-void MainWindow::setupSidebar()
-{
-    sidebar_ = new QTreeView(this);
-    auto *model = new QStandardItemModel(0, 1, sidebar_);
-    model->appendRow(new QStandardItem(tr("Current Playlist")));
-    model->appendRow(new QStandardItem(tr("Database")));
-    model->appendRow(new QStandardItem(tr("Files")));
-    model->appendRow(new QStandardItem(tr("Search")));
-    model->appendRow(new QStandardItem(tr("Playlist Editor")));
-    // Порядок строк обязан совпадать с порядком addBrowser() и вкладками.
-    model->appendRow(new QStandardItem(tr("Now Playing")));
-    sidebar_->setModel(model);
-    sidebar_->setHeaderHidden(true);
-    // TODO: proper QML-style sidebar with icons
-}
-
-void MainWindow::setupSidebarLabel()
-{
-    sidebarLabel_ = new QLabel(this);
-    sidebarLabel_->setFixedHeight(128);
-    sidebarLabel_->setScaledContents(true);
-    sidebarLabel_->setAlignment(Qt::AlignCenter);
-    sidebarLabel_->setText(tr("No cover"));
-    sidebarLabel_->setStyleSheet(QStringLiteral(
-        "QLabel { background: palette(window); color: palette(disabled,text); }"));
 }
 
 void MainWindow::setupCentralArea()
@@ -402,8 +358,7 @@ void MainWindow::setupCentralArea()
     nowPlaying_      = new NowPlaying(this);
     nowPlaying_->setMetadataManager(metadataMgr_);
 
-    // Order here defines the stack index and must match setupSidebar() and
-    // setupBrowserTabs(), which both address pages by row number.
+    // Order here defines the stack index and must match setupBrowserTabs(),
     browserStack_->addBrowser(currentPlaylist_);
     browserStack_->addBrowser(databaseBrowser_);
     browserStack_->addBrowser(fileBrowser_);
@@ -570,12 +525,6 @@ void MainWindow::connectSignals()
         if (conn_->isConnected())
             statusBar_->showMessage(tr("Queue: %1").arg(msg), 8000);
     });
-
-    connect(sidebar_->selectionModel(), &QItemSelectionModel::currentChanged,
-            this, [this](const QModelIndex &idx) {
-        if (!idx.isValid()) return;
-        browserStack_->setActiveIndex(idx.row());
-    });
 }
 
 void MainWindow::tryAutoConnect()
@@ -607,7 +556,8 @@ void MainWindow::onDisconnected()
 {
     statusBar_->showDisconnected();
     browserStack_->setConnected(false);
-    lastSongId_ = -1;
+    lastSongId_ = -2;   // гарантирует обновление UI при первом onStatusChanged после реконнекта
+    lastVolume_ = -1;
     songInfo_->clear();
     nowPlaying_->setSong(nullptr);
     playlistModel_->clear();
@@ -644,6 +594,21 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     nowPlaying_->setSong(song);
     if (song && !song->artist.isEmpty() && !song->album.isEmpty()) {
         coverWidget_->fetchCover(song->artist, song->album);
+    }
+
+    // ── Tray notification on track change ────────────────────────────
+    if (trayIcon_ && trayIcon_->isVisible() && song) {
+        QString msg;
+        if (!song->artist.isEmpty() && !song->title.isEmpty())
+            msg = song->artist + QStringLiteral(" — ") + song->title;
+        else if (!song->title.isEmpty())
+            msg = song->title;
+        else
+            msg = song->uri;
+        if (!song->album.isEmpty())
+            msg += QStringLiteral("  [%1]").arg(song->album);
+        trayIcon_->showMessage(tr("Now Playing"), msg,
+                               QSystemTrayIcon::Information, 5000);
     }
 }
 
@@ -699,6 +664,9 @@ void MainWindow::saveCurrentQueue()
 void MainWindow::clearCurrentQueue()
 {
     currentPlaylist_->clearQueueWithConfirm();
+    // clearQueue командует серверу, но QueueSync не получает idle за время
+    // подтверждения — форсируем перечтение, чтобы модель не осталась с прежними строками.
+    queueSync_->reload();
 }
 
 void MainWindow::showAbout()
@@ -842,17 +810,14 @@ void MainWindow::setZoomLevel(int level)
 
     switch (level) {
     case 0: // Full
-        sidebarPanel_->show();
         tabBar_->show();
         statusBar_->show();
         break;
-    case 1: // No sidebar, breadcrumb stays
-        sidebarPanel_->hide();
-        tabBar_->show();
+    case 1: // No tabs, status bar stays
+        tabBar_->hide();
         statusBar_->show();
         break;
     case 2: // Compact — only control bar + content, no chrome
-        sidebarPanel_->hide();
         tabBar_->hide();
         statusBar_->hide();
         break;

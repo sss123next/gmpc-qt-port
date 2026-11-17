@@ -10,6 +10,7 @@
 
 #include <QWidget>
 #include <QLabel>
+#include <QTimer>
 #include "core/connection.h"
 
 /// Thin strip at the bottom of MainWindow.
@@ -30,5 +31,7 @@ public:
 private:
     QLabel *connLabel_;   ///< Connection-state indicator.
     QLabel *infoLabel_;   ///< Playback info / messages.
+    QTimer *msgTimer_;    ///< Timer to clear message and restore status.
+    bool showingMessage_ = false;
 };
 

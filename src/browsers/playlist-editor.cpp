@@ -426,6 +426,7 @@ void PlaylistEditor::showContentsMenu(const QPoint &pos)
     } else if (chosen == add) {
         for (const BrowserIntent &intent : intents)
             cmds_->addUri(intent.uri);
+        emit statusMessage(tr("Added to queue"), 2000);
     } else if (chosen == up) {
         moveSelection(-1);
     } else if (chosen == down) {

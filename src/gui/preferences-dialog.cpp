@@ -4,6 +4,7 @@
 
 #include <QSignalBlocker>
 #include <QVBoxLayout>
+#include <QScrollArea>
 #include <QFormLayout>
 #include <QLabel>
 #include <QStackedWidget>
@@ -23,6 +24,13 @@ PreferencesDialog::PreferencesDialog(QWidget *parent)
 void PreferencesDialog::setupUi()
 {
     auto *root = new QVBoxLayout(this);
+
+    // Scroll area: все группы настроек в ней, чтобы окно не уходило за экран.
+    auto *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    auto *scrollContent = new QWidget;
+    auto *innerLay = new QVBoxLayout(scrollContent);
+    innerLay->setContentsMargins(0, 0, 0, 0);
 
     // ── Connection group ─────────────────────────────────────────────
     auto *connGroup = new QGroupBox(tr("Connection"), this);
@@ -67,21 +75,21 @@ void PreferencesDialog::setupUi()
     connect(connectionMode_, QOverload<int>::of(&QComboBox::currentIndexChanged),
             connStack, &QStackedWidget::setCurrentIndex);
 
-    root->addWidget(connGroup);
+    innerLay->addWidget(connGroup);
 
     // ── Playback group ───────────────────────────────────────────────
     auto *playGroup = new QGroupBox(tr("Playback"), this);
     auto *playForm = new QFormLayout(playGroup);
     stopOnExit_ = new QCheckBox(tr("Stop playback on exit"), this);
     playForm->addRow(stopOnExit_);
-    root->addWidget(playGroup);
+    innerLay->addWidget(playGroup);
 
     // ── Window group ─────────────────────────────────────────────────
     auto *winGroup = new QGroupBox(tr("Window"), this);
     auto *winForm = new QFormLayout(winGroup);
     startHidden_ = new QCheckBox(tr("Start minimized to tray"), this);
     winForm->addRow(startHidden_);
-    root->addWidget(winGroup);
+    innerLay->addWidget(winGroup);
 
     // ── Proxy group ─────────────────────────────────────────────────
     auto *proxyGroup = new QGroupBox(tr("Proxy"), this);
@@ -106,7 +114,7 @@ void PreferencesDialog::setupUi()
     connect(proxyEnabled_, &QCheckBox::toggled, proxyGroup_, &QWidget::setVisible);
     proxyGroup_->setVisible(false);  // hidden until enabled
 
-    root->addWidget(proxyGroup);
+    innerLay->addWidget(proxyGroup);
 
     // ── Server group ────────────────────────────────────────────────
     auto *serverGroup = new QGroupBox(tr("Server"), this);
@@ -128,7 +136,7 @@ void PreferencesDialog::setupUi()
     connectionTimeout_->setSingleStep(1000);
     serverForm->addRow(tr("Connection timeout:"), connectionTimeout_);
 
-    root->addWidget(serverGroup);
+    innerLay->addWidget(serverGroup);
 
     // ── Fading & Outputs (серверные настройки) ───────────────────────
     // Оригинал держал это страницей серверных настроек (`glade/preferences-server.ui`:
@@ -189,7 +197,7 @@ void PreferencesDialog::setupUi()
         cmds_->setReplayGainMode(index);
     });
 
-    root->addWidget(liveServerGroup_);
+    innerLay->addWidget(liveServerGroup_);
     // До bindServer() о сервере ничего не известно: группа выключена и говорит об этом.
     refreshServerSettings();
 
@@ -198,7 +206,7 @@ void PreferencesDialog::setupUi()
     auto *trayForm = new QFormLayout(trayGroup);
     trayEnabled_ = new QCheckBox(tr("Enable system tray icon"), this);
     trayForm->addRow(trayEnabled_);
-    root->addWidget(trayGroup);
+    innerLay->addWidget(trayGroup);
 
     // ── Playlist group ──────────────────────────────────────────────
     auto *playlistGroup = new QGroupBox(tr("Playlist"), this);
@@ -233,7 +241,7 @@ void PreferencesDialog::setupUi()
     hlRow->addStretch();
     playlistForm->addRow(tr("Highlight colour:"), hlRow);
 
-    root->addWidget(playlistGroup);
+    innerLay->addWidget(playlistGroup);
 
     // ── Metadata group ──────────────────────────────────────────────
     auto *metaGroup = new QGroupBox(tr("Metadata"), this);
@@ -271,7 +279,7 @@ void PreferencesDialog::setupUi()
     discogsTokenEdit_->setPlaceholderText(tr("Discogs Personal Access Token"));
     metaForm->addRow(tr("Discogs token:"), discogsTokenEdit_);
 
-    root->addWidget(metaGroup);
+    innerLay->addWidget(metaGroup);
 
     // ── Multimedia keys group ───────────────────────────────────────
     auto *mmGroup = new QGroupBox(tr("Multimedia Keys"), this);
@@ -314,7 +322,7 @@ void PreferencesDialog::setupUi()
         keyBindingsRows_.append(r);
     }
 
-    root->addWidget(mmGroup);
+    innerLay->addWidget(mmGroup);
 
     // ── Profiles group ──────────────────────────────────────────────
     auto *profGroup = new QGroupBox(tr("Connection Profiles"), this);
@@ -368,7 +376,12 @@ void PreferencesDialog::setupUi()
         // by copying profile fields into the Connection group.
     });
 
-    root->addWidget(profGroup);
+    innerLay->addWidget(profGroup);
+
+    // ── Scroll content done — attach to scroll area ─────────────────
+    scrollContent->setLayout(innerLay);
+    scrollArea->setWidget(scrollContent);
+    root->addWidget(scrollArea);
 
     // ── Buttons ──────────────────────────────────────────────────────
     buttons_ = new QDialogButtonBox(

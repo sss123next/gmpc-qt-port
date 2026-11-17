@@ -1,5 +1,6 @@
 #include "volume-widget.h"
 #include <QHBoxLayout>
+#include <algorithm>
 
 VolumeWidget::VolumeWidget(QWidget *parent)
     : QWidget(parent)
@@ -23,5 +24,5 @@ VolumeWidget::VolumeWidget(QWidget *parent)
 
 void VolumeWidget::setVolume(int vol)
 {
-    slider_->setValue(vol);
+    slider_->setValue(std::clamp(vol, 0, 100));
 }
