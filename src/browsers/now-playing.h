@@ -41,6 +41,8 @@ public:
     /// Показывает трэк (nullptr — «ничего не играет») и запрашивает его лирику.
     void setSong(const SongEntry *song);
 
+    void onActivate() override;
+    void onDeactivate() override;
     void onConnectionChanged(bool connected) override;
 
 private slots:
@@ -101,7 +103,10 @@ private:
     QLabel *techChannels_ = nullptr, *techBitrate_ = nullptr, *techFormat_ = nullptr;
     QLabel *techFile_ = nullptr;
 
-    QString curArtist_;   ///< артист трэка, для которого ждём лирику
-    QString curTitle_;    ///< название того же трэка
-    QString curUri_;      ///< URI для дозапроса тегов
+    QString curArtist_;
+    QString curTitle_;
+    QString curUri_;
+    bool needsRefresh_ = false;
+
+    void requestLyricsForCurrent();
 };

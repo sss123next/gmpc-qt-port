@@ -173,10 +173,35 @@ void NowPlaying::setSong(const SongEntry *song)
     if (coverViewer_ && !coverViewer_->isVisible())
         coverViewer_->clear();
 
-    // Refresh tabbed metadata.
-    refreshMetadata();
+    // Если страница скрыта — вкладки и лирику обновим при активации.
+    if (!isVisible()) {
+        needsRefresh_ = true;
+        return;
+    }
 
-    // Lyrics.
+    refreshMetadata();
+    requestLyricsForCurrent();
+}
+
+// ── Активация страницы (пользователь переключился на Now Playing) ───────────
+
+void NowPlaying::onActivate()
+{
+    if (needsRefresh_) {
+        needsRefresh_ = false;
+        refreshMetadata();
+        requestLyricsForCurrent();
+    }
+}
+
+void NowPlaying::onDeactivate()
+{
+    needsRefresh_ = false;
+}
+
+/// Запросить лирику для текущего трэка.
+void NowPlaying::requestLyricsForCurrent()
+{
     lyricsView_->clear();
     if (!mgr_ || curArtist_.isEmpty()) {
         hintLabel_->setText(tr("No lyrics"));
