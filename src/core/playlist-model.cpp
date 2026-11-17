@@ -69,10 +69,18 @@ QString titleText(const SongEntry &s)
 QString playlistColumnKey(int column)
 {
     switch (column) {
-    case PlaylistModel::TitleColumn:  return QStringLiteral("title");
-    case PlaylistModel::ArtistColumn: return QStringLiteral("artist");
-    case PlaylistModel::AlbumColumn:  return QStringLiteral("album");
-    case PlaylistModel::TimeColumn:   return QStringLiteral("time");
+    case PlaylistModel::TitleColumn:   return QStringLiteral("title");
+    case PlaylistModel::ArtistColumn:  return QStringLiteral("artist");
+    case PlaylistModel::AlbumColumn:   return QStringLiteral("album");
+    case PlaylistModel::TimeColumn:    return QStringLiteral("time");
+    case PlaylistModel::TrackColumn:   return QStringLiteral("track");
+    case PlaylistModel::DiscColumn:    return QStringLiteral("disc");
+    case PlaylistModel::DateColumn:    return QStringLiteral("date");
+    case PlaylistModel::GenreColumn:   return QStringLiteral("genre");
+    case PlaylistModel::ComposerColumn: return QStringLiteral("composer");
+    case PlaylistModel::PerformerColumn: return QStringLiteral("performer");
+    case PlaylistModel::LabelColumn:   return QStringLiteral("label");
+    case PlaylistModel::CommentColumn: return QStringLiteral("comment");
     }
     return {};
 }
@@ -133,6 +141,19 @@ SongEntry songEntryFromMpd(const mpd_song *song)
     e.album    = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_ALBUM, 0));
     e.uri      = QString::fromUtf8(mpd_song_get_uri(song));
     e.duration = static_cast<int>(mpd_song_get_duration(song));
+    // ── Extra tags ────────────────────────────────────────────────────
+    e.track    = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_TRACK, 0));
+    e.disc     = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_DISC, 0));
+    e.date     = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_DATE, 0));
+    e.genre    = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_GENRE, 0));
+    e.composer = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_COMPOSER, 0));
+    e.performer = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_PERFORMER, 0));
+    e.comment  = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_COMMENT, 0));
+    e.label    = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_LABEL, 0));
+    e.musicbrainzArtistId = QString::fromUtf8(
+        mpd_song_get_tag(song, MPD_TAG_MUSICBRAINZ_ARTISTID, 0));
+    e.musicbrainzAlbumId  = QString::fromUtf8(
+        mpd_song_get_tag(song, MPD_TAG_MUSICBRAINZ_ALBUMID, 0));
     return e;
 }
 
@@ -173,6 +194,15 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const
         case ArtistColumn: return s.artist;
         case AlbumColumn:  return s.album;
         case TimeColumn:   return formatDuration(s.duration);
+        // ── Extra optional columns ────────────────────────────────────
+        case TrackColumn:    return s.track;
+        case DiscColumn:     return s.disc;
+        case DateColumn:     return s.date;
+        case GenreColumn:    return s.genre;
+        case ComposerColumn: return s.composer;
+        case PerformerColumn: return s.performer;
+        case LabelColumn:    return s.label;
+        case CommentColumn:  return s.comment;
         }
         return {};
     case Qt::TextAlignmentRole:
@@ -187,6 +217,15 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const
         case ArtistColumn: return s.artist;
         case AlbumColumn:  return s.album;
         case TimeColumn:   return s.duration;
+        // ── Extra optional columns ────────────────────────────────────
+        case TrackColumn:    return s.track;
+        case DiscColumn:     return s.disc;
+        case DateColumn:     return s.date;
+        case GenreColumn:    return s.genre;
+        case ComposerColumn: return s.composer;
+        case PerformerColumn: return s.performer;
+        case LabelColumn:    return s.label;
+        case CommentColumn:  return s.comment;
         }
         return {};
     }
@@ -207,6 +246,15 @@ QVariant PlaylistModel::headerData(int section, Qt::Orientation orientation,
     case ArtistColumn: return tr("Artist");
     case AlbumColumn:  return tr("Album");
     case TimeColumn:   return tr("Time");
+    // ── Extra optional columns ────────────────────────────────────────
+    case TrackColumn:    return tr("Track");
+    case DiscColumn:     return tr("Disc");
+    case DateColumn:     return tr("Date");
+    case GenreColumn:    return tr("Genre");
+    case ComposerColumn: return tr("Composer");
+    case PerformerColumn: return tr("Performer");
+    case LabelColumn:    return tr("Label");
+    case CommentColumn:  return tr("Comment");
     }
     return {};
 }
@@ -412,6 +460,15 @@ void PlaylistModel::applyTagsRefreshed(const QList<SongEntry> &rows)
         songs_[row].album    = fresh.album;
         songs_[row].uri      = fresh.uri;     // файл могли переименовать — URI тоже меняется
         songs_[row].duration = fresh.duration;
+        // ── Extra tags ────────────────────────────────────────────────
+        songs_[row].track    = fresh.track;
+        songs_[row].disc     = fresh.disc;
+        songs_[row].date     = fresh.date;
+        songs_[row].genre    = fresh.genre;
+        songs_[row].composer = fresh.composer;
+        songs_[row].performer = fresh.performer;
+        songs_[row].label    = fresh.label;
+        songs_[row].comment  = fresh.comment;
 
         emit dataChanged(index(row, 0), index(row, ColumnCount - 1));
     }

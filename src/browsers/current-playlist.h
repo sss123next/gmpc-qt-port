@@ -74,6 +74,10 @@ private slots:
     void onFilterChanged(const QString &text);
     /** @brief Показать контекстное меню очереди. */
     void showContextMenu(const QPoint &pos);
+    /** @brief Контекстное меню заголовка колонок: чекбоксы видимости. */
+    void showHeaderMenu(const QPoint &pos);
+    /** @brief Сохранить порядок колонок в Config после перетаскивания. */
+    void saveColumnOrder();
 
 private:
     void setupUi();
@@ -116,4 +120,5 @@ private:
     QLineEdit *filterEdit_;
     QSortFilterProxyModel *proxy_;
     QMetaObject::Connection textChangedConn_;  ///< tracking for setSearchAsType
+    bool applyingColumns_ = false;  ///< guard: suppress saveColumnOrder during applyColumnConfig
 };

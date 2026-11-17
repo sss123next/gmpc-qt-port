@@ -67,15 +67,25 @@ class PlaylistModel : public QAbstractTableModel {
 public:
     /** @brief Columns shown by the current-playlist view.
      *
-     *  Позиция очереди колонкой не является: она и есть номер строки (см.
-     *  renumberPositions()), а показывать её отдельным столбцом оригинальный
-     *  gmpc не пробовал.
+     *  Первые четыре — классический набор gmpc. Остальные дополнительные и
+     *  по умолчанию скрыты; пользователь включает их через контекстное меню
+     *  заголовка.  Позиция очереди колонкой не является: она и есть номер
+     *  строки (см. renumberPositions()).
      */
     enum Column {
         TitleColumn = 0,
         ArtistColumn,
         AlbumColumn,
         TimeColumn,
+        // ── Extra optional columns ────────────────────────────────────
+        TrackColumn,
+        DiscColumn,
+        DateColumn,
+        GenreColumn,
+        ComposerColumn,
+        PerformerColumn,
+        LabelColumn,
+        CommentColumn,
         ColumnCount
     };
 

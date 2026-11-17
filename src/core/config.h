@@ -123,6 +123,9 @@ public:
      */
     bool playlistColumnVisible(const QString &key) const;
     void setPlaylistColumnVisible(const QString &key, bool visible);
+    /** @brief Было ли значение колонки когда-либо записано в настройки.
+     *         Позволяет отличить «явно включено» от «дефолт QSettings». */
+    bool hasPlaylistColumnSetting(const QString &key) const;
 
     /** @brief Порядок колонок очереди (ключи). Пустой список — исходный порядок. */
     QStringList playlistColumnsOrder() const;

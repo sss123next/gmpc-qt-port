@@ -115,6 +115,8 @@ bool Config::playlistColumnVisible(const QString &key) const
     { return s_.value("playlist/columns/" + key, true).toBool(); }
 void Config::setPlaylistColumnVisible(const QString &key, bool visible)
     { s_.setValue("playlist/columns/" + key, visible); }
+bool Config::hasPlaylistColumnSetting(const QString &key) const
+    { return s_.contains("playlist/columns/" + key); }
 
 QStringList Config::playlistColumnsOrder() const
 {

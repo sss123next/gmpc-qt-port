@@ -106,15 +106,21 @@ void CurrentPlaylist::setupUi()
 
     auto *header = view_->header();
     header->setStretchLastSection(false);
-    header->setSectionResizeMode(PlaylistModel::TitleColumn, QHeaderView::Stretch);
-    header->setSectionResizeMode(PlaylistModel::ArtistColumn, QHeaderView::Interactive);
-    header->setSectionResizeMode(PlaylistModel::AlbumColumn, QHeaderView::Interactive);
-    header->setSectionResizeMode(PlaylistModel::TimeColumn, QHeaderView::ResizeToContents);
-    header->resizeSection(PlaylistModel::ArtistColumn, 180);
-    header->resizeSection(PlaylistModel::AlbumColumn, 180);
+    header->setContextMenuPolicy(Qt::CustomContextMenu);
+    header->setSectionsMovable(true);
 
     // Сохранённый порядок и видимость колонок — поверх исходной раскладки.
     applyColumnConfig();
+
+    // ————————————————————————————————————————————————————————————————————
+    //  Контекстное меню заголовка: чекбоксы видимости колонок
+    // ————————————————————————————————————————————————————————————————————
+    connect(header, &QWidget::customContextMenuRequested,
+            this, &CurrentPlaylist::showHeaderMenu);
+
+    // Сохранять порядок колонок при перетаскивании заголовков мышью.
+    connect(header, &QHeaderView::sectionMoved,
+            this, &CurrentPlaylist::saveColumnOrder);
 
     // Перестановка перетаскиванием: Qt собирает mimeData модели и рисует индикатор,
     // событие дропа разбираем мы (см. eventFilter).
@@ -147,15 +153,84 @@ void CurrentPlaylist::setupUi()
     view_->viewport()->installEventFilter(this);
 }
 
+void CurrentPlaylist::showHeaderMenu(const QPoint &pos)
+{
+    auto &cfg = Config::instance();
+    QHeaderView *header = view_->header();
+
+    QMenu menu(this);
+
+    for (int col = 0; col < PlaylistModel::ColumnCount; ++col) {
+        const QString title = model_->headerData(col, Qt::Horizontal).toString();
+        const QString key   = playlistColumnKey(col);
+        const bool visible  = cfg.playlistColumnVisible(key);
+
+        QAction *act = menu.addAction(title);
+        act->setCheckable(true);
+        act->setChecked(!header->isSectionHidden(col));
+        act->setData(key);
+
+        connect(act, &QAction::toggled, this, [this, &cfg, col, key](bool on) {
+            QHeaderView *h = view_->header();
+            h->setSectionHidden(col, !on);
+            cfg.setPlaylistColumnVisible(key, on);
+        });
+    }
+
+    menu.exec(header->mapToGlobal(pos));
+}
+
+void CurrentPlaylist::saveColumnOrder()
+{
+    if (applyingColumns_)
+        return;
+
+    auto &cfg = Config::instance();
+    QHeaderView *header = view_->header();
+
+    // Read visual order: iterate logical columns, sort by visual index.
+    QVector<QPair<int, int>> byVisual; // (visual, logical)
+    for (int col = 0; col < PlaylistModel::ColumnCount; ++col)
+        byVisual.append({header->visualIndex(col), col});
+    std::sort(byVisual.begin(), byVisual.end());
+
+    QStringList order;
+    for (const auto &pair : byVisual)
+        order.append(playlistColumnKey(pair.second));
+
+    cfg.setPlaylistColumnsOrder(order);
+}
+
 void CurrentPlaylist::applyColumnConfig()
 {
     auto &cfg = Config::instance();
     QHeaderView *header = view_->header();
 
-    for (int column = 0; column < PlaylistModel::ColumnCount; ++column)
-        header->setSectionHidden(column, !cfg.playlistColumnVisible(playlistColumnKey(column)));
+    for (int column = 0; column < PlaylistModel::ColumnCount; ++column) {
+        const QString key = playlistColumnKey(column);
+        const bool saved   = cfg.hasPlaylistColumnSetting(key);
+        const bool isCore  = column <= PlaylistModel::TimeColumn;
+
+        // Core columns visible by default; extra columns hidden until
+        // the user explicitly enables them via the header menu.
+        const bool visible = saved
+            ? cfg.playlistColumnVisible(key)
+            : isCore;
+        header->setSectionHidden(column, !visible);
+    }
+
+    // Resize modes for the core columns — extras default to Interactive.
+    header->setSectionResizeMode(PlaylistModel::TitleColumn, QHeaderView::Stretch);
+    header->setSectionResizeMode(PlaylistModel::ArtistColumn, QHeaderView::Interactive);
+    header->setSectionResizeMode(PlaylistModel::AlbumColumn, QHeaderView::Interactive);
+    header->setSectionResizeMode(PlaylistModel::TimeColumn, QHeaderView::ResizeToContents);
+    header->resizeSection(PlaylistModel::ArtistColumn, 180);
+    header->resizeSection(PlaylistModel::AlbumColumn, 180);
 
     // Порядок: каждый сохранённый ключ встаёт на следующее место подряд.
+    // Guard the programmatic moves: sectionMoved signal must not trigger
+    // saveColumnOrder during initial layout.
+    applyingColumns_ = true;
     int target = 0;
     for (const QString &key : cfg.playlistColumnsOrder()) {
         const int column = playlistColumnForKey(key);
@@ -163,6 +238,7 @@ void CurrentPlaylist::applyColumnConfig()
             continue;   // ключ из другой версии — нашего столбца за ним нет
         header->moveSection(header->visualIndex(column), target++);
     }
+    applyingColumns_ = false;
 }
 
 void CurrentPlaylist::editColumns()
