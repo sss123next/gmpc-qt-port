@@ -27,11 +27,14 @@ public:
     void showDisconnected();
     /// Show a transient message for the given duration.
     void showMessage(const QString &msg, int timeoutMs = 5000);
+    /// Set the audio format label (e.g. "FLAC", "OPUS", "MP3").
+    void setFormat(const QString &fmt);
 
 private:
     QLabel *connLabel_;   ///< Connection-state indicator.
     QLabel *infoLabel_;   ///< Playback info / messages.
     QTimer *msgTimer_;    ///< Timer to clear message and restore status.
     bool showingMessage_ = false;
+    QString format_;      ///< Current audio codec / container name.
 };
 

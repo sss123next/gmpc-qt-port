@@ -50,6 +50,7 @@
 #include <mpd/playlist.h>
 
 #include <QCloseEvent>
+#include <QFileInfo>
 #include <QStandardPaths>
 #include <xcb/xcb_keysyms.h>
 
@@ -683,6 +684,11 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     if (song && !song->artist.isEmpty() && !song->album.isEmpty()) {
         coverWidget_->fetchCover(song->artist, song->album, song->uri);
     }
+
+    // Update status bar audio-format label from URI extension.
+    statusBar_->setFormat(song
+        ? QFileInfo(song->uri).suffix().toUpper()
+        : QString());
 
     // ── Tray notification on track change ────────────────────────────
     if (trayIcon_ && trayIcon_->isVisible() && song

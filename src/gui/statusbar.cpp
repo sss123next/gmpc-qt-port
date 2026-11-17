@@ -44,9 +44,13 @@ void StatusBar::updateStatus(const Connection::Status &s)
             else
                 sr = QStringLiteral("%1kHz").arg(s.sampleRate / 1000.0, 0, 'f', 1);
         }
-        // Format bit depth.
+        // Format bit depth (handle special sample formats).
         QString depth;
-        if (s.bits > 0 && s.bits <= 32)
+        if (s.bits == MPD_SAMPLE_FORMAT_FLOAT)
+            depth = QStringLiteral("Float");
+        else if (s.bits == MPD_SAMPLE_FORMAT_DSD)
+            depth = QStringLiteral("DSD");
+        else if (s.bits > 0 && s.bits <= 32)
             depth = QStringLiteral("%1bit").arg(s.bits);
         // Format bitrate: ≥1000 → Mbps, else kbps.
         QString br;
@@ -58,9 +62,10 @@ void StatusBar::updateStatus(const Connection::Status &s)
         }
 
         QStringList parts;
-        if (!sr.isEmpty())   parts << sr;
-        if (!depth.isEmpty()) parts << depth;
-        if (!br.isEmpty())   parts << br;
+        if (!format_.isEmpty())  parts << format_;
+        if (!sr.isEmpty())       parts << sr;
+        if (!depth.isEmpty())    parts << depth;
+        if (!br.isEmpty())       parts << br;
         const QString fmt = parts.join(QLatin1Char(' '));
 
         if (fmt.isEmpty())
@@ -72,6 +77,11 @@ void StatusBar::updateStatus(const Connection::Status &s)
     else
         text = tr("Stopped");
     infoLabel_->setText(text);
+}
+
+void StatusBar::setFormat(const QString &fmt)
+{
+    format_ = fmt;
 }
 
 void StatusBar::showConnected()
