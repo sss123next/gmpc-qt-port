@@ -7,9 +7,13 @@
 #include "tools/log.h"
 
 #include <QFileInfo>
+#include <QFile>
 #include <taglib/fileref.h>
 #include <taglib/tag.h>
 #include <taglib/tpropertymap.h>
+#include <taglib/tbytevector.h>
+#include <taglib/tbytevectorstream.h>
+#include <taglib/id3v2.h>
 
 // ── File-type-specific headers ──────────────────────────────────────────────
 #include <taglib/mpegfile.h>
@@ -29,6 +33,109 @@
 #include <taglib/matroskafile.h>
 #include <taglib/matroskaattachments.h>
 #include <taglib/matroskaattachedfile.h>
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Embedded ID3v2 tag scanning (for ID3v2-in-Matroska fallback)
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Scan the raw file for an ID3v2 header, return its data or empty ByteVector.
+static TagLib::ByteVector scanEmbeddedID3v2(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly))
+        return {};
+
+    // ID3v2 header: "ID3" magic + version + flags + 4-byte syncsafe size
+    constexpr qint64 kId3HeaderSize = 10;
+    constexpr qint64 kChunkSize = 4096;
+    const QByteArray kId3Magic("ID3", 3);
+
+    qint64 offset = 0;
+    while (offset < f.size()) {
+        if (!f.seek(offset))
+            break;
+        const QByteArray chunk = f.read(kChunkSize);
+        if (chunk.isEmpty())
+            break;
+
+        int idx = chunk.indexOf(kId3Magic);
+        if (idx < 0) {
+            offset += chunk.size();
+            continue;
+        }
+
+        const qint64 pos = offset + idx;
+        // Read the full ID3v2 header at this position.
+        if (!f.seek(pos))
+            break;
+        const QByteArray header = f.read(kId3HeaderSize);
+        if (header.size() < kId3HeaderSize)
+            break;
+
+        // Validate: check that the size field is syncsafe.
+        // ID3v2 size: 4 bytes, each with MSB=0 (syncsafe).
+        const auto *h = reinterpret_cast<const unsigned char *>(header.constData());
+        if ((h[6] & 0x80) || (h[7] & 0x80) || (h[8] & 0x80) || (h[9] & 0x80)) {
+            // False positive — not syncsafe.
+            offset = pos + 3;  // skip "ID3" and keep scanning
+            continue;
+        }
+
+        // Compute tag size (syncsafe integer).
+        quint32 tagSize = (h[6] << 21) | (h[7] << 14) | (h[8] << 7) | h[9];
+        if (tagSize == 0)
+            break;
+
+        // Total ID3v2 data including header.
+        const qint64 totalSize = kId3HeaderSize + tagSize;
+        if (pos + totalSize > f.size())
+            break;
+
+        // Read the full ID3v2 block.
+        if (!f.seek(pos))
+            break;
+        const QByteArray id3Data = f.read(static_cast<qint64>(totalSize));
+        if (id3Data.size() < totalSize)
+            break;
+
+        LOG_INFO("TagReader: found embedded ID3v2 at offset %1, size %2 bytes",
+                 pos, totalSize);
+        return TagLib::ByteVector(id3Data.constData(), id3Data.size());
+    }
+
+    return {};
+}
+
+/// Parse an APIC frame from an already-opened ID3v2::Tag.
+static EmbeddedCover coverFromID3v2Tag(const TagLib::ID3v2::Tag *tag)
+{
+    if (!tag) return {};
+
+    const auto &frames = tag->frameList("APIC");
+    if (frames.isEmpty()) return {};
+
+    auto *apic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame *>(frames.front());
+    if (!apic || apic->picture().isEmpty()) return {};
+
+    EmbeddedCover c;
+    c.data = QByteArray(apic->picture().data(), apic->picture().size());
+    c.mime = QString::fromStdString(apic->mimeType().to8Bit(true));
+    return c;
+}
+
+/// Extract USLT lyrics from an already-opened ID3v2::Tag.
+static QString lyricsFromID3v2Tag(const TagLib::ID3v2::Tag *tag)
+{
+    if (!tag) return {};
+
+    const auto &frames = tag->frameList("USLT");
+    if (frames.isEmpty()) return {};
+
+    auto *uslt = dynamic_cast<TagLib::ID3v2::UnsynchronizedLyricsFrame *>(frames.front());
+    if (!uslt) return {};
+
+    return QString::fromStdString(uslt->text().to8Bit(true));
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Embedded cover art extraction
@@ -186,36 +293,51 @@ static EmbeddedCover coverFromApe(const QString &path)
 // Public API
 // ══════════════════════════════════════════════════════════════════════════════
 
-/// Try to read cover from a Matroska file (MKV/MKA attachments).
+/// Try to read cover from a Matroska file (MKV/MKA attachments + embedded ID3v2).
 static EmbeddedCover coverFromMatroska(const QString &path)
 {
     TagLib::Matroska::File file(path.toUtf8().data());
     if (!file.isValid())
         return {};
 
+    // 1. Try native Matroska attachments (AttachedFile with image/ MIME).
     auto *attachments = file.attachments();
-    if (!attachments)
-        return {};
-
-    const auto &files = attachments->attachedFileList();
-    for (const auto &att : files) {
-        const QString mime = QString::fromStdString(
-            att.mediaType().to8Bit(true));
-        // Look for any image-type attachment (cover art).
-        if (!mime.startsWith(QLatin1String("image/")))
-            continue;
-
-        const TagLib::ByteVector &raw = att.data();
-        if (raw.isEmpty())
-            continue;
-
-        EmbeddedCover c;
-        c.data = QByteArray(raw.data(), static_cast<int>(raw.size()));
-        c.mime = mime;
-        LOG_INFO("TagReader: embedded cover from Matroska (%1 bytes, %2)",
-                 c.data.size(), c.mime);
-        return c;
+    if (attachments) {
+        const auto &files = attachments->attachedFileList();
+        for (const auto &att : files) {
+            const QString mime = QString::fromStdString(
+                att.mediaType().to8Bit(true));
+            if (!mime.startsWith(QLatin1String("image/")))
+                continue;
+            const TagLib::ByteVector &raw = att.data();
+            if (raw.isEmpty())
+                continue;
+            EmbeddedCover c;
+            c.data = QByteArray(raw.data(), static_cast<int>(raw.size()));
+            c.mime = mime;
+            LOG_INFO("TagReader: embedded cover from Matroska attachment (%1 bytes, %2)",
+                     c.data.size(), c.mime);
+            return c;
+        }
     }
+
+    // 2. Fallback: scan for an embedded ID3v2 tag (older mkvmerge convention).
+    const TagLib::ByteVector id3data = scanEmbeddedID3v2(path);
+    if (!id3data.isEmpty()) {
+        // Wrap raw ID3v2 bytes in a memory stream and parse via MPEG::File.
+        // ID3v2Tag() returns the parsed tag even when isValid() is false.
+        TagLib::ByteVectorStream stream(id3data);
+        TagLib::MPEG::File mpegFile(&stream);
+        if (mpegFile.ID3v2Tag()) {
+            EmbeddedCover c = coverFromID3v2Tag(mpegFile.ID3v2Tag());
+            if (!c.data.isEmpty()) {
+                LOG_INFO("TagReader: embedded cover from Matroska ID3v2 (%1 bytes, %2)",
+                         c.data.size(), c.mime);
+                return c;
+            }
+        }
+    }
+
     return {};
 }
 
@@ -316,6 +438,24 @@ QString readEmbeddedLyrics(const QString &filePath)
         if (!text.isEmpty()) {
             LOG_INFO("TagReader: extracted lyrics from property map (%1 chars)", text.size());
             return text;
+        }
+    }
+
+    // 3. For Matroska files, also scan for an embedded ID3v2 tag (older
+    //    convention) which may carry USLT frames.
+    if (ext == "mkv" || ext == "mka") {
+        const TagLib::ByteVector id3data = scanEmbeddedID3v2(filePath);
+        if (!id3data.isEmpty()) {
+            TagLib::ByteVectorStream stream(id3data);
+            TagLib::MPEG::File mpegFile(&stream);
+            if (mpegFile.ID3v2Tag()) {
+                const QString text = lyricsFromID3v2Tag(mpegFile.ID3v2Tag());
+                if (!text.isEmpty()) {
+                    LOG_INFO("TagReader: extracted lyrics from Matroska ID3v2 (%1 chars)",
+                             text.size());
+                    return text;
+                }
+            }
         }
     }
 
