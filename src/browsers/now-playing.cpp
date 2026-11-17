@@ -42,11 +42,13 @@ NowPlaying::NowPlaying(QWidget *parent)
     artistLabel_->setStyleSheet(QStringLiteral("font-size: 13pt;"));
     for (QLabel *l : {titleLabel_, artistLabel_, albumLabel_}) {
         l->setWordWrap(true);
-        l->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+        // Maximum vertical = natural height (no expansion, no compression).
+        l->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
         infoCol->addWidget(l);
     }
     hintLabel_ = new QLabel(this);
     hintLabel_->setObjectName(QStringLiteral("hintLabel"));
+    infoCol->addStretch(1);
     topRow->addLayout(infoCol, 1);
 
     lay->addLayout(topRow);
