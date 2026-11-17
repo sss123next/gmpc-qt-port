@@ -115,4 +115,12 @@ private:
     QString lastArtist_;
     QString lastAlbum_;
     quint64 coverFetchId_ = 0;
+
+    // Cached preset colours (used by paintEvent instead of palette(), which
+    // doesn't reflect stylesheets).
+    QString presetBg_;
+    QString presetFg_;
+    QString presetBtnBg_;
+    QString presetBtnFg_;
+    QString presetCoverBg_;
 };

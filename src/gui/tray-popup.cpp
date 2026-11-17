@@ -302,20 +302,18 @@ void TrayPopup::leaveEvent(QEvent * /*event*/)
 
 void TrayPopup::paintEvent(QPaintEvent * /*event*/)
 {
-    // Only paint the outer translucent area and container background.
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
 
-    // The container_ fills the widget area; we just draw its background
-    // with rounded corners and a border.
     const QRect cr = container_->geometry();
 
     QPainterPath path;
     path.addRoundedRect(QRectF(cr), kRadius, kRadius);
 
-    p.setClipPath(path);
-    p.fillPath(path, container_->palette().window());
-    p.setPen(QPen(container_->palette().windowText().color(), 1));
+    // Fill with the ACTUAL preset colour, not the palette (which the
+    // stylesheet never touches).
+    p.fillPath(path, QColor(presetBg_));
+    p.setPen(QPen(QColor(presetFg_), 1));
     p.drawPath(path);
 }
 
@@ -323,29 +321,30 @@ void TrayPopup::paintEvent(QPaintEvent * /*event*/)
 
 void TrayPopup::applyStyle()
 {
-    QString bg, fg, btnBg, btnFg, coverBg;
+    presetBg_ = presetFg_ = presetBtnBg_ = presetBtnFg_ = presetCoverBg_ = {};
 
     if (style_ == Dark) {
-        bg     = QStringLiteral("#2b2b2b");
-        fg     = QStringLiteral("#e0e0e0");
-        btnBg  = QStringLiteral("#3c3c3c");
-        btnFg  = QStringLiteral("#ffffff");
-        coverBg= QStringLiteral("#1a1a1a");
+        presetBg_      = QStringLiteral("#2b2b2b");
+        presetFg_      = QStringLiteral("#e0e0e0");
+        presetBtnBg_   = QStringLiteral("#3c3c3c");
+        presetBtnFg_   = QStringLiteral("#ffffff");
+        presetCoverBg_ = QStringLiteral("#1a1a1a");
     } else {
-        bg     = QStringLiteral("#f0f0f0");
-        fg     = QStringLiteral("#222222");
-        btnBg  = QStringLiteral("#e0e0e0");
-        btnFg  = QStringLiteral("#222222");
-        coverBg= QStringLiteral("#ffffff");
+        presetBg_      = QStringLiteral("#f0f0f0");
+        presetFg_      = QStringLiteral("#222222");
+        presetBtnBg_   = QStringLiteral("#e0e0e0");
+        presetBtnFg_   = QStringLiteral("#222222");
+        presetCoverBg_ = QStringLiteral("#ffffff");
     }
 
-    // Container background with rounded corners.
-    container_->setStyleSheet(QStringLiteral(
-        "QWidget { background: %1; }").arg(bg));
+    // Container draws NO background — paintEvent handles the rounded rect
+    // fill and border using presetBg_/presetFg_ directly.
+    container_->setAttribute(Qt::WA_TranslucentBackground, true);
 
     // Labels.
     const QString labelStyle = QStringLiteral(
-        "color: %1; background: transparent; border: none; padding: 0;").arg(fg);
+        "color: %1; background: transparent; border: none; padding: 0;")
+        .arg(presetFg_);
     titleLabel_->setStyleSheet(labelStyle + QStringLiteral(" font-weight: bold;"));
     artistLabel_->setStyleSheet(labelStyle);
     albumLabel_->setStyleSheet(labelStyle);
@@ -353,7 +352,7 @@ void TrayPopup::applyStyle()
     // Cover background.
     coverLabel_->setStyleSheet(QStringLiteral(
         "background: %1; border: none; font-size: 28px; color: %2;")
-        .arg(coverBg, fg));
+        .arg(presetCoverBg_, presetFg_));
 
     // Transport buttons.
     const QString btnStyle = QStringLiteral(
@@ -361,7 +360,7 @@ void TrayPopup::applyStyle()
         "  border-radius: 3px; padding: 2px; }"
         "QPushButton:hover { background: %3; }"
         "QPushButton:pressed { background: %4; }")
-        .arg(btnBg, btnFg,
+        .arg(presetBtnBg_, presetBtnFg_,
              style_ == Dark ? "#555555" : "#cccccc",
              style_ == Dark ? "#777777" : "#aaaaaa");
     for (auto *b : {prevBtn_, playBtn_, stopBtn_, nextBtn_}) {
@@ -369,7 +368,6 @@ void TrayPopup::applyStyle()
             b->setStyleSheet(btnStyle);
     }
 
-    // Update background.
     update();
 }
 
