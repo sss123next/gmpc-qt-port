@@ -169,7 +169,7 @@ void NowPlaying::setSong(const SongEntry *song)
     mgr_->requestLyrics(curArtist_, curTitle_);
 }
 
-// ── Metadata refresh (fetch full tags from MPD) ─────────────────────────────
+// ── Metadata refresh (fetch full tags + status from MPD) ────────────────────
 
 void NowPlaying::refreshMetadata()
 {
@@ -181,34 +181,70 @@ void NowPlaying::refreshMetadata()
         return;
 
     // ---- Fetch current song from MPD ----
-    Connection::ResponseScope scope(*conn_, "currentsong");
-    struct mpd_song *mpd = mpd_run_current_song(conn_->raw());
+    struct mpd_song *mpd = nullptr;
+    {
+        Connection::ResponseScope scope(*conn_, "currentsong");
+        mpd = mpd_run_current_song(conn_->raw());
+    }
     if (!mpd)
         return;   // nothing playing or error
 
     // Collect tags.
-    const QString track   = tag(mpd, MPD_TAG_TRACK);
-    const QString disc    = tag(mpd, MPD_TAG_DISC);
-    const QString date    = tag(mpd, MPD_TAG_DATE);
-    const QString genre   = tag(mpd, MPD_TAG_GENRE);
-    const QString composer= tag(mpd, MPD_TAG_COMPOSER);
-    const QString perform = tag(mpd, MPD_TAG_PERFORMER);
-    const QString label   = tag(mpd, MPD_TAG_LABEL);
-    const QString comment = tag(mpd, MPD_TAG_COMMENT);
-    const QString cond    = tag(mpd, MPD_TAG_CONDUCTOR);
-    const QString ens     = tag(mpd, MPD_TAG_ENSEMBLE);
-    const QString mbArtist= tag(mpd, MPD_TAG_MUSICBRAINZ_ARTISTID);
-    const QString mbAlbum = tag(mpd, MPD_TAG_MUSICBRAINZ_ALBUMID);
-    const QString mbTrack = tag(mpd, MPD_TAG_MUSICBRAINZ_TRACKID);
-    const QString origDate= tag(mpd, MPD_TAG_ORIGINAL_DATE);
-    const QString asort   = tag(mpd, MPD_TAG_ARTIST_SORT);
-    const QString alsort  = tag(mpd, MPD_TAG_ALBUM_SORT);
-    const QString work    = tag(mpd, MPD_TAG_WORK);
-    const QString mov     = tag(mpd, MPD_TAG_MOVEMENT);
-    const QString movNum  = tag(mpd, MPD_TAG_MOVEMENTNUMBER);
+    const QString track      = tag(mpd, MPD_TAG_TRACK);
+    const QString disc       = tag(mpd, MPD_TAG_DISC);
+    const QString date       = tag(mpd, MPD_TAG_DATE);
+    const QString genre      = tag(mpd, MPD_TAG_GENRE);
+    const QString composer   = tag(mpd, MPD_TAG_COMPOSER);
+    const QString perform    = tag(mpd, MPD_TAG_PERFORMER);
+    const QString label      = tag(mpd, MPD_TAG_LABEL);
+    const QString comment    = tag(mpd, MPD_TAG_COMMENT);
+    const QString cond       = tag(mpd, MPD_TAG_CONDUCTOR);
+    const QString ens        = tag(mpd, MPD_TAG_ENSEMBLE);
+    const QString mbArtist   = tag(mpd, MPD_TAG_MUSICBRAINZ_ARTISTID);
+    const QString mbAlbum    = tag(mpd, MPD_TAG_MUSICBRAINZ_ALBUMID);
+    const QString mbTrack    = tag(mpd, MPD_TAG_MUSICBRAINZ_TRACKID);
+    const QString origDate   = tag(mpd, MPD_TAG_ORIGINAL_DATE);
+    const QString asort      = tag(mpd, MPD_TAG_ARTIST_SORT);
+    const QString alsort     = tag(mpd, MPD_TAG_ALBUM_SORT);
+    const QString work       = tag(mpd, MPD_TAG_WORK);
+    const QString mov        = tag(mpd, MPD_TAG_MOVEMENT);
+    const QString movNum     = tag(mpd, MPD_TAG_MOVEMENTNUMBER);
+
+    // Additional MPD tags — not present in the simplified SongEntry.
+    const QString albumArtist  = tag(mpd, MPD_TAG_ALBUM_ARTIST);
+    const QString grouping     = tag(mpd, MPD_TAG_GROUPING);
+    const QString mood         = tag(mpd, MPD_TAG_MOOD);
+    const QString location     = tag(mpd, MPD_TAG_LOCATION);
+    const QString titleSort    = tag(mpd, MPD_TAG_TITLE_SORT);
+    const QString compSort     = tag(mpd, MPD_TAG_COMPOSER_SORT);
+    const QString alsortArt    = tag(mpd, MPD_TAG_ALBUM_ARTIST_SORT);
+    const QString mbAlbumArt   = tag(mpd, MPD_TAG_MUSICBRAINZ_ALBUMARTISTID);
+    const QString mbWork       = tag(mpd, MPD_TAG_MUSICBRAINZ_WORKID);
+    const QString mbRelTrack   = tag(mpd, MPD_TAG_MUSICBRAINZ_RELEASETRACKID);
+    const QString mbRelGroup   = tag(mpd, MPD_TAG_MUSICBRAINZ_RELEASEGROUPID);
 
     const int dur = static_cast<int>(mpd_song_get_duration(mpd));
     mpd_song_free(mpd);
+
+    // ---- Fetch status for audio format & bitrate ----
+    uint32_t sampleRate = 0;
+    uint8_t  bits       = 0;
+    uint8_t  channels   = 0;
+    unsigned bitrate    = 0;
+    {
+        Connection::ResponseScope scope(*conn_, "status");
+        mpd_status *status = mpd_run_status(conn_->raw());
+        if (status) {
+            bitrate = mpd_status_get_kbit_rate(status);
+            const mpd_audio_format *af = mpd_status_get_audio_format(status);
+            if (af) {
+                sampleRate = af->sample_rate;
+                bits       = af->bits;
+                channels   = af->channels;
+            }
+            mpd_status_free(status);
+        }
+    }
 
     // Format duration.
     const QString durStr = dur > 0
@@ -219,13 +255,14 @@ void NowPlaying::refreshMetadata()
     // ── Tab 1: Details ──────────────────────────────────────────────
     auto *detForm = new QFormLayout;
     detForm->setContentsMargins(8, 8, 8, 8);
-    addRow(detForm, tr("Track"),      track);
-    addRow(detForm, tr("Disc"),       disc);
-    addRow(detForm, tr("Year"),       date);
+    addRow(detForm, tr("Track"),         track);
+    addRow(detForm, tr("Disc"),          disc);
+    addRow(detForm, tr("Year"),          date);
     if (!origDate.isEmpty() && origDate != date)
         addRow(detForm, tr("Original date"), origDate);
-    addRow(detForm, tr("Genre"),      genre);
-    addRow(detForm, tr("Duration"),   durStr);
+    addRow(detForm, tr("Genre"),         genre);
+    addRow(detForm, tr("Album artist"),  albumArtist);
+    addRow(detForm, tr("Duration"),      durStr);
     if (detForm->rowCount() > 0) {
         auto *w = new QWidget;
         w->setLayout(detForm);
@@ -237,13 +274,16 @@ void NowPlaying::refreshMetadata()
     // ── Tab 2: Credits ──────────────────────────────────────────────
     auto *credForm = new QFormLayout;
     credForm->setContentsMargins(8, 8, 8, 8);
-    addRow(credForm, tr("Composer"),  composer);
-    addRow(credForm, tr("Performer"), perform);
-    addRow(credForm, tr("Conductor"), cond);
-    addRow(credForm, tr("Ensemble"),  ens);
-    addRow(credForm, tr("Label"),     label);
-    addRow(credForm, tr("Work"),      work);
-    addRow(credForm, tr("Movement"),  mov);
+    addRow(credForm, tr("Composer"),     composer);
+    addRow(credForm, tr("Performer"),    perform);
+    addRow(credForm, tr("Conductor"),    cond);
+    addRow(credForm, tr("Ensemble"),     ens);
+    addRow(credForm, tr("Grouping"),     grouping);
+    addRow(credForm, tr("Mood"),         mood);
+    addRow(credForm, tr("Location"),     location);
+    addRow(credForm, tr("Label"),        label);
+    addRow(credForm, tr("Work"),         work);
+    addRow(credForm, tr("Movement"),     mov);
     if (!movNum.isEmpty())
         addRow(credForm, tr("Movement No."), movNum);
     if (credForm->rowCount() > 0) {
@@ -257,18 +297,62 @@ void NowPlaying::refreshMetadata()
     // ── Tab 3: IDs & Sort ───────────────────────────────────────────
     auto *idForm = new QFormLayout;
     idForm->setContentsMargins(8, 8, 8, 8);
-    addRow(idForm, tr("Artist sort"), asort);
-    addRow(idForm, tr("Album sort"),  alsort);
-    addRow(idForm, tr("Comment"),     comment);
-    addRow(idForm, tr("MB Artist ID"), mbArtist);
-    addRow(idForm, tr("MB Album ID"),  mbAlbum);
-    addRow(idForm, tr("MB Track ID"),  mbTrack);
+    addRow(idForm, tr("Title sort"),        titleSort);
+    addRow(idForm, tr("Artist sort"),       asort);
+    addRow(idForm, tr("Album sort"),        alsort);
+    addRow(idForm, tr("Album artist sort"), alsortArt);
+    addRow(idForm, tr("Composer sort"),     compSort);
+    addRow(idForm, tr("Comment"),           comment);
+    addRow(idForm, tr("MB Artist ID"),      mbArtist);
+    addRow(idForm, tr("MB Album ID"),       mbAlbum);
+    addRow(idForm, tr("MB Album Artist ID"), mbAlbumArt);
+    addRow(idForm, tr("MB Track ID"),       mbTrack);
+    addRow(idForm, tr("MB Work ID"),        mbWork);
+    addRow(idForm, tr("MB Release Track ID"), mbRelTrack);
+    addRow(idForm, tr("MB Release Group ID"), mbRelGroup);
     if (idForm->rowCount() > 0) {
         auto *w = new QWidget;
         w->setLayout(idForm);
         tabs_->addTab(w, tr("IDs & Sort"));
     } else {
         delete idForm;
+    }
+
+    // ── Tab 4: Technical (audio format & file info) ─────────────────
+    auto *techForm = new QFormLayout;
+    techForm->setContentsMargins(8, 8, 8, 8);
+    if (sampleRate > 0)
+        addRow(techForm, tr("Sample rate"),
+               QStringLiteral("%1 Hz").arg(sampleRate));
+    if (bits > 0) {
+        QString bitStr;
+        if (bits == MPD_SAMPLE_FORMAT_FLOAT)
+            bitStr = QStringLiteral("Float");
+        else if (bits == MPD_SAMPLE_FORMAT_DSD)
+            bitStr = QStringLiteral("DSD");
+        else
+            bitStr = QStringLiteral("%1 bit").arg(bits);
+        addRow(techForm, tr("Bit depth"), bitStr);
+    }
+    if (channels > 0)
+        addRow(techForm, tr("Channels"),
+               QString::number(channels));
+    if (bitrate > 0)
+        addRow(techForm, tr("Bitrate"),
+               QStringLiteral("%1 kbps").arg(bitrate));
+    // File format from URI extension.
+    if (!curUri_.isEmpty()) {
+        const QString ext = QFileInfo(curUri_).suffix().toUpper();
+        if (!ext.isEmpty())
+            addRow(techForm, tr("Format"), ext);
+        addRow(techForm, tr("File"), curUri_);
+    }
+    if (techForm->rowCount() > 0) {
+        auto *w = new QWidget;
+        w->setLayout(techForm);
+        tabs_->addTab(w, tr("Technical"));
+    } else {
+        delete techForm;
     }
 
     tabs_->setVisible(tabs_->count() > 0);
