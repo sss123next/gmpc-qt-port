@@ -9,6 +9,7 @@
  */
 
 #include <QSystemTrayIcon>
+#include <QAction>
 #include "core/connection.h"
 #include "core/playlist-model.h"
 
@@ -51,5 +52,6 @@ private:
     MpdCommands *cmds_;
     QWidget *mainWindow_;
     MiniPlayer *miniPlayer_ = nullptr;
+    QAction *miniPlayerAct_ = nullptr;
 };
 

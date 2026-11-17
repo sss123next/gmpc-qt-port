@@ -63,6 +63,8 @@ private:
 
     /// Построить вкладки метаданных один раз (лениво, при первом refreshMetadata).
     void buildTabs();
+    /// Очистить текст и скрыть все строки вкладок метаданных.
+    void clearTabs();
 
     /** @brief Обновить текст и видимость строки в форме.
      *  Если @p text пуст — строка прячется. */
@@ -105,6 +107,7 @@ private:
 
     QString curArtist_;
     QString curTitle_;
+    QString curAlbum_;
     QString curUri_;
     bool needsRefresh_ = false;
 

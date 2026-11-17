@@ -137,6 +137,21 @@ public:
     /** @brief Text colour for metadata (empty = theme default). */
     QString metadataColor() const;
     void setMetadataColor(const QString &c);
+    /** @brief Master switch: completely disable all metadata loading. */
+    bool metadataEnabled() const;
+    void setMetadataEnabled(bool v);
+    /** @brief Allow local metadata (embedded tags, local cover files). */
+    bool metadataLocal() const;
+    void setMetadataLocal(bool v);
+    /** @brief Allow online metadata services (MusicBrainz, Last.FM, Deezer, Discogs, lyrics). */
+    bool metadataOnline() const;
+    void setMetadataOnline(bool v);
+
+    // ── Performance ──────────────────────────────────────────────────
+    /** @brief Low Memory Mode: выгружать данные скрытых вкладок, не загружать
+     *         очередь и БД при старте. По умолчанию выключен. */
+    bool lowMemoryMode() const;
+    void setLowMemoryMode(bool v);
 
     // ── Tray ─────────────────────────────────────────────────────────
     bool trayEnabled() const;
@@ -167,6 +182,9 @@ public:
     void setTrayPopupYOffset(int y);
 
     // ── Mini‑Player (detached popup) ───────────────────────────────────
+    /// Master enable/disable toggle (default on).
+    bool miniPlayerEnabled() const;
+    void setMiniPlayerEnabled(bool v);
     /** Position mode: 0=Center, 1=TopLeft, 2=TopRight, 3=BottomLeft, 4=BottomRight, 5=Custom */
     int miniPlayerPositionMode() const;
     void setMiniPlayerPositionMode(int mode);

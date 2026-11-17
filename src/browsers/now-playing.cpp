@@ -8,6 +8,7 @@
 #include "widgets/cover-widget.h"
 #include "widgets/cover-viewer.h"
 #include "metadata/metadata-manager.h"
+#include "core/config.h"
 #include "core/connection.h"
 #include "core/playlist-model.h"
 
@@ -160,24 +161,26 @@ void NowPlaying::setSong(const SongEntry *song)
     artistLabel_->setText(song->artist);
     albumLabel_->setText(song->album);
 
-    if (song->artist.isEmpty() || song->album.isEmpty())
-        cover_->clear();
-    else
-        cover_->fetchCover(song->artist, song->album, song->uri);
-
     curArtist_ = song->artist;
     curTitle_  = name;
+    curAlbum_  = song->album;
     curUri_    = song->uri;
 
     // Free full-screen cover if viewer was hidden (saves ~8 MB per track).
     if (coverViewer_ && !coverViewer_->isVisible())
         coverViewer_->clear();
 
-    // Если страница скрыта — вкладки и лирику обновим при активации.
+    // Если страница скрыта — обложку, вкладки и лирику обновим при активации.
     if (!isVisible()) {
         needsRefresh_ = true;
         return;
     }
+
+    // Fetch cover only when the page is visible.
+    if (curArtist_.isEmpty() || curAlbum_.isEmpty())
+        cover_->clear();
+    else
+        cover_->fetchCover(curArtist_, curAlbum_, curUri_);
 
     refreshMetadata();
     requestLyricsForCurrent();
@@ -189,6 +192,11 @@ void NowPlaying::onActivate()
 {
     if (needsRefresh_) {
         needsRefresh_ = false;
+        // Fetch deferred cover.
+        if (curArtist_.isEmpty() || curAlbum_.isEmpty())
+            cover_->clear();
+        else
+            cover_->fetchCover(curArtist_, curAlbum_, curUri_);
         refreshMetadata();
         requestLyricsForCurrent();
     }
@@ -196,7 +204,20 @@ void NowPlaying::onActivate()
 
 void NowPlaying::onDeactivate()
 {
-    needsRefresh_ = false;
+    if (Config::instance().lowMemoryMode()) {
+        // In Low Memory Mode, free heavyweight resources immediately.
+        // Set needsRefresh_ so onActivate re-fetches cover, metadata
+        // and lyrics when the user switches back.
+        needsRefresh_ = true;
+        cover_->clear();
+        lyricsView_->clear();
+        clearTabs();
+        hintLabel_->setText(tr("Low Memory Mode — data freed"));
+        if (coverViewer_ && coverViewer_->isVisible())
+            coverViewer_->clear();
+    } else {
+        needsRefresh_ = false;
+    }
 }
 
 /// Запросить лирику для текущего трэка.
@@ -466,6 +487,42 @@ QString NowPlaying::lyricsKey(const QString &artist, const QString &title)
     return artist + QLatin1Char('\n') + title;
 }
 
+/// Очистить текст и скрыть все строки вкладок метаданных.
+void NowPlaying::clearTabs()
+{
+    if (!tabsBuilt_) return;
+
+    auto clearField = [](QLabel *lbl) {
+        if (lbl) { lbl->clear(); lbl->setVisible(false); }
+    };
+
+    // Details
+    clearField(detTrack_); clearField(detDisc_);
+    clearField(detYear_); clearField(detOrigDate_); clearField(detGenre_);
+    clearField(detAlbumArtist_); clearField(detDuration_);
+
+    // Credits
+    clearField(credComposer_); clearField(credPerformer_);
+    clearField(credConductor_); clearField(credEnsemble_); clearField(credGrouping_);
+    clearField(credMood_); clearField(credLocation_); clearField(credLabel_);
+    clearField(credWork_); clearField(credMovement_); clearField(credMovNum_);
+
+    // IDs & Sort
+    clearField(idTitleSort_); clearField(idArtistSort_);
+    clearField(idAlbumSort_); clearField(idAlbumArtSort_); clearField(idCompSort_);
+    clearField(idComment_);
+    clearField(idMbArtist_); clearField(idMbAlbum_); clearField(idMbAlbumArt_);
+    clearField(idMbTrack_); clearField(idMbWork_); clearField(idMbRelTrack_);
+    clearField(idMbRelGroup_);
+
+    // Technical
+    clearField(techSampleRate_); clearField(techBitDepth_);
+    clearField(techChannels_); clearField(techBitrate_);
+    clearField(techFormat_); clearField(techFile_);
+
+    tabs_->setVisible(false);
+}
+
 void NowPlaying::showNothing()
 {
     cover_->clear();
@@ -473,10 +530,11 @@ void NowPlaying::showNothing()
     artistLabel_->clear();
     albumLabel_->clear();
     lyricsView_->clear();
-    tabs_->setVisible(false);
+    clearTabs();
     hintLabel_->setText(tr("Nothing is playing"));
     curArtist_.clear();
     curTitle_.clear();
+    curAlbum_.clear();
     curUri_.clear();
     if (coverViewer_)
         coverViewer_->clear();

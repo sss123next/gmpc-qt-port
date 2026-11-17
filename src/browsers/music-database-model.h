@@ -73,6 +73,9 @@ public:
      */
     void loadByTag(enum mpd_tag_type tag);
 
+    /// Unload all data and free memory.
+    void clear();
+
     /// Загрузить группы верхнего уровня, сгруппированные по артисту.
     void loadArtists() { loadByTag(MPD_TAG_ARTIST); }
 

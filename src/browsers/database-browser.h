@@ -44,6 +44,7 @@ public:
     [[nodiscard]] QVector<BrowserIntent> selectedIntents() const;
 
     void onActivate() override;
+    void onDeactivate() override;
     void onConnectionChanged(bool connected) override;
 
 private slots:

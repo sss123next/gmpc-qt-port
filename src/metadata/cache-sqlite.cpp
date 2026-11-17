@@ -13,8 +13,8 @@ CacheSqlite::CacheSqlite(const QString &path)
         db_ = nullptr;
         return;
     }
-    // Limit page cache to ~2 MB and use in-memory journal to reduce heap.
-    sqlite3_exec(db_, "PRAGMA cache_size=-512", nullptr, nullptr, nullptr);
+    // Limit page cache to ~512 KB and use in-memory journal to reduce heap.
+    sqlite3_exec(db_, "PRAGMA cache_size=-128", nullptr, nullptr, nullptr);
     sqlite3_exec(db_, "PRAGMA journal_mode=MEMORY", nullptr, nullptr, nullptr);
 
     const char *sql = R"(

@@ -272,6 +272,9 @@ void MainWindow::setupUi()
     miniPlayer_->setMarginY(cfg.miniPlayerMarginY());
     miniPlayer_->setDraggable(cfg.miniPlayerDraggable());
 
+    // Share QueueSync with CurrentPlaylist for Low Memory Mode.
+    currentPlaylist_->setQueueSync(queueSync_);
+
     // Connect transport buttons
     connect(miniPlayer_, &MiniPlayer::playPauseClicked,
             cmds_, &MpdCommands::togglePause);
@@ -348,6 +351,15 @@ void MainWindow::setupMenuBar()
 
         profileMenu->addSeparator();
 
+        QAction *connectAct = profileMenu->addAction(tr("Connect"));
+        connect(connectAct, &QAction::triggered, this, [this] {
+            auto &cfg = Config::instance();
+            conn_->disconnect();
+            connectWith(MpdResolvedSettings::fromConfig(
+                cfg.host(), cfg.port(), cfg.password(), cfg.socketPath(),
+                cfg.connectionTimeout()));
+        });
+
         QAction *disconnect = profileMenu->addAction(tr("Disconnect"));
         connect(disconnect, &QAction::triggered, this, [this] {
             conn_->disconnect();
@@ -385,7 +397,10 @@ void MainWindow::setupMenuBar()
     auto *miniAct = view->addAction(tr("&Mini Player"));
     miniAct->setCheckable(true);
     miniAct->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
+    miniAct->setEnabled(Config::instance().miniPlayerEnabled());
     QObject::connect(miniAct, &QAction::triggered, this, [this]() {
+        if (!Config::instance().miniPlayerEnabled())
+            return;
         if (miniPlayer_->isVisible()) {
             miniPlayer_->hide();
         } else {
@@ -522,6 +537,8 @@ void MainWindow::connectSignals()
     // показываем как временное сообщение, не меняя индикатор подключения.
     connect(conn_, &Connection::commandFailed, this, [this](const QString &msg) {
         statusBar_->showMessage(tr("MPD: %1").arg(msg), 8000);
+        if (Config::instance().lowMemoryMode())
+            return;
         // Отказ команды означает, что локальная правка очереди (удаление, перенос) на
         // сервере не состоялась. Дифф такого не увидит — версии-то очереди совпадают,
         // поэтому нужен полный перечёт. Он редок и делается вне GUI-потока.
@@ -544,7 +561,8 @@ void MainWindow::connectSignals()
         // onConnected(): слот подключения зарегистрирован раньше этого обработчика, а
         // без адреса задача на перечтение просто не поставилась бы.
         queueSync_->setEndpoint(endpoint);
-        queueSync_->reload();
+        if (!Config::instance().lowMemoryMode())
+            queueSync_->reload();
     });
     connect(conn_, &Connection::disconnected, this, [this] {
         idle_->stop();
@@ -554,6 +572,8 @@ void MainWindow::connectSignals()
     connect(idle_, &IdleWatcher::mixerChanged, conn_, &Connection::refreshNow);
     connect(idle_, &IdleWatcher::playerChanged, this, [this] {
         conn_->refreshNow();
+        if (Config::instance().lowMemoryMode())
+            return;
         // Теги играющего трэка `update` меняет через подсистему player, а не queue: без
         // этого диффа правка дошла бы только к следующему событию очереди. Лишний вызов
         // дешёв — worker сам увидит, что версия очереди не менялась.
@@ -561,6 +581,8 @@ void MainWindow::connectSignals()
     });
     connect(idle_, &IdleWatcher::queueChanged, this, [this] {
         conn_->refreshNow();   // длина очереди и songid живут в status
+        if (Config::instance().lowMemoryMode())
+            return;
         queueSync_->syncNow(); // а сама очередь — диффом plchanges, не listqueue
     });
     // База перестраивается или уже перестроена (idle database|update): в окне
@@ -661,6 +683,14 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     // positions shift, so pass both and let the model resolve them.
     playlistModel_->setCurrentSong(s.songId, s.songPos);
     const SongEntry *song = playlistModel_->currentSong();
+
+    // Keep a cached copy even when the model is cleared (Low Memory Mode).
+    if (song)
+        lastSong_ = *song;
+    else if (s.state != MPD_STATE_STOP && s.state != MPD_STATE_UNKNOWN
+             && lastSong_.id >= 0)
+        song = &lastSong_;   // use cached when model is empty
+
     trayIcon_->updateStatus(s, song);
 
     // Only update song-dependent widgets when the song actually changes.
@@ -670,7 +700,7 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     lastSongId_ = songId;
 
     // Auto-show mini-player on track change (updates if already visible).
-    if (miniPlayer_) {
+    if (miniPlayer_ && Config::instance().miniPlayerEnabled()) {
         if (song)
             miniPlayer_->showSong(song);
         else
@@ -681,8 +711,15 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     // Страница «Now Playing» живёт тем же источником истины: трэк ей отдаём здесь,
     // а лирику она тянет сама (ключ внутри гасит повторные запросы).
     nowPlaying_->setSong(song);
-    if (song && !song->artist.isEmpty() && !song->album.isEmpty()) {
+
+    // Cover загружаем, только если он где-то отображается.
+    const bool needCover = nowPlaying_->isVisible()
+        || (Config::instance().miniPlayerEnabled()
+            && Config::instance().trayPopupShowCover());
+    if (needCover && song && !song->artist.isEmpty() && !song->album.isEmpty()) {
         coverWidget_->fetchCover(song->artist, song->album, song->uri);
+    } else {
+        coverWidget_->clear();
     }
 
     // Update status bar audio-format label from URI extension.
@@ -800,6 +837,7 @@ void MainWindow::toggleVisibility()
 
 void MainWindow::handleIpcQuit()
 {
+    quitting_ = true;
     QApplication::quit();
 }
 
@@ -1133,6 +1171,13 @@ void MainWindow::closeEvent(QCloseEvent *event)
     cfg.setWindowPos(x(), y());
     cfg.setWindowMaximized(isMaximized());
     cfg.sync();
+
+    // Explicit Quit (tray menu, IPC, Ctrl+Q) must exit regardless of
+    // close-to-tray setting.
+    if (quitting_) {
+        event->accept();
+        return;
+    }
 
     if (cfg.trayEnabled() && cfg.closeToTray()) {
         hide();

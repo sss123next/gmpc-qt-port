@@ -7,9 +7,13 @@
  * Fetches cover art asynchronously via CoverProvider/MetadataManager
  * and displays the result as a scaled QPixmap.  Supports clearing
  * and manual setCover() for cached images.
+ *
+ * Custom-painted QWidget (not QLabel) to avoid pixmap/text rendering
+ * artifacts that occur when switching between setPixmap and setText.
  */
 
-#include <QLabel>
+#include <QWidget>
+#include <QPixmap>
 #include <QString>
 #include <QByteArray>
 #include <QMouseEvent>
@@ -17,7 +21,7 @@
 class MetadataManager;
 
 /// Album-cover image label with async fetching.
-class CoverWidget : public QLabel {
+class CoverWidget : public QWidget {
     Q_OBJECT
 public:
     explicit CoverWidget(QWidget *parent = nullptr);
@@ -47,11 +51,14 @@ signals:
     void clicked();
 
 protected:
+    void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
+    QSize sizeHint() const override;
 
 private:
     MetadataManager *mgr_ = nullptr;
     int coverPx_ = 128;   ///< сторона квадрата отрисовки, px
-    QByteArray lastCoverData_;  ///< оригинальные данные для полноэкранного просмотра
+    QPixmap currentPixmap_;      ///< текущая обложка (null, если нет)
+    QByteArray lastCoverData_;   ///< оригинальные данные для полноэкранного просмотра
 };
 

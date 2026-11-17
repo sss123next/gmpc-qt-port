@@ -93,6 +93,14 @@ void MusicDatabaseModel::loadByTag(enum mpd_tag_type tag)
     endResetModel();
 }
 
+void MusicDatabaseModel::clear()
+{
+    beginResetModel();
+    qDeleteAll(root_->children);
+    root_->children.clear();
+    endResetModel();
+}
+
 void MusicDatabaseModel::loadAlbums(const QModelIndex &idx)
 {
     if (!idx.isValid())

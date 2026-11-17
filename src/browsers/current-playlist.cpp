@@ -14,6 +14,7 @@
 #include "core/connection.h"
 #include "core/mpd-commands.h"
 #include "core/playlist-model.h"
+#include "core/queue-sync.h"
 #include "gui/column-chooser-dialog.h"
 #include "tools/log.h"
 
@@ -446,4 +447,34 @@ void CurrentPlaylist::setSearchAsType(bool on)
         textChangedConn_ = connect(filterEdit_, &QLineEdit::textChanged,
                                    this, &CurrentPlaylist::onFilterChanged);
     }
+}
+
+// ── Low Memory Mode lifecycle ─────────────────────────────────────────────
+
+void CurrentPlaylist::onActivate()
+{
+    if (!Config::instance().lowMemoryMode())
+        return;
+    // Load the queue from MPD when the tab becomes visible.
+    if (queueSync_)
+        queueSync_->reload();
+}
+
+void CurrentPlaylist::onDeactivate()
+{
+    if (!Config::instance().lowMemoryMode())
+        return;
+
+    // Keep only the current song in the model so other widgets (NowPlaying,
+    // control bar, mini-player) can still look up current track info.
+    const SongEntry *cur = model_->currentSong();
+    if (cur)
+        model_->setSongs({*cur});
+    else
+        model_->clear();
+
+    // Free the QueueSync worker's internal queue copy too — it holds the full
+    // list even after the model is cleared (~10 MB for 65k entries).
+    if (queueSync_)
+        queueSync_->reset();
 }

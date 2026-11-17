@@ -2,6 +2,7 @@
 #include "providers/discogs.h"
 #include "tools/async-download.h"
 #include "tag-reader.h"
+#include "core/config.h"
 
 #include <QUrl>
 #include <QUrlQuery>
@@ -32,13 +33,9 @@ CoverProvider::CoverProvider(const QString &lastFmApiKey,
     , ownsDl_(true)
     , musicDir_(musicDir)
 {
-    // Forward Discogs signals
-    connect(discogs_, &DiscogsProvider::coverFound,
-            this, &CoverProvider::onDiscogsCover);
-    connect(discogs_, &DiscogsProvider::error,
-            this, &CoverProvider::onDiscogsError);
-    connect(discogs_, &DiscogsProvider::notFound,
-            this, [this]() { onDiscogsError(QString()); });
+    // Forward Discogs signals — re-connected per-request in tryDiscogs()
+    // with the correct request sequence captured.
+    Q_UNUSED(discogs_);
 }
 
 CoverProvider::~CoverProvider()
@@ -65,12 +62,29 @@ QString CoverProvider::cacheKey() const
 void CoverProvider::fetchCover(const QString &artist, const QString &album,
                                const QString &uri)
 {
+    const auto &cfg = Config::instance();
+
+    // Bump request serial — every async callback must check its captured
+    // seq against this before processing, so stale cross-track responses
+    // are silently dropped.
+    ++seq_;
+
     artist_ = artist;
     album_  = album;
 
+    // Cancel any in-flight Discogs request from a previous cascade.
+    discogs_->cancel();
+
     qDebug() << "CoverProvider::fetchCover" << artist << album << "uri:" << uri;
 
-    // Step 1 — check cache
+    // Master switch: completely disable all metadata.
+    if (!cfg.metadataEnabled()) {
+        qDebug() << "  → metadata disabled";
+        emit notFound();
+        return;
+    }
+
+    // Step 1 — check cache (SQLite)
     QByteArray cached = cache_.get(cacheKey());
     if (!cached.isEmpty()) {
         qDebug() << "  → cache hit";
@@ -78,18 +92,16 @@ void CoverProvider::fetchCover(const QString &artist, const QString &album,
         return;
     }
 
-    // Step 2 — local file alongside the song
-    if (!uri.isEmpty() && !musicDir_.isEmpty()) {
+    // Step 2 — local file alongside the song (cover.jpg, folder.jpg, etc.)
+    if (cfg.metadataLocal() && !uri.isEmpty() && !musicDir_.isEmpty()) {
         if (tryLocalFile(uri)) {
             // tryLocalFile emits coverReady on success
             return;
         }
     }
 
-    qDebug() << "  → cache + local miss, trying MusicBrainz";
-
     // Step 3 — embedded cover art in the file's own tags
-    if (!uri.isEmpty() && !musicDir_.isEmpty()) {
+    if (cfg.metadataLocal() && !uri.isEmpty() && !musicDir_.isEmpty()) {
         const QString absPath = musicDir_ + QLatin1Char('/') + uri;
         EmbeddedCover emb = readEmbeddedCover(absPath);
         if (!emb.data.isEmpty()) {
@@ -100,8 +112,14 @@ void CoverProvider::fetchCover(const QString &artist, const QString &album,
         }
     }
 
-    // Step 4 — MusicBrainz (primary, key-free)
-    tryMusicBrainz();
+    qDebug() << "  → cache + local miss, trying online";
+
+    // Step 4 — online providers
+    if (cfg.metadataOnline()) {
+        tryMusicBrainz();
+    } else {
+        emit notFound();
+    }
 }
 
 void CoverProvider::tryCache()
@@ -189,7 +207,14 @@ void CoverProvider::tryMusicBrainz()
     req.setRawHeader("User-Agent", kUserAgent);
     req.setRawHeader("Accept", "application/json");
 
-    dl_->get(req, [this](bool ok, const QByteArray &data) {
+    uint64_t expected = seq_;
+    const QString reqArtist = artist_;
+    const QString reqAlbum  = album_;
+    dl_->get(req, [this, expected, reqArtist, reqAlbum](bool ok, const QByteArray &data) {
+        if (isStale(expected)) {
+            qDebug() << "  MusicBrainz: stale (seq" << expected << "!= " << seq_ << ")";
+            return;
+        }
         if (!ok) { qDebug() << "  MusicBrainz: network error"; onMBError(tr("MusicBrainz: network error")); return; }
 
         QJsonDocument doc = QJsonDocument::fromJson(data);
@@ -208,11 +233,15 @@ void CoverProvider::tryMusicBrainz()
         QNetworkRequest caaReq(caaUrl);
         caaReq.setRawHeader("User-Agent", kUserAgent);
 
-        dl_->get(caaReq, [this](bool ok2, const QByteArray &data2) {
+        dl_->get(caaReq, [this, expected, reqArtist, reqAlbum](bool ok2, const QByteArray &data2) {
+            if (isStale(expected)) {
+                qDebug() << "  CAA: stale (seq" << expected << "!= " << seq_ << ")";
+                return;
+            }
             if (!ok2) { qDebug() << "  CAA: network error"; onMBNotFound(); return; }
             if (data2.isEmpty()) { qDebug() << "  CAA: empty response"; onMBNotFound(); return; }
             qDebug() << "  CAA: got" << data2.size() << "bytes";
-            tryComplete(data2, "MusicBrainz/CAA");
+            tryComplete(reqArtist, reqAlbum, data2, "MusicBrainz/CAA");
         });
     });
 }
@@ -253,7 +282,14 @@ void CoverProvider::tryLastFm()
     q.addQueryItem("format", "json");
     url.setQuery(q);
 
-    dl_->get(url, [this](bool ok, const QByteArray &data) {
+    uint64_t expected = seq_;
+    const QString reqArtist = artist_;
+    const QString reqAlbum  = album_;
+    dl_->get(url, [this, expected, reqArtist, reqAlbum](bool ok, const QByteArray &data) {
+        if (isStale(expected)) {
+            qDebug() << "  Last.FM: stale (seq" << expected << "!= " << seq_ << ")";
+            return;
+        }
         if (!ok) { onLFError(tr("Last.FM: network error")); return; }
 
         QJsonDocument doc = QJsonDocument::fromJson(data);
@@ -271,21 +307,26 @@ void CoverProvider::tryLastFm()
         }
 
         if (!bestUrl.isEmpty())
-            onLFUrl(bestUrl);
+            onLFUrl(bestUrl, expected, reqArtist, reqAlbum);
         else
             onLFError(tr("Last.FM: no cover image found"));
     });
 }
 
-void CoverProvider::onLFUrl(const QString &url)
+void CoverProvider::onLFUrl(const QString &url, uint64_t expected,
+                             const QString &reqArtist, const QString &reqAlbum)
 {
     // Download the actual image
-    dl_->get(QUrl(url), [this](bool ok, const QByteArray &data) {
+    dl_->get(QUrl(url), [this, expected, reqArtist, reqAlbum](bool ok, const QByteArray &data) {
+        if (isStale(expected)) {
+            qDebug() << "  Last.FM image: stale (seq" << expected << "!= " << seq_ << ")";
+            return;
+        }
         if (!ok || data.isEmpty()) {
             tryDeezer();
             return;
         }
-        tryComplete(data, "Last.FM");
+        tryComplete(reqArtist, reqAlbum, data, "Last.FM");
     });
 }
 
@@ -306,7 +347,14 @@ void CoverProvider::tryDeezer()
     q.addQueryItem("q", QString("%1 %2").arg(artist_, album_));
     url.setQuery(q);
 
-    dl_->get(url, [this](bool ok, const QByteArray &data) {
+    uint64_t expected = seq_;
+    const QString reqArtist = artist_;
+    const QString reqAlbum  = album_;
+    dl_->get(url, [this, expected, reqArtist, reqAlbum](bool ok, const QByteArray &data) {
+        if (isStale(expected)) {
+            qDebug() << "  Deezer search: stale (seq" << expected << "!= " << seq_ << ")";
+            return;
+        }
         if (!ok) { onDeezerError(tr("Deezer: network error")); return; }
 
         QJsonDocument doc = QJsonDocument::fromJson(data);
@@ -337,19 +385,18 @@ void CoverProvider::tryDeezer()
         }
 
         // Download the cover image
-        dl_->get(QUrl(coverBig), [this](bool ok2, const QByteArray &data2) {
+        dl_->get(QUrl(coverBig), [this, expected, reqArtist, reqAlbum](bool ok2, const QByteArray &data2) {
+            if (isStale(expected)) {
+                qDebug() << "  Deezer image: stale (seq" << expected << "!= " << seq_ << ")";
+                return;
+            }
             if (!ok2 || data2.isEmpty()) {
                 onDeezerError(tr("Deezer: download failed"));
                 return;
             }
-            tryComplete(data2, "Deezer");
+            tryComplete(reqArtist, reqAlbum, data2, "Deezer");
         });
     });
-}
-
-void CoverProvider::onDeezerCover(const QByteArray &data)
-{
-    tryComplete(data, "Deezer");
 }
 
 void CoverProvider::onDeezerError(const QString &msg)
@@ -364,27 +411,73 @@ static const char *kDiscogsLog = "discogs";
 
 void CoverProvider::tryDiscogs()
 {
+    // Cancel any previous Discogs request (safety net — fetchCover() already
+    // called discogs_->cancel(), but tryDiscogs may be called again later
+    // from a stale cascade fall-through).
+    discogs_->cancel();
+
+    // Capture the track identity at request time so we cache with the
+    // correct key even if the UI has moved to another track.
+    const QString reqArtist = artist_;
+    const QString reqAlbum  = album_;
+
+    // Tear down any connections from a previous tryDiscogs call.
+    disconnect(discogs_, &DiscogsProvider::coverFound, this, nullptr);
+    disconnect(discogs_, &DiscogsProvider::error, this, nullptr);
+    disconnect(discogs_, &DiscogsProvider::notFound, this, nullptr);
+
+    connect(discogs_, &DiscogsProvider::coverFound, this,
+            [this, reqArtist, reqAlbum](const QByteArray &data) {
+        // Always cache with the requesting track's identity.
+        const QString key = QString("cover:%1:%2").arg(reqArtist, reqAlbum);
+        cache_.put(key, data);
+        // Only emit if this track is still the one being requested.
+        if (reqArtist == artist_ && reqAlbum == album_) {
+            emit coverReady(data);
+        } else {
+            qDebug() << "  Discogs cover: cached" << data.size()
+                     << "bytes for" << reqArtist << reqAlbum
+                     << "(current:" << artist_ << album_ << ") — deferred";
+        }
+    });
+
+    connect(discogs_, &DiscogsProvider::error, this,
+            [this, reqArtist, reqAlbum](const QString &msg) {
+        Q_UNUSED(msg); Q_UNUSED(reqArtist); Q_UNUSED(reqAlbum);
+        emit notFound();
+    });
+
+    connect(discogs_, &DiscogsProvider::notFound, this,
+            [this, reqArtist, reqAlbum]() {
+        Q_UNUSED(reqArtist); Q_UNUSED(reqAlbum);
+        emit notFound();
+    });
+
     discogs_->fetchCover(artist_, album_);
-}
-
-void CoverProvider::onDiscogsCover(const QByteArray &data)
-{
-    tryComplete(data, "Discogs");
-}
-
-void CoverProvider::onDiscogsError(const QString &msg)
-{
-    Q_UNUSED(msg);
-    emit notFound();
 }
 
 // ── Completion ──────────────────────────────────────────────────────────────
 
-void CoverProvider::tryComplete(const QByteArray &data, const QString &label)
+void CoverProvider::tryComplete(const QString &artist, const QString &album,
+                                 const QByteArray &data, const QString &label)
 {
     Q_UNUSED(label);
-    cache_.put(cacheKey(), data);
-    emit coverReady(data);
+    // Always cache with the requesting track's identity, not current
+    // artist_/album_ — ensures data is preserved even if the UI already
+    // moved to another track.
+    const QString key = QString("cover:%1:%2").arg(artist, album);
+    cache_.put(key, data);
+
+    // Only emit coverReady if this track is still the one being requested.
+    // Otherwise the data is cached for later reuse, but the UI should not
+    // flash a cover that belongs to a previous track.
+    if (artist == artist_ && album == album_) {
+        emit coverReady(data);
+    } else {
+        qDebug() << "  " << label << ": cached" << data.size()
+                 << "bytes for" << artist << album
+                 << "(current:" << artist_ << album_ << ") — deferred";
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -21,6 +21,7 @@
 class Connection;
 class MpdCommands;
 class PlaylistModel;
+class QueueSync;
 
 /// View of the current MPD queue (the "now playing" list).
 class CurrentPlaylist : public BrowserWidget {
@@ -57,6 +58,12 @@ public:
 
     /** @brief Toggle live filtering (textChanged) vs Enter-only search. */
     void setSearchAsType(bool on);
+
+    /** @brief Provide QueueSync for deferred queue loading in Low Memory Mode. */
+    void setQueueSync(QueueSync *sync) { queueSync_ = sync; }
+
+    void onActivate() override;
+    void onDeactivate() override;
 
 protected:
     /** @brief Разбирает событие дропа: Qt умеет рисовать индикатор и собирать
@@ -104,6 +111,7 @@ private:
     Connection *conn_;
     MpdCommands *cmds_;
     PlaylistModel *model_;
+    QueueSync *queueSync_ = nullptr;
     QTreeView *view_;
     QLineEdit *filterEdit_;
     QSortFilterProxyModel *proxy_;

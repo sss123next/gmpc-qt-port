@@ -216,7 +216,14 @@ protected:
 
     // Cached song-id to avoid redundant cover/songinfo updates.
     int lastSongId_ = -1;
+    /// Last known current song (kept even when model is cleared in LMM).
+    SongEntry lastSong_;
     /// Last volume applied to the widget, so a drag is not fought by polling.
     int lastVolume_ = -1;
+
+    /** @brief Set when the user issues an explicit Quit (tray menu, IPC).
+     *  closeEvent() checks this flag to bypass the close-to-tray behaviour
+     *  — Quit means exit, not hide. */
+    bool quitting_ = false;
 };
 

@@ -6,6 +6,7 @@
 #include "file-browser.h"
 #include "file-system-model.h"
 #include "core/connection.h"
+#include "core/config.h"
 #include <QHeaderView>
 #include <QSplitter>
 #include <QTreeView>
@@ -140,6 +141,12 @@ void FileBrowser::onActivate()
 {
     if (conn_->isConnected() && model_->canFetchMore({}))
         model_->fetchMore({});
+}
+
+void FileBrowser::onDeactivate()
+{
+    if (Config::instance().lowMemoryMode())
+        model_->clear();
 }
 
 void FileBrowser::onConnectionChanged(bool connected)

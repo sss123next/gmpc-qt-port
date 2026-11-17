@@ -165,6 +165,15 @@ void FileSystemModel::refresh()
     endResetModel();
 }
 
+void FileSystemModel::clear()
+{
+    beginResetModel();
+    qDeleteAll(root_->children);
+    root_->children.clear();
+    root_->loaded = false;
+    endResetModel();
+}
+
 // -- Private ------------------------------------------------------------------
 
 void FileSystemModel::loadDirectory(FileNode *node)

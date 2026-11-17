@@ -415,6 +415,9 @@ void SearchBrowser::onDeactivate()
     // Ответ ушедшего экрана не нужен никому, а стоит он до двух секунд скана базы.
     debounceTimer_->stop();
     engine_->cancel();
+
+    if (Config::instance().lowMemoryMode())
+        model_->setResults({});
 }
 
 void SearchBrowser::executeSearch()

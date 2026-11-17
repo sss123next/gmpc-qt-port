@@ -50,7 +50,7 @@ public:
     /** @brief Feed a complete image directly (caches + emits coverReady).
      *  Must call testSetArtistAlbum() first. */
     void testInjectComplete(const QByteArray &data, const QString &label)
-        { if (!data.isEmpty()) tryComplete(data, label); }
+        { if (!data.isEmpty()) tryComplete(artist_, album_, data, label); }
     /** @brief Force a local file scan with given URI.  Needs musicDir_ set. */
     bool testTryLocalFile(const QString &uri) { return tryLocalFile(uri); }
 
@@ -67,15 +67,19 @@ private:
     void onMBNotFound();
     void onMBError(const QString &msg);
     void tryLastFm();
-    void onLFUrl(const QString &url);
+    void onLFUrl(const QString &url, uint64_t expectedSeq,
+                 const QString &reqArtist, const QString &reqAlbum);
     void onLFError(const QString &msg);
     void tryDeezer();
-    void onDeezerCover(const QByteArray &data);
     void onDeezerError(const QString &msg);
     void tryDiscogs();
-    void onDiscogsCover(const QByteArray &data);
-    void onDiscogsError(const QString &msg);
-    void tryComplete(const QByteArray &data, const QString &label);
+    void tryComplete(const QString &artist, const QString &album,
+                     const QByteArray &data, const QString &label);
+
+    /** @brief Check whether a callback captured at @p expectedSeq is still
+     *         current.  Call at the top of every asynchronous callback;
+     *         return immediately if stale. */
+    bool isStale(uint64_t expectedSeq) const { return expectedSeq != seq_; }
 
     /** @brief Check for local cover files in the song's directory.
      *  Looks for cover.jpg, cover.png, folder.jpg, folder.png, album.jpg, album.png
@@ -93,6 +97,7 @@ private:
     QString artist_;
     QString album_;
     QString musicDir_;   ///< MPD music directory from Config.
+    uint64_t seq_ = 0;   ///< Monotonically increasing request serial.
 };
 
 // ── Deezer provider (standalone for testability) ────────────────────────────

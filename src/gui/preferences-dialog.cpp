@@ -218,6 +218,11 @@ void PreferencesDialog::setupUi()
     auto *popupGroup = new QGroupBox(tr("Mini Player"), this);
     auto *popupForm = new QFormLayout(popupGroup);
 
+    // Master enable/disable
+    miniPlayerEnabled_ = new QCheckBox(tr("Enable Mini Player"), this);
+    miniPlayerEnabled_->setChecked(true);
+    popupForm->addRow(miniPlayerEnabled_);
+
     // Position mode
     miniPlayerPos_ = new QComboBox(this);
     miniPlayerPos_->addItem(tr("Center"),         0);
@@ -315,6 +320,14 @@ void PreferencesDialog::setupUi()
 
     innerLay->addWidget(playlistGroup);
 
+    // ── Performance group ──────────────────────────────────────────
+    auto *perfGroup = new QGroupBox(tr("Performance"), this);
+    auto *perfForm = new QFormLayout(perfGroup);
+    lowMemoryMode_ = new QCheckBox(
+        tr("Low Memory Mode: unload hidden tabs, defer queue/database loading"), this);
+    perfForm->addRow(lowMemoryMode_);
+    innerLay->addWidget(perfGroup);
+
     // ── Metadata group ──────────────────────────────────────────────
     auto *metaGroup = new QGroupBox(tr("Metadata"), this);
     auto *metaForm = new QFormLayout(metaGroup);
@@ -350,6 +363,19 @@ void PreferencesDialog::setupUi()
     discogsTokenEdit_ = new QLineEdit(this);
     discogsTokenEdit_->setPlaceholderText(tr("Discogs Personal Access Token"));
     metaForm->addRow(tr("Discogs token:"), discogsTokenEdit_);
+
+    // ── Metadata provider toggles ───────────────────────────────────
+    metadataEnabled_ = new QCheckBox(tr("Enable metadata loading"));
+    metadataEnabled_->setChecked(true);
+    metaForm->addRow(metadataEnabled_);
+
+    metadataLocal_ = new QCheckBox(tr("Local metadata (embedded tags, local cover files)"));
+    metadataLocal_->setChecked(true);
+    metaForm->addRow(QString(), metadataLocal_);
+
+    metadataOnline_ = new QCheckBox(tr("Online metadata services (MusicBrainz, Last.FM, Deezer, lyrics)"));
+    metadataOnline_->setChecked(true);
+    metaForm->addRow(QString(), metadataOnline_);
 
     innerLay->addWidget(metaGroup);
 
@@ -552,6 +578,7 @@ void PreferencesDialog::loadFromConfig()
     trayNotify_->setChecked(cfg.trayNotify());
 
     // Mini Player
+    miniPlayerEnabled_->setChecked(cfg.miniPlayerEnabled());
     {
         const QSignalBlocker blockPos(miniPlayerPos_);
         miniPlayerPos_->setCurrentIndex(
@@ -584,6 +611,9 @@ void PreferencesDialog::loadFromConfig()
     }
     searchAsType_->setChecked(cfg.searchAsType());
 
+    // Performance
+    lowMemoryMode_->setChecked(cfg.lowMemoryMode());
+
     // Metadata
     const QString mFont = cfg.metadataFont();
     if (!mFont.isEmpty())
@@ -597,6 +627,9 @@ void PreferencesDialog::loadFromConfig()
 
     // Metadata — additional
     discogsTokenEdit_->setText(cfg.discogsToken());
+    metadataEnabled_->setChecked(cfg.metadataEnabled());
+    metadataLocal_->setChecked(cfg.metadataLocal());
+    metadataOnline_->setChecked(cfg.metadataOnline());
 
     // Profiles
     profiles_ = cfg.profiles();
@@ -660,6 +693,7 @@ void PreferencesDialog::accept()
     cfg.setTrayNotify(trayNotify_->isChecked());
 
     // Mini Player
+    cfg.setMiniPlayerEnabled(miniPlayerEnabled_->isChecked());
     cfg.setMiniPlayerPositionMode(miniPlayerPos_->currentData().toInt());
     cfg.setMiniPlayerScreen(miniPlayerScreen_->currentData().toInt());
     cfg.setMiniPlayerMarginX(miniPlayerMarginX_->value());
@@ -678,12 +712,18 @@ void PreferencesDialog::accept()
     }
     cfg.setSearchAsType(searchAsType_->isChecked());
 
+    // Performance
+    cfg.setLowMemoryMode(lowMemoryMode_->isChecked());
+
     // Metadata
     {
         QVariant v = metadataColorBtn_->property("color");
         cfg.setMetadataColor(v.isValid() ? v.toString() : QString());
         cfg.setMetadataFont(metadataFontCombo_->currentFont().family());
         cfg.setDiscogsToken(discogsTokenEdit_->text());
+        cfg.setMetadataEnabled(metadataEnabled_->isChecked());
+        cfg.setMetadataLocal(metadataLocal_->isChecked());
+        cfg.setMetadataOnline(metadataOnline_->isChecked());
     }
 
     // Profiles — sync names back from list widget

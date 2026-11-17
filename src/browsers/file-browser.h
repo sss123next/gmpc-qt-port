@@ -49,6 +49,7 @@ public:
     [[nodiscard]] QVector<BrowserIntent> treeIntents() const;
 
     void onActivate() override;
+    void onDeactivate() override;
     void onConnectionChanged(bool connected) override;
 
 private slots:

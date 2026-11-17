@@ -1,7 +1,9 @@
 #include "trayicon.h"
+#include "mainwindow.h"
 #include "mini-player.h"
 #include "core/mpd-commands.h"
 #include "core/playlist-model.h"
+#include "core/config.h"
 
 #include <QMenu>
 #include <QApplication>
@@ -19,10 +21,11 @@ TrayIcon::TrayIcon(Connection *conn, MpdCommands *cmds, QWidget *mainWindow,
     setupMenu();
 
     // Left-click toggles main window visibility.
-    // Double-click shows Mini Player (if attached).
+    // Double-click shows Mini Player (if attached and enabled).
     connect(icon_, &QSystemTrayIcon::activated, this,
             [this](QSystemTrayIcon::ActivationReason reason) {
-        if (reason == QSystemTrayIcon::DoubleClick && miniPlayer_) {
+        if (reason == QSystemTrayIcon::DoubleClick && miniPlayer_
+            && Config::instance().miniPlayerEnabled()) {
             toggleMiniPlayer();
         } else if (reason == QSystemTrayIcon::Trigger) {
             if (mainWindow_->isVisible())
@@ -56,8 +59,20 @@ void TrayIcon::setupMenu()
 
     auto *miniPlayerAct = menu->addAction(tr("Mini Player"));
     miniPlayerAct->setCheckable(true);
+    miniPlayerAct->setEnabled(Config::instance().miniPlayerEnabled());
     connect(miniPlayerAct, &QAction::triggered, this, [this] {
         toggleMiniPlayer();
+    });
+    miniPlayerAct_ = miniPlayerAct;
+
+    // Refresh action states on every menu open (settings may have changed).
+    connect(menu, &QMenu::aboutToShow, this, [this] {
+        if (miniPlayerAct_) {
+            miniPlayerAct_->setEnabled(
+                Config::instance().miniPlayerEnabled());
+            miniPlayerAct_->setChecked(
+                miniPlayer_ && miniPlayer_->isVisible());
+        }
     });
     menu->addSeparator();
 
@@ -76,7 +91,14 @@ void TrayIcon::setupMenu()
     menu->addSeparator();
 
     auto *quit = menu->addAction(tr("Quit"));
-    connect(quit, &QAction::triggered, qApp, &QApplication::quit);
+    connect(quit, &QAction::triggered, this, [this] {
+        // Quit means "exit", not "hide": bypass close-to-tray.
+        auto *mw = qobject_cast<MainWindow *>(mainWindow_);
+        if (mw)
+            mw->handleIpcQuit();
+        else
+            QApplication::quit();
+    });
 
     icon_->setContextMenu(menu);
 }
@@ -88,7 +110,7 @@ void TrayIcon::setMiniPlayer(MiniPlayer *popup)
 
 void TrayIcon::toggleMiniPlayer()
 {
-    if (!miniPlayer_)
+    if (!miniPlayer_ || !Config::instance().miniPlayerEnabled())
         return;
 
     if (miniPlayer_->isVisible())

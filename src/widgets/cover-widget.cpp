@@ -1,14 +1,15 @@
 #include "cover-widget.h"
 #include "metadata/metadata-manager.h"
+
+#include <QPainter>
+#include <QPaintEvent>
 #include <QPixmap>
 
 CoverWidget::CoverWidget(QWidget *parent)
-    : QLabel(parent)
+    : QWidget(parent)
 {
     setMinimumSize(128, 128);
-    setAlignment(Qt::AlignCenter);
-    setText(tr("No cover"));
-    setStyleSheet("border: 1px solid gray; background: #222; color: #888;");
+    setMouseTracking(false);
 }
 
 void CoverWidget::setMetadataManager(MetadataManager *mgr)
@@ -44,9 +45,6 @@ void CoverWidget::fetchCover(const QString &artist, const QString &album,
                              const QString &uri)
 {
     // Сразу сбрасываем старую обложку, чтобы не висела до ответа сети/кеша.
-    // Если данные есть в кеше, coverReady придёт синхронно из requestCover()
-    // — мерцание незаметно.  Без этого clear старый артефакт висит, пока
-    // каскад провайдеров не доберётся до картинки.
     clear();
 
     if (mgr_)
@@ -55,23 +53,60 @@ void CoverWidget::fetchCover(const QString &artist, const QString &album,
 
 void CoverWidget::setCover(const QPixmap &pixmap)
 {
-    setPixmap(pixmap.scaled(coverPx_, coverPx_, Qt::KeepAspectRatio,
-                            Qt::SmoothTransformation));
+    currentPixmap_ = pixmap.scaled(coverPx_, coverPx_,
+                                   Qt::KeepAspectRatio,
+                                   Qt::SmoothTransformation);
+    update();
 }
 
 void CoverWidget::clear()
 {
-    setPixmap(QPixmap());          // must come before setText (clears text)
-    setText(tr("No cover"));
+    currentPixmap_ = QPixmap();
     lastCoverData_.clear();
+    update();
+}
+
+void CoverWidget::paintEvent(QPaintEvent *event)
+{
+    QPainter p(this);
+    p.setRenderHint(QPainter::SmoothPixmapTransform);
+
+    const QRect r = rect();
+
+    // ── Fill background ───────────────────────────────────────────────
+    p.fillRect(r, QColor(0x22, 0x22, 0x22));
+
+    if (!currentPixmap_.isNull()) {
+        // ── Draw the cover, centered ──────────────────────────────────
+        const QPixmap &scaled = currentPixmap_;
+        const int x = r.x() + (r.width()  - scaled.width())  / 2;
+        const int y = r.y() + (r.height() - scaled.height()) / 2;
+        p.drawPixmap(x, y, scaled);
+    } else {
+        // ── Draw "No cover" placeholder ───────────────────────────────
+        p.setPen(QColor(0x88, 0x88, 0x88));
+        QFont f = p.font();
+        f.setPointSize(qMax(8, coverPx_ / 12));
+        p.setFont(f);
+        p.drawText(r, Qt::AlignCenter, tr("No cover"));
+    }
+
+    // ── Border ────────────────────────────────────────────────────────
+    p.setPen(QColor(0x55, 0x55, 0x55));
+    p.drawRect(r.adjusted(0, 0, -1, -1));
+}
+
+QSize CoverWidget::sizeHint() const
+{
+    return QSize(coverPx_, coverPx_);
 }
 
 void CoverWidget::mousePressEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton && !pixmap().isNull()) {
+    if (event->button() == Qt::LeftButton && !currentPixmap_.isNull()) {
         emit clicked();
         event->accept();
         return;
     }
-    QLabel::mousePressEvent(event);
+    QWidget::mousePressEvent(event);
 }

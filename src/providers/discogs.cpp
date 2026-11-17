@@ -39,6 +39,11 @@ void DiscogsProvider::setDownloader(AsyncDownload *dl)
     ownsDl_ = false;
 }
 
+void DiscogsProvider::cancel()
+{
+    dl_->cancel();
+}
+
 void DiscogsProvider::fetchCover(const QString &artist, const QString &album)
 {
     QUrl url(kSearchUrl);

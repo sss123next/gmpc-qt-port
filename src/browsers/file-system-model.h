@@ -71,6 +71,8 @@ public:
 
     /// Reload from root.
     void refresh();
+    /// Unload all data and free memory.
+    void clear();
 
 private:
     void loadDirectory(FileNode *node);

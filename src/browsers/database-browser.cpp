@@ -5,6 +5,7 @@
 
 #include "database-browser.h"
 #include "music-database-model.h"
+#include "core/config.h"
 
 #include <mpd/tag.h>
 
@@ -102,4 +103,10 @@ void DatabaseBrowser::onConnectionChanged(bool connected)
     setEnabled(connected);
     if (connected)
         model_->loadByTag(currentTag_);
+}
+
+void DatabaseBrowser::onDeactivate()
+{
+    if (Config::instance().lowMemoryMode())
+        model_->clear();
 }

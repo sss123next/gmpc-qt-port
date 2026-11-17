@@ -156,7 +156,8 @@ void MiniPlayer::showSong(const SongEntry *song)
     albumLabel_->setText(song->album);
 
     // Delegate cover fetching to CoverWidget (proven pipeline).
-    if (!song->artist.isEmpty() && !song->album.isEmpty())
+    // Only fetch when covers are enabled in the mini-player settings.
+    if (showCover_ && !song->artist.isEmpty() && !song->album.isEmpty())
         coverWidget_->fetchCover(song->artist, song->album, song->uri);
     else
         coverWidget_->clear();

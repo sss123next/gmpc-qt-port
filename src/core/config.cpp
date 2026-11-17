@@ -138,6 +138,24 @@ QString Config::metadataColor() const
     { return s_.value("metadata/color", "").toString(); }
 void Config::setMetadataColor(const QString &c)
     { s_.setValue("metadata/color", c); }
+bool Config::metadataEnabled() const
+    { return s_.value("metadata/enabled", true).toBool(); }
+void Config::setMetadataEnabled(bool v)
+    { s_.setValue("metadata/enabled", v); }
+bool Config::metadataLocal() const
+    { return s_.value("metadata/local", true).toBool(); }
+void Config::setMetadataLocal(bool v)
+    { s_.setValue("metadata/local", v); }
+bool Config::metadataOnline() const
+    { return s_.value("metadata/online", true).toBool(); }
+void Config::setMetadataOnline(bool v)
+    { s_.setValue("metadata/online", v); }
+
+// ── Performance ───────────────────────────────────────────────────────────
+bool Config::lowMemoryMode() const
+    { return s_.value("performance/lowMemory", false).toBool(); }
+void Config::setLowMemoryMode(bool v)
+    { s_.setValue("performance/lowMemory", v); }
 
 // ── Tray ──────────────────────────────────────────────────────────────────
 bool Config::trayEnabled() const
@@ -188,6 +206,10 @@ void Config::setTrayPopupYOffset(int y)
     { s_.setValue("tray/popupYOffset", y); }
 
 // ── Mini‑Player ────────────────────────────────────────────────────────────
+bool Config::miniPlayerEnabled() const
+    { return s_.value("miniPlayer/enabled", true).toBool(); }
+void Config::setMiniPlayerEnabled(bool v)
+    { s_.setValue("miniPlayer/enabled", v); }
 int Config::miniPlayerPositionMode() const
     { return s_.value("miniPlayer/positionMode", 0).toInt(); }
 void Config::setMiniPlayerPositionMode(int mode)

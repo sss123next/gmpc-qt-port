@@ -91,6 +91,7 @@ private:
     QCheckBox    *trayNotify_;
 
     // Mini Player group
+    QCheckBox    *miniPlayerEnabled_;  ///< Master enable/disable.
     QComboBox    *miniPlayerPos_;      ///< Position mode (Center, corners, Custom).
     QComboBox    *miniPlayerScreen_;   ///< Target screen index.
     QSpinBox     *miniPlayerMarginX_;  ///< Corner margin X.
@@ -116,6 +117,9 @@ private:
     QFontComboBox *metadataFontCombo_;
     QPushButton   *metadataColorBtn_;
     QLineEdit     *discogsTokenEdit_;
+    QCheckBox     *metadataEnabled_;
+    QCheckBox     *metadataLocal_;
+    QCheckBox     *metadataOnline_;
 
     // Multimedia-keys group
     struct KeyBindingRow {
@@ -125,6 +129,9 @@ private:
     };
     QList<KeyBindingRow> keyBindingsRows_;
     QList<MediaKeyBinding> keyBindings_;   ///< working copy until accept()
+
+    // Performance
+    QCheckBox *lowMemoryMode_;
 
     QDialogButtonBox *buttons_;
 };

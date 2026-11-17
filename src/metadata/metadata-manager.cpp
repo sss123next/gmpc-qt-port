@@ -4,6 +4,7 @@
 #include "providers/lyrdb.h"
 #include "providers/lyrics-ovh.h"
 #include "tag-reader.h"
+#include "core/config.h"
 
 #include <QFileInfo>
 
@@ -103,6 +104,10 @@ MetadataManager::~MetadataManager()
 void MetadataManager::requestCover(const QString &artist, const QString &album,
                                    const QString &uri)
 {
+    const auto &cfg = Config::instance();
+    if (!cfg.metadataEnabled())
+        return;
+
     // Check cache first
     QString key = QString("cover:%1:%2").arg(artist, album);
     QByteArray cached = cache_->get(key);
@@ -129,6 +134,12 @@ void MetadataManager::requestCover(const QString &artist, const QString &album,
 void MetadataManager::requestLyrics(const QString &artist, const QString &title,
                                      const QString &uri)
 {
+    const auto &cfg = Config::instance();
+    if (!cfg.metadataEnabled()) {
+        emit lyricsNotFound(artist, title);
+        return;
+    }
+
     QString key = QString("lyrics:%1:%2").arg(artist, title);
     QByteArray cached = cache_->get(key);
     if (!cached.isEmpty()) {
@@ -138,7 +149,7 @@ void MetadataManager::requestLyrics(const QString &artist, const QString &title,
 
     // Try embedded lyrics from the audio file's own tags before hitting
     // the network — many files carry USLT or LYRICS tag.
-    if (!uri.isEmpty() && !musicDir_.isEmpty()) {
+    if (cfg.metadataLocal() && !uri.isEmpty() && !musicDir_.isEmpty()) {
         const QString absPath = musicDir_ + QLatin1Char('/') + uri;
         const QString embedded = readEmbeddedLyrics(absPath);
         if (!embedded.isEmpty()) {
@@ -146,6 +157,11 @@ void MetadataManager::requestLyrics(const QString &artist, const QString &title,
             emit lyricsReady(artist, title, embedded);
             return;
         }
+    }
+
+    if (!cfg.metadataOnline()) {
+        emit lyricsNotFound(artist, title);
+        return;
     }
 
     // Stash for later forwarding

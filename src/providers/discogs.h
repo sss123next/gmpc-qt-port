@@ -29,6 +29,9 @@ public:
 
     void setDownloader(AsyncDownload *dl);
 
+    /// Abort the current download (safe to call even if none is running).
+    void cancel();
+
     /// Fetch cover image for artist/album.
     void fetchCover(const QString &artist, const QString &album);
 
