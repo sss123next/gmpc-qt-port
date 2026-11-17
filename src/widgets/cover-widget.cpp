@@ -42,11 +42,14 @@ void CoverWidget::setCoverSize(int px)
 void CoverWidget::fetchCover(const QString &artist, const QString &album,
                              const QString &uri)
 {
-    if (mgr_) {
+    // Сразу сбрасываем старую обложку, чтобы не висела до ответа сети/кеша.
+    // Если данные есть в кеше, coverReady придёт синхронно из requestCover()
+    // — мерцание незаметно.  Без этого clear старый артефакт висит, пока
+    // каскад провайдеров не доберётся до картинки.
+    clear();
+
+    if (mgr_)
         mgr_->requestCover(artist, album, uri);
-    } else {
-        clear();
-    }
 }
 
 void CoverWidget::setCover(const QPixmap &pixmap)
