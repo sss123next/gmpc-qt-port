@@ -161,6 +161,10 @@ void MiniPlayer::showSong(const SongEntry *song)
     else
         coverWidget_->clear();
 
+    // Free full-screen cover if viewer was hidden (saves ~8 MB per track).
+    if (coverViewer_ && !coverViewer_->isVisible())
+        coverViewer_->clear();
+
     adjustSize();
     positionOnScreen();
     startAutoHide();

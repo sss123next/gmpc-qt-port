@@ -175,6 +175,10 @@ void NowPlaying::setSong(const SongEntry *song)
     curTitle_  = name;
     curUri_    = song->uri;
 
+    // Free full-screen cover if viewer was hidden (saves ~8 MB per track).
+    if (coverViewer_ && !coverViewer_->isVisible())
+        coverViewer_->clear();
+
     // Refresh tabbed metadata.
     refreshMetadata();
 
