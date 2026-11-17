@@ -28,8 +28,10 @@ TrayPopup::TrayPopup(QWidget *parent)
     : QWidget(parent)
 {
     // Frameless window, always on top, no taskbar entry.
+    // Deliberately NO Qt::ToolTip — that flag lets the WM treat it as
+    // a transient popup and override our positioning (e.g. near tray).
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint
-                   | Qt::WindowStaysOnTopHint | Qt::ToolTip);
+                   | Qt::WindowStaysOnTopHint);
     // NO WA_TranslucentBackground — stylesheet handles background with
     // border-radius, no paintEvent needed.
     setAttribute(Qt::WA_ShowWithoutActivating);
