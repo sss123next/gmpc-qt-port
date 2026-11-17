@@ -173,6 +173,9 @@ void NowPlaying::setSong(const SongEntry *song)
 
 void NowPlaying::refreshMetadata()
 {
+    // Save selected tab before rebuilding.
+    const int prevTab = tabs_->currentIndex();
+
     // Clear old tabs.
     tabs_->clear();
     tabs_->setVisible(false);
@@ -355,7 +358,12 @@ void NowPlaying::refreshMetadata()
         delete techForm;
     }
 
-    tabs_->setVisible(tabs_->count() > 0);
+    if (tabs_->count() > 0) {
+        tabs_->setVisible(true);
+        tabs_->setCurrentIndex(qMin(prevTab, tabs_->count() - 1));
+    } else {
+        tabs_->setVisible(false);
+    }
 }
 
 // ── Lyrics callbacks ───────────────────────────────────────────────────────
