@@ -1,4 +1,5 @@
 #include "trayicon.h"
+#include "mini-player.h"
 #include "core/mpd-commands.h"
 #include "core/playlist-model.h"
 
@@ -18,9 +19,12 @@ TrayIcon::TrayIcon(Connection *conn, MpdCommands *cmds, QWidget *mainWindow,
     setupMenu();
 
     // Left-click toggles main window visibility.
+    // Double-click shows Mini Player (if attached).
     connect(icon_, &QSystemTrayIcon::activated, this,
             [this](QSystemTrayIcon::ActivationReason reason) {
-        if (reason == QSystemTrayIcon::Trigger) {
+        if (reason == QSystemTrayIcon::DoubleClick && miniPlayer_) {
+            toggleMiniPlayer();
+        } else if (reason == QSystemTrayIcon::Trigger) {
             if (mainWindow_->isVisible())
                 mainWindow_->hide();
             else {
@@ -50,6 +54,13 @@ void TrayIcon::setupMenu()
     });
     menu->addSeparator();
 
+    auto *miniPlayerAct = menu->addAction(tr("Mini Player"));
+    miniPlayerAct->setCheckable(true);
+    connect(miniPlayerAct, &QAction::triggered, this, [this] {
+        toggleMiniPlayer();
+    });
+    menu->addSeparator();
+
     auto *playPause = menu->addAction(tr("Play/Pause"));
     connect(playPause, &QAction::triggered, cmds_, &MpdCommands::togglePause);
 
@@ -68,6 +79,22 @@ void TrayIcon::setupMenu()
     connect(quit, &QAction::triggered, qApp, &QApplication::quit);
 
     icon_->setContextMenu(menu);
+}
+
+void TrayIcon::setMiniPlayer(MiniPlayer *popup)
+{
+    miniPlayer_ = popup;
+}
+
+void TrayIcon::toggleMiniPlayer()
+{
+    if (!miniPlayer_)
+        return;
+
+    if (miniPlayer_->isVisible())
+        miniPlayer_->hide();
+    else
+        miniPlayer_->show();
 }
 
 void TrayIcon::updateStatus(const Connection::Status &s, const SongEntry *song)

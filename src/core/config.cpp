@@ -144,6 +144,10 @@ bool Config::closeToTray() const
     { return s_.value("tray/closeToTray", false).toBool(); }
 void Config::setCloseToTray(bool v)
     { s_.setValue("tray/closeToTray", v); }
+bool Config::trayNotify() const
+    { return s_.value("tray/notify", false).toBool(); }
+void Config::setTrayNotify(bool v)
+    { s_.setValue("tray/notify", v); }
 
 // ── Tray Popup ────────────────────────────────────────────────────────────
 bool Config::trayPopupEnabled() const
@@ -178,6 +182,40 @@ int Config::trayPopupYOffset() const
     { return s_.value("tray/popupYOffset", 0).toInt(); }
 void Config::setTrayPopupYOffset(int y)
     { s_.setValue("tray/popupYOffset", y); }
+
+// ── Mini‑Player ────────────────────────────────────────────────────────────
+int Config::miniPlayerPositionMode() const
+    { return s_.value("miniPlayer/positionMode", 0).toInt(); }
+void Config::setMiniPlayerPositionMode(int mode)
+    { s_.setValue("miniPlayer/positionMode", mode); }
+int Config::miniPlayerScreen() const
+    { return s_.value("miniPlayer/screen", -1).toInt(); }
+void Config::setMiniPlayerScreen(int idx)
+    { s_.setValue("miniPlayer/screen", idx); }
+int Config::miniPlayerMarginX() const
+    { return s_.value("miniPlayer/marginX", 10).toInt(); }
+void Config::setMiniPlayerMarginX(int px)
+    { s_.setValue("miniPlayer/marginX", px); }
+int Config::miniPlayerMarginY() const
+    { return s_.value("miniPlayer/marginY", 10).toInt(); }
+void Config::setMiniPlayerMarginY(int px)
+    { s_.setValue("miniPlayer/marginY", px); }
+int Config::miniPlayerX() const
+    { return s_.value("miniPlayer/x", -1).toInt(); }
+void Config::setMiniPlayerX(int x)
+    { s_.setValue("miniPlayer/x", x); }
+int Config::miniPlayerY() const
+    { return s_.value("miniPlayer/y", -1).toInt(); }
+void Config::setMiniPlayerY(int y)
+    { s_.setValue("miniPlayer/y", y); }
+int Config::miniPlayerW() const
+    { return s_.value("miniPlayer/w", -1).toInt(); }
+void Config::setMiniPlayerW(int w)
+    { s_.setValue("miniPlayer/w", w); }
+int Config::miniPlayerH() const
+    { return s_.value("miniPlayer/h", -1).toInt(); }
+void Config::setMiniPlayerH(int h)
+    { s_.setValue("miniPlayer/h", h); }
 
 // ── Profiles ──────────────────────────────────────────────────────────────
 QList<ConnectionProfile> Config::profiles() const

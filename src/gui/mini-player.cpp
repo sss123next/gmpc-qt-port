@@ -1,19 +1,22 @@
 /**
- * @file tray-popup.cpp
- * @brief Borderless mini-player window — simple stylesheet-based background,
- *        CoverWidget for proven cover-art display.
+ * @file mini-player.cpp
+ * @brief Borderless mini-player window — stylesheet background,
+ *        CoverWidget for cover art, draggable, position remembered.
  */
 
-#include "tray-popup.h"
+#include "mini-player.h"
 #include "widgets/cover-widget.h"
 #include "metadata/metadata-manager.h"
 #include "core/playlist-model.h"
+#include "core/config.h"
 
 #include <QApplication>
 #include <QScreen>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QStyle>
+#include <QMouseEvent>
+#include <QHideEvent>
 #include <QDebug>
 
 // ── Geometry constants ──────────────────────────────────────────────────────
@@ -24,16 +27,14 @@ static constexpr int kMargin      = 10;   ///< Internal margin.
 
 // ── Constructor ─────────────────────────────────────────────────────────────
 
-TrayPopup::TrayPopup(QWidget *parent)
+MiniPlayer::MiniPlayer(QWidget *parent)
     : QWidget(parent)
 {
-    // Frameless window, always on top, no taskbar entry.
-    // Deliberately NO Qt::ToolTip — that flag lets the WM treat it as
-    // a transient popup and override our positioning (e.g. near tray).
-    setWindowFlags(Qt::Window | Qt::FramelessWindowHint
+    // ToolTip flag tells the WM (especially tiling ones like Awesome) to
+    // NOT manage this window — no tiling, no resizing, no decorations.
+    // Position is set manually and remembered across sessions.
+    setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint
                    | Qt::WindowStaysOnTopHint);
-    // NO WA_TranslucentBackground — stylesheet handles background with
-    // border-radius, no paintEvent needed.
     setAttribute(Qt::WA_ShowWithoutActivating);
     setAttribute(Qt::WA_OpaquePaintEvent, false);
 
@@ -47,7 +48,7 @@ TrayPopup::TrayPopup(QWidget *parent)
 
 // ── Layout construction ─────────────────────────────────────────────────────
 
-void TrayPopup::createLayout()
+void MiniPlayer::createLayout()
 {
     auto *root = new QHBoxLayout(this);
     root->setContentsMargins(kMargin, kMargin, kMargin, kMargin);
@@ -108,20 +109,23 @@ void TrayPopup::createLayout()
     btnLay->addWidget(stopBtn_);
     btnLay->addWidget(nextBtn_);
 
-    connect(prevBtn_, &QPushButton::clicked, this, &TrayPopup::previousClicked);
-    connect(playBtn_, &QPushButton::clicked, this, &TrayPopup::playPauseClicked);
-    connect(stopBtn_, &QPushButton::clicked, this, &TrayPopup::stopClicked);
-    connect(nextBtn_, &QPushButton::clicked, this, &TrayPopup::nextClicked);
+    connect(prevBtn_, &QPushButton::clicked, this, &MiniPlayer::previousClicked);
+    connect(playBtn_, &QPushButton::clicked, this, &MiniPlayer::playPauseClicked);
+    connect(stopBtn_, &QPushButton::clicked, this, &MiniPlayer::stopClicked);
+    connect(nextBtn_, &QPushButton::clicked, this, &MiniPlayer::nextClicked);
 
     right->addWidget(buttonBar_);
     buttonBar_->setVisible(showButtons_);
 
     root->addLayout(right, 1);
+
+    // Cursor for dragging (whole surface acts as title bar).
+    setCursor(Qt::OpenHandCursor);
 }
 
 // ── Metadata Manager ────────────────────────────────────────────────────────
 
-void TrayPopup::setMetadataManager(MetadataManager *mgr)
+void MiniPlayer::setMetadataManager(MetadataManager *mgr)
 {
     mgr_ = mgr;
     if (coverWidget_)
@@ -130,7 +134,7 @@ void TrayPopup::setMetadataManager(MetadataManager *mgr)
 
 // ── Show / Update ───────────────────────────────────────────────────────────
 
-void TrayPopup::showSong(const SongEntry *song)
+void MiniPlayer::showSong(const SongEntry *song)
 {
     if (!song) {
         clear();
@@ -155,7 +159,7 @@ void TrayPopup::showSong(const SongEntry *song)
         show();
 }
 
-void TrayPopup::clear()
+void MiniPlayer::clear()
 {
     hide();
     stopAutoHide();
@@ -167,34 +171,148 @@ void TrayPopup::clear()
 
 // ── Positioning ─────────────────────────────────────────────────────────────
 
-void TrayPopup::positionOnScreen()
+void MiniPlayer::positionOnScreen()
 {
-    const QScreen *screen = QApplication::primaryScreen();
+    auto &cfg = Config::instance();
+
+    // Read the latest config values into local state.
+    posMode_  = static_cast<PositionMode>(cfg.miniPlayerPositionMode());
+    screenIdx_ = cfg.miniPlayerScreen();
+    marginX_   = cfg.miniPlayerMarginX();
+    marginY_   = cfg.miniPlayerMarginY();
+
+    const QScreen *screen = resolveScreen();
     if (!screen) { move(100, 100); return; }
     const QRect g = screen->availableGeometry();
     const int pw = frameGeometry().width();
     const int ph = frameGeometry().height();
-    move((g.width()  - pw) / 2,
-         (g.height() - ph) / 2);
+
+    int x, y;
+    switch (posMode_) {
+    case PosTopLeft:
+        x = g.x() + marginX_;
+        y = g.y() + marginY_;
+        break;
+    case PosTopRight:
+        x = g.x() + g.width() - pw - marginX_;
+        y = g.y() + marginY_;
+        break;
+    case PosBottomLeft:
+        x = g.x() + marginX_;
+        y = g.y() + g.height() - ph - marginY_;
+        break;
+    case PosBottomRight:
+        x = g.x() + g.width()  - pw - marginX_;
+        y = g.y() + g.height() - ph - marginY_;
+        break;
+    case PosCustom: {
+        // Use saved absolute position if valid, else fall back to centre.
+        const int sx = cfg.miniPlayerX();
+        const int sy = cfg.miniPlayerY();
+        if (sx >= 0 && sy >= 0) {
+            x = sx;
+            y = sy;
+            break;
+        }
+        // fall through to centre
+    }
+    default:  // PosCenter
+        x = g.x() + (g.width()  - pw) / 2;
+        y = g.y() + (g.height() - ph) / 2;
+        break;
+    }
+    move(x, y);
+}
+
+const QScreen *MiniPlayer::resolveScreen() const
+{
+    const auto screens = QApplication::screens();
+    if (screens.isEmpty())
+        return nullptr;
+    if (screenIdx_ >= 0 && screenIdx_ < screens.size())
+        return screens.at(screenIdx_);
+    return QApplication::primaryScreen();
+}
+
+void MiniPlayer::saveGeometry()
+{
+    auto &cfg = Config::instance();
+    cfg.setMiniPlayerPositionMode(static_cast<int>(posMode_));
+    cfg.setMiniPlayerScreen(screenIdx_);
+    cfg.setMiniPlayerMarginX(marginX_);
+    cfg.setMiniPlayerMarginY(marginY_);
+    cfg.setMiniPlayerX(x());
+    cfg.setMiniPlayerY(y());
+    cfg.setMiniPlayerW(width());
+    cfg.setMiniPlayerH(height());
+}
+
+void MiniPlayer::restoreGeometry()
+{
+    auto &cfg = Config::instance();
+    posMode_   = static_cast<PositionMode>(cfg.miniPlayerPositionMode());
+    screenIdx_ = cfg.miniPlayerScreen();
+    marginX_   = cfg.miniPlayerMarginX();
+    marginY_   = cfg.miniPlayerMarginY();
+    const int sw = cfg.miniPlayerW();
+    const int sh = cfg.miniPlayerH();
+    if (sw > 0 && sh > 0)
+        resize(sw, sh);
+    // Position will be set by positionOnScreen() before first show.
+}
+
+// ── Mouse dragging ──────────────────────────────────────────────────────────
+
+void MiniPlayer::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        dragStartPos_ = event->globalPosition().toPoint();
+        dragging_ = true;
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+        return;
+    }
+    QWidget::mousePressEvent(event);
+}
+
+void MiniPlayer::mouseMoveEvent(QMouseEvent *event)
+{
+    if (dragging_) {
+        const QPoint delta = event->globalPosition().toPoint() - dragStartPos_;
+        move(pos() + delta);
+        dragStartPos_ = event->globalPosition().toPoint();
+        posMode_ = PosCustom;           // drag → custom positioning
+        event->accept();
+        return;
+    }
+    QWidget::mouseMoveEvent(event);
+}
+
+// ── Hide event — save position ──────────────────────────────────────────────
+
+void MiniPlayer::hideEvent(QHideEvent *event)
+{
+    saveGeometry();
+    QWidget::hideEvent(event);
 }
 
 // ── Auto-hide ───────────────────────────────────────────────────────────────
 
-void TrayPopup::startAutoHide()
+void MiniPlayer::startAutoHide()
 {
     stopAutoHide();
     if (timeoutSec_ > 0)
         autoHideTimer_->start(timeoutSec_ * 1000);
 }
 
-void TrayPopup::stopAutoHide()
+void MiniPlayer::stopAutoHide()
 {
     autoHideTimer_->stop();
 }
 
 // ── Style presets ─────────────────────────────────────────────────────────
 
-void TrayPopup::applyStyle()
+void MiniPlayer::applyStyle()
 {
     presetBg_ = presetFg_ = presetBtnBg_ = presetBtnFg_ = {};
 
@@ -215,6 +333,10 @@ void TrayPopup::applyStyle()
         "background: %1; border: 1px solid %2; border-radius: %3px;")
         .arg(presetBg_, presetFg_)
         .arg(kRadius));
+
+    // Button-bar inherits NOTHING from parent stylesheet (background
+    // is NOT inherited in Qt stylesheets) — make it transparent.
+    buttonBar_->setAttribute(Qt::WA_TranslucentBackground, true);
 
     // Labels.
     const QString labelStyle = QStringLiteral(
@@ -242,18 +364,18 @@ void TrayPopup::applyStyle()
 
 // ── Setters ─────────────────────────────────────────────────────────────────
 
-void TrayPopup::setStylePreset(StylePreset preset)
+void MiniPlayer::setStylePreset(StylePreset preset)
 {
     style_ = preset;
     applyStyle();
 }
 
-void TrayPopup::setTimeoutSec(int sec)
+void MiniPlayer::setTimeoutSec(int sec)
 {
     timeoutSec_ = qMax(0, sec);
 }
 
-void TrayPopup::setShowCover(bool show)
+void MiniPlayer::setShowCover(bool show)
 {
     showCover_ = show;
     if (coverWidget_)
@@ -261,10 +383,32 @@ void TrayPopup::setShowCover(bool show)
     adjustSize();
 }
 
-void TrayPopup::setShowButtons(bool show)
+void MiniPlayer::setShowButtons(bool show)
 {
     showButtons_ = show;
     if (buttonBar_)
         buttonBar_->setVisible(show);
     adjustSize();
+}
+
+// ── Position setters ────────────────────────────────────────────────────────
+
+void MiniPlayer::setPositionMode(PositionMode m)
+{
+    posMode_ = m;
+}
+
+void MiniPlayer::setTargetScreen(int idx)
+{
+    screenIdx_ = idx;
+}
+
+void MiniPlayer::setMarginX(int px)
+{
+    marginX_ = px;
+}
+
+void MiniPlayer::setMarginY(int px)
+{
+    marginY_ = px;
 }

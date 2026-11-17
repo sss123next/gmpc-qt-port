@@ -3,7 +3,7 @@
 #include "controlbar.h"
 #include "statusbar.h"
 #include "trayicon.h"
-#include "tray-popup.h"
+#include "mini-player.h"
 #include "preferences-dialog.h"
 
 #include "core/connection.h"
@@ -257,23 +257,31 @@ void MainWindow::setupUi()
     trayIcon_->setVisible(cfg.trayEnabled());
 
     // ── Borderless mini-player window (detached from tray) ────────────
-    trayPopup_ = new TrayPopup(this);
-    trayPopup_->setMetadataManager(metadataMgr_);
-    trayPopup_->setStylePreset(
-        static_cast<TrayPopup::StylePreset>(cfg.trayPopupStyle()));
-    trayPopup_->setTimeoutSec(cfg.trayPopupTimeout());
-    trayPopup_->setShowCover(cfg.trayPopupShowCover());
-    trayPopup_->setShowButtons(cfg.trayPopupShowButtons());
+    miniPlayer_ = new MiniPlayer(this);
+    miniPlayer_->setMetadataManager(metadataMgr_);
+    miniPlayer_->setStylePreset(
+        static_cast<MiniPlayer::StylePreset>(cfg.trayPopupStyle()));
+    miniPlayer_->setTimeoutSec(cfg.trayPopupTimeout());
+    miniPlayer_->setShowCover(cfg.trayPopupShowCover());
+    miniPlayer_->setShowButtons(cfg.trayPopupShowButtons());
+    miniPlayer_->setPositionMode(
+        static_cast<MiniPlayer::PositionMode>(cfg.miniPlayerPositionMode()));
+    miniPlayer_->setTargetScreen(cfg.miniPlayerScreen());
+    miniPlayer_->setMarginX(cfg.miniPlayerMarginX());
+    miniPlayer_->setMarginY(cfg.miniPlayerMarginY());
 
     // Connect transport buttons
-    connect(trayPopup_, &TrayPopup::playPauseClicked,
+    connect(miniPlayer_, &MiniPlayer::playPauseClicked,
             cmds_, &MpdCommands::togglePause);
-    connect(trayPopup_, &TrayPopup::stopClicked,
+    connect(miniPlayer_, &MiniPlayer::stopClicked,
             cmds_, &MpdCommands::stop);
-    connect(trayPopup_, &TrayPopup::nextClicked,
+    connect(miniPlayer_, &MiniPlayer::nextClicked,
             cmds_, &MpdCommands::next);
-    connect(trayPopup_, &TrayPopup::previousClicked,
+    connect(miniPlayer_, &MiniPlayer::previousClicked,
             cmds_, &MpdCommands::previous);
+
+    // Attach mini-player to tray for double-click and context-menu access.
+    trayIcon_->setMiniPlayer(miniPlayer_);
 
     // MPRIS DBus interface
     mpris_ = new MprisPlayer(conn_, cmds_, this);
@@ -376,14 +384,14 @@ void MainWindow::setupMenuBar()
     miniAct->setCheckable(true);
     miniAct->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
     QObject::connect(miniAct, &QAction::triggered, this, [this]() {
-        if (trayPopup_->isVisible()) {
-            trayPopup_->hide();
+        if (miniPlayer_->isVisible()) {
+            miniPlayer_->hide();
         } else {
             const SongEntry *song = playlistModel_->currentSong();
             if (song)
-                trayPopup_->showSong(song);
+                miniPlayer_->showSong(song);
             else
-                trayPopup_->show();
+                miniPlayer_->show();
         }
     });
     // Поп-ап ещё не создан на момент setupMenuBar() — setChecked пропускаем,
@@ -647,19 +655,19 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     const SongEntry *song = playlistModel_->currentSong();
     trayIcon_->updateStatus(s, song);
 
-    // Keep mini-player up-to-date when it's visible.
-    if (trayPopup_ && trayPopup_->isVisible()) {
-        if (song)
-            trayPopup_->showSong(song);
-        else
-            trayPopup_->clear();
-    }
-
     // Only update song-dependent widgets when the song actually changes.
     const int songId = song ? song->id : -1;
     if (songId == lastSongId_)
         return;
     lastSongId_ = songId;
+
+    // Auto-show mini-player on track change (updates if already visible).
+    if (miniPlayer_) {
+        if (song)
+            miniPlayer_->showSong(song);
+        else
+            miniPlayer_->clear();
+    }
 
     songInfo_->showSong(song);
     // Страница «Now Playing» живёт тем же источником истины: трэк ей отдаём здесь,
@@ -670,7 +678,8 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
     }
 
     // ── Tray notification on track change ────────────────────────────
-    if (trayIcon_ && trayIcon_->isVisible() && song) {
+    if (trayIcon_ && trayIcon_->isVisible() && song
+        && Config::instance().trayNotify()) {
         QString msg;
         if (!song->artist.isEmpty() && !song->title.isEmpty())
             msg = song->artist + QStringLiteral(" — ") + song->title;
@@ -836,8 +845,8 @@ void MainWindow::setupShortcuts()
     auto *consume = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Y), this);
     connect(consume, &QShortcut::activated, cmds_, &MpdCommands::toggleConsume);
 
-    // Mute: Ctrl+M
-    auto *mute = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_M), this);
+    // Mute: Ctrl+Shift+M (Ctrl+M занят Mini Player)
+    auto *mute = new QShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M), this);
     connect(mute, &QShortcut::activated, cmds_, &MpdCommands::muteToggle);
 
     // Fullscreen: F12

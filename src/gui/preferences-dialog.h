@@ -88,16 +88,17 @@ private:
     // Tray group
     QCheckBox    *trayEnabled_;
     QCheckBox    *closeToTray_;
+    QCheckBox    *trayNotify_;
 
-    // Tray Popup group
-    QCheckBox    *trayPopupEnabled_;
-    QComboBox    *trayPopupPosition_;
-    QSpinBox     *trayPopupTimeout_;
-    QComboBox    *trayPopupStyle_;
+    // Mini Player group
+    QComboBox    *miniPlayerPos_;      ///< Position mode (Center, corners, Custom).
+    QComboBox    *miniPlayerScreen_;   ///< Target screen index.
+    QSpinBox     *miniPlayerMarginX_;  ///< Corner margin X.
+    QSpinBox     *miniPlayerMarginY_;  ///< Corner margin Y.
+    QSpinBox     *trayPopupTimeout_;   ///< Auto-hide timeout.
+    QComboBox    *trayPopupStyle_;     ///< Dark / Light.
     QCheckBox    *trayPopupShowCover_;
     QCheckBox    *trayPopupShowButtons_;
-    QSpinBox     *trayPopupXOffset_;
-    QSpinBox     *trayPopupYOffset_;
 
     // Profiles group
     QListWidget  *profileList_;

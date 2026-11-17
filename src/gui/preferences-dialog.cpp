@@ -10,6 +10,8 @@
 #include <QStackedWidget>
 #include <QFontComboBox>
 #include <QColorDialog>
+#include <QApplication>
+#include <QScreen>
 #include <QToolButton>
 #include <algorithm>
 
@@ -208,23 +210,47 @@ void PreferencesDialog::setupUi()
     trayForm->addRow(trayEnabled_);
     closeToTray_ = new QCheckBox(tr("Close to tray instead of quitting"), this);
     trayForm->addRow(closeToTray_);
+    trayNotify_ = new QCheckBox(tr("Notify on track change (system balloon)"), this);
+    trayForm->addRow(trayNotify_);
     innerLay->addWidget(trayGroup);
 
-    // ── Tray Popup group ─────────────────────────────────────────────
-    auto *popupGroup = new QGroupBox(tr("Tray Popup"), this);
+    // ── Mini Player group ──────────────────────────────────────────
+    auto *popupGroup = new QGroupBox(tr("Mini Player"), this);
     auto *popupForm = new QFormLayout(popupGroup);
 
-    trayPopupEnabled_ = new QCheckBox(tr("Show popup on tray icon click"), this);
-    popupForm->addRow(trayPopupEnabled_);
+    // Position mode
+    miniPlayerPos_ = new QComboBox(this);
+    miniPlayerPos_->addItem(tr("Center"),         0);
+    miniPlayerPos_->addItem(tr("Top‑left"),       1);
+    miniPlayerPos_->addItem(tr("Top‑right"),      2);
+    miniPlayerPos_->addItem(tr("Bottom‑left"),    3);
+    miniPlayerPos_->addItem(tr("Bottom‑right"),   4);
+    miniPlayerPos_->addItem(tr("Custom (drag)"),  5);
+    popupForm->addRow(tr("Position:"), miniPlayerPos_);
 
-    // Position combo
-    trayPopupPosition_ = new QComboBox(this);
-    trayPopupPosition_->addItem(tr("At cursor"),         0);
-    trayPopupPosition_->addItem(tr("Top-left of icon"),  1);
-    trayPopupPosition_->addItem(tr("Top-right of icon"), 2);
-    trayPopupPosition_->addItem(tr("Bottom-left of icon"),  3);
-    trayPopupPosition_->addItem(tr("Bottom-right of icon"), 4);
-    popupForm->addRow(tr("Position:"), trayPopupPosition_);
+    // Screen
+    miniPlayerScreen_ = new QComboBox(this);
+    miniPlayerScreen_->addItem(tr("Primary"), -1);
+    const auto screens = QApplication::screens();
+    for (int i = 0; i < screens.size(); ++i)
+        miniPlayerScreen_->addItem(
+            tr("Screen %1").arg(i + 1), i);
+    popupForm->addRow(tr("Screen:"), miniPlayerScreen_);
+
+    // Margins
+    auto *marginRow = new QHBoxLayout();
+    miniPlayerMarginX_ = new QSpinBox(this);
+    miniPlayerMarginX_->setRange(0, 400);
+    miniPlayerMarginX_->setPrefix(tr("X: "));
+    miniPlayerMarginX_->setSuffix(tr(" px"));
+    marginRow->addWidget(miniPlayerMarginX_);
+    miniPlayerMarginY_ = new QSpinBox(this);
+    miniPlayerMarginY_->setRange(0, 400);
+    miniPlayerMarginY_->setPrefix(tr("Y: "));
+    miniPlayerMarginY_->setSuffix(tr(" px"));
+    marginRow->addWidget(miniPlayerMarginY_);
+    marginRow->addStretch();
+    popupForm->addRow(tr("Margin:"), marginRow);
 
     // Timeout
     trayPopupTimeout_ = new QSpinBox(this);
@@ -244,32 +270,6 @@ void PreferencesDialog::setupUi()
     popupForm->addRow(trayPopupShowCover_);
     trayPopupShowButtons_ = new QCheckBox(tr("Show transport buttons"), this);
     popupForm->addRow(trayPopupShowButtons_);
-
-    // Offset
-    auto *offsetRow = new QHBoxLayout();
-    trayPopupXOffset_ = new QSpinBox(this);
-    trayPopupXOffset_->setRange(-200, 200);
-    trayPopupXOffset_->setPrefix(tr("X: "));
-    offsetRow->addWidget(trayPopupXOffset_);
-    trayPopupYOffset_ = new QSpinBox(this);
-    trayPopupYOffset_->setRange(-200, 200);
-    trayPopupYOffset_->setPrefix(tr("Y: "));
-    offsetRow->addWidget(trayPopupYOffset_);
-    offsetRow->addStretch();
-    popupForm->addRow(tr("Offset:"), offsetRow);
-
-    // Enable/disable popup sub-controls based on the checkbox
-    connect(trayPopupEnabled_, &QCheckBox::toggled, this, [this](bool on) {
-        trayPopupPosition_->setEnabled(on);
-        trayPopupTimeout_->setEnabled(on);
-        trayPopupStyle_->setEnabled(on);
-        trayPopupShowCover_->setEnabled(on);
-        trayPopupShowButtons_->setEnabled(on);
-        trayPopupXOffset_->setEnabled(on);
-        trayPopupYOffset_->setEnabled(on);
-    });
-    // Start enabled (will be refined by loadFromConfig)
-    trayPopupEnabled_->setChecked(true);
 
     innerLay->addWidget(popupGroup);
 
@@ -542,14 +542,21 @@ void PreferencesDialog::loadFromConfig()
 
     trayEnabled_->setChecked(cfg.trayEnabled());
     closeToTray_->setChecked(cfg.closeToTray());
+    trayNotify_->setChecked(cfg.trayNotify());
 
-    // Tray Popup
-    trayPopupEnabled_->setChecked(cfg.trayPopupEnabled());
+    // Mini Player
     {
-        const QSignalBlocker blockPos(trayPopupPosition_);
-        trayPopupPosition_->setCurrentIndex(
-            trayPopupPosition_->findData(cfg.trayPopupPosition()));
+        const QSignalBlocker blockPos(miniPlayerPos_);
+        miniPlayerPos_->setCurrentIndex(
+            miniPlayerPos_->findData(cfg.miniPlayerPositionMode()));
     }
+    {
+        const QSignalBlocker blockScr(miniPlayerScreen_);
+        miniPlayerScreen_->setCurrentIndex(
+            miniPlayerScreen_->findData(cfg.miniPlayerScreen()));
+    }
+    miniPlayerMarginX_->setValue(cfg.miniPlayerMarginX());
+    miniPlayerMarginY_->setValue(cfg.miniPlayerMarginY());
     trayPopupTimeout_->setValue(cfg.trayPopupTimeout());
     {
         const QSignalBlocker blockStyle(trayPopupStyle_);
@@ -558,17 +565,6 @@ void PreferencesDialog::loadFromConfig()
     }
     trayPopupShowCover_->setChecked(cfg.trayPopupShowCover());
     trayPopupShowButtons_->setChecked(cfg.trayPopupShowButtons());
-    trayPopupXOffset_->setValue(cfg.trayPopupXOffset());
-    trayPopupYOffset_->setValue(cfg.trayPopupYOffset());
-    // Apply initial enable state of sub-controls
-    const bool popupOn = cfg.trayPopupEnabled();
-    trayPopupPosition_->setEnabled(popupOn);
-    trayPopupTimeout_->setEnabled(popupOn);
-    trayPopupStyle_->setEnabled(popupOn);
-    trayPopupShowCover_->setEnabled(popupOn);
-    trayPopupShowButtons_->setEnabled(popupOn);
-    trayPopupXOffset_->setEnabled(popupOn);
-    trayPopupYOffset_->setEnabled(popupOn);
 
     // Playlist
     headerMarkup_->setText(cfg.playlistHeaderMarkup());
@@ -652,16 +648,17 @@ void PreferencesDialog::accept()
 
     cfg.setTrayEnabled(trayEnabled_->isChecked());
     cfg.setCloseToTray(closeToTray_->isChecked());
+    cfg.setTrayNotify(trayNotify_->isChecked());
 
-    // Tray Popup
-    cfg.setTrayPopupEnabled(trayPopupEnabled_->isChecked());
-    cfg.setTrayPopupPosition(trayPopupPosition_->currentData().toInt());
+    // Mini Player
+    cfg.setMiniPlayerPositionMode(miniPlayerPos_->currentData().toInt());
+    cfg.setMiniPlayerScreen(miniPlayerScreen_->currentData().toInt());
+    cfg.setMiniPlayerMarginX(miniPlayerMarginX_->value());
+    cfg.setMiniPlayerMarginY(miniPlayerMarginY_->value());
     cfg.setTrayPopupTimeout(trayPopupTimeout_->value());
     cfg.setTrayPopupStyle(trayPopupStyle_->currentData().toInt());
     cfg.setTrayPopupShowCover(trayPopupShowCover_->isChecked());
     cfg.setTrayPopupShowButtons(trayPopupShowButtons_->isChecked());
-    cfg.setTrayPopupXOffset(trayPopupXOffset_->value());
-    cfg.setTrayPopupYOffset(trayPopupYOffset_->value());
 
     // Playlist
     cfg.setPlaylistHeaderMarkup(headerMarkup_->text());

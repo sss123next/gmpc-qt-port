@@ -29,7 +29,7 @@ class PlaylistModel;
 class ControlBar;
 class StatusBar;
 class TrayIcon;
-class TrayPopup;
+class MiniPlayer;
 class BrowserStack;
 class DatabaseBrowser;
 class CurrentPlaylist;
@@ -166,7 +166,7 @@ private:
 
     // Tray
     TrayIcon *trayIcon_;      ///< System-tray icon with popup menu.
-    TrayPopup *trayPopup_ = nullptr;  ///< Borderless mini-player window.
+    MiniPlayer *miniPlayer_ = nullptr;  ///< Borderless mini-player window.
 
     // MPRIS
     MprisPlayer *mpris_ = nullptr;

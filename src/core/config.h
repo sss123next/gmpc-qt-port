@@ -141,6 +141,9 @@ public:
     /// Close the main window to tray instead of quitting (requires tray enabled).
     bool closeToTray() const;
     void setCloseToTray(bool v);
+    /// Show a system notification balloon on track change.
+    bool trayNotify() const;
+    void setTrayNotify(bool v);
 
     // ── Tray Popup ─────────────────────────────────────────────────────
     bool trayPopupEnabled() const;
@@ -159,6 +162,32 @@ public:
     void setTrayPopupXOffset(int x);
     int trayPopupYOffset() const;
     void setTrayPopupYOffset(int y);
+
+    // ── Mini‑Player (detached popup) ───────────────────────────────────
+    /** Position mode: 0=Center, 1=TopLeft, 2=TopRight, 3=BottomLeft, 4=BottomRight, 5=Custom */
+    int miniPlayerPositionMode() const;
+    void setMiniPlayerPositionMode(int mode);
+    /// Screen index to show on (-1 = primary / follow mouse).
+    int miniPlayerScreen() const;
+    void setMiniPlayerScreen(int idx);
+    /// Horizontal margin from screen edge (px).
+    int miniPlayerMarginX() const;
+    void setMiniPlayerMarginX(int px);
+    /// Vertical margin from screen edge (px).
+    int miniPlayerMarginY() const;
+    void setMiniPlayerMarginY(int px);
+    /// Saved absolute X (for Custom mode and drag).
+    int miniPlayerX() const;
+    void setMiniPlayerX(int x);
+    /// Saved absolute Y (for Custom mode and drag).
+    int miniPlayerY() const;
+    void setMiniPlayerY(int y);
+    /// Saved width (for geometry restore).
+    int miniPlayerW() const;
+    void setMiniPlayerW(int w);
+    /// Saved height (for geometry restore).
+    int miniPlayerH() const;
+    void setMiniPlayerH(int h);
 
     // ── Profiles ─────────────────────────────────────────────────────
     /** @brief All saved connection profiles (read from QSettings). */

@@ -13,6 +13,7 @@
 #include "core/playlist-model.h"
 
 class MpdCommands;
+class MiniPlayer;
 
 /// Tray icon with a popup menu for MPD transport and window management.
 class TrayIcon : public QObject {
@@ -35,13 +36,20 @@ public:
                      QSystemTrayIcon::MessageIcon icon = QSystemTrayIcon::Information,
                      int msecs = 10000);
 
+    /// Attach the mini-player window so the tray can toggle it.
+    void setMiniPlayer(MiniPlayer *popup);
+
 private:
     /// Build the right-click context menu.
     void setupMenu();
+
+    /// Toggle the mini-player (show/hide with current song).
+    void toggleMiniPlayer();
 
     QSystemTrayIcon *icon_;
     Connection *conn_;
     MpdCommands *cmds_;
     QWidget *mainWindow_;
+    MiniPlayer *miniPlayer_ = nullptr;
 };
 
