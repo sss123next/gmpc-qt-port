@@ -1,6 +1,7 @@
 #include "cover-provider.h"
 #include "providers/discogs.h"
 #include "tools/async-download.h"
+#include "tag-reader.h"
 
 #include <QUrl>
 #include <QUrlQuery>
@@ -86,7 +87,20 @@ void CoverProvider::fetchCover(const QString &artist, const QString &album,
     }
 
     qDebug() << "  → cache + local miss, trying MusicBrainz";
-    // Step 3 — MusicBrainz (primary, key-free)
+
+    // Step 3 — embedded cover art in the file's own tags
+    if (!uri.isEmpty() && !musicDir_.isEmpty()) {
+        const QString absPath = musicDir_ + QLatin1Char('/') + uri;
+        EmbeddedCover emb = readEmbeddedCover(absPath);
+        if (!emb.data.isEmpty()) {
+            qDebug() << "  → embedded cover found in tags";
+            cache_.put(cacheKey(), emb.data);
+            emit coverReady(emb.data);
+            return;
+        }
+    }
+
+    // Step 4 — MusicBrainz (primary, key-free)
     tryMusicBrainz();
 }
 

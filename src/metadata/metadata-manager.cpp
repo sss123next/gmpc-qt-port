@@ -3,6 +3,9 @@
 #include "cache-sqlite.h"
 #include "providers/lyrdb.h"
 #include "providers/lyrics-ovh.h"
+#include "tag-reader.h"
+
+#include <QFileInfo>
 
 MetadataManager::MetadataManager(const QString &cachePath,
                                  const QString &lastFmApiKey,
@@ -14,6 +17,7 @@ MetadataManager::MetadataManager(const QString &cachePath,
     , lyricsProvider_(new LrcLibProvider(this))
     , lyricsFallback_(new LyricsOvhProvider(this))
     , cache_(new CacheSqlite(cachePath))
+    , musicDir_(musicDir)
 {
     // Forward cover signals — stash artist/album is done in requestCover
     connect(coverProvider_, &CoverProvider::coverReady, this,
@@ -119,13 +123,26 @@ void MetadataManager::requestCover(const QString &artist, const QString &album,
     coverProvider_->fetchCover(artist, album, uri);
 }
 
-void MetadataManager::requestLyrics(const QString &artist, const QString &title)
+void MetadataManager::requestLyrics(const QString &artist, const QString &title,
+                                     const QString &uri)
 {
     QString key = QString("lyrics:%1:%2").arg(artist, title);
     QByteArray cached = cache_->get(key);
     if (!cached.isEmpty()) {
         emit lyricsReady(artist, title, QString::fromUtf8(cached));
         return;
+    }
+
+    // Try embedded lyrics from the audio file's own tags before hitting
+    // the network — many files carry USLT or LYRICS tag.
+    if (!uri.isEmpty() && !musicDir_.isEmpty()) {
+        const QString absPath = musicDir_ + QLatin1Char('/') + uri;
+        const QString embedded = readEmbeddedLyrics(absPath);
+        if (!embedded.isEmpty()) {
+            cachePut(key, embedded.toUtf8());
+            emit lyricsReady(artist, title, embedded);
+            return;
+        }
     }
 
     // Stash for later forwarding

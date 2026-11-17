@@ -1,4 +1,4 @@
-{ stdenv, cmake, pkg-config, qt6, libmpdclient, curl, openssl, sqlite, src }:
+{ stdenv, cmake, pkg-config, qt6, libmpdclient, curl, openssl, sqlite, taglib, src }:
 
 stdenv.mkDerivation {
   pname = "gmpc-qt";
@@ -15,6 +15,7 @@ stdenv.mkDerivation {
     curl
     openssl
     sqlite
+    taglib
   ];
 
   meta.mainProgram = "gmpc-qt";

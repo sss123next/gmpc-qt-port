@@ -15,6 +15,7 @@ pkg_check_modules(LIBMPDCLIENT REQUIRED IMPORTED_TARGET libmpdclient)
 pkg_check_modules(SQLITE3 REQUIRED IMPORTED_TARGET sqlite3)
 pkg_check_modules(CURL REQUIRED IMPORTED_TARGET libcurl)
 pkg_check_modules(XCB_KEYSYMS REQUIRED IMPORTED_TARGET xcb-keysyms)
+pkg_check_modules(TAGLIB REQUIRED IMPORTED_TARGET taglib)
 
 # ── Sources ───────────────────────────────────────────────────────────────────
 set(CORE_SOURCES
@@ -96,6 +97,8 @@ set(METADATA_SOURCES
     src/metadata/cache-sqlite.h
     src/metadata/cover-provider.cpp
     src/metadata/cover-provider.h
+    src/metadata/tag-reader.cpp
+    src/metadata/tag-reader.h
 )
 
 set(PROVIDER_SOURCES
@@ -173,6 +176,7 @@ target_link_libraries(gmpc-qt PRIVATE
     PkgConfig::SQLITE3
     PkgConfig::CURL
     PkgConfig::XCB_KEYSYMS
+    PkgConfig::TAGLIB
 )
 
 # ── Install ───────────────────────────────────────────────────────────────────

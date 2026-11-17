@@ -173,7 +173,7 @@ void NowPlaying::setSong(const SongEntry *song)
         return;
     }
     hintLabel_->setText(tr("Loading lyrics\u2026"));
-    mgr_->requestLyrics(curArtist_, curTitle_);
+    mgr_->requestLyrics(curArtist_, curTitle_, curUri_);
 }
 
 // ── Metadata refresh (fetch full tags + status from MPD) ────────────────────

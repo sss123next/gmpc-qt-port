@@ -29,6 +29,9 @@ pkgs.mkShell {
     # -- SQLite (for metadata cache) --
     sqlite
 
+    # -- Tag parsing (embedded cover art & lyrics) --
+    taglib
+
     # -- Tests --
     doctest               # header-only test framework
     trompeloeil            # header-only mock framework

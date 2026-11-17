@@ -43,7 +43,9 @@ public:
                       const QString &uri = QString());
 
     /// Start a lyrics fetch.
-    void requestLyrics(const QString &artist, const QString &title);
+    /// @param uri  Song file URI from MPD, for embedded-tag lookup. Empty = skip.
+    void requestLyrics(const QString &artist, const QString &title,
+                       const QString &uri = QString());
 
     /** @brief Update music directory for local cover file lookup.
      *  Passes through to CoverProvider::setMusicDir(). */
@@ -75,6 +77,7 @@ private:
     LrcLibProvider   *lyricsProvider_;
     LyricsOvhProvider *lyricsFallback_;
     CacheSqlite      *cache_;
+    QString           musicDir_;
 
     // Pending request state for signal forwarding
     QString pendingArtist_;
