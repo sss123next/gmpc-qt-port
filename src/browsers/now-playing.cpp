@@ -63,15 +63,17 @@ NowPlaying::NowPlaying(QWidget *parent)
     topRow->addWidget(cover_, 0, Qt::AlignTop);
 
     auto *infoCol = new QVBoxLayout;
-    titleLabel_ = new QLabel(this);
-    titleLabel_->setObjectName(QStringLiteral("titleLabel"));
     artistLabel_ = new QLabel(this);
     artistLabel_->setObjectName(QStringLiteral("artistLabel"));
+    titleLabel_ = new QLabel(this);
+    titleLabel_->setObjectName(QStringLiteral("titleLabel"));
     albumLabel_ = new QLabel(this);
     albumLabel_->setObjectName(QStringLiteral("albumLabel"));
-    titleLabel_->setStyleSheet(QStringLiteral("font-size: 20pt; font-weight: bold;"));
-    artistLabel_->setStyleSheet(QStringLiteral("font-size: 13pt;"));
-    for (QLabel *l : {titleLabel_, artistLabel_, albumLabel_}) {
+    // Artist is primary, title secondary, album tertiary — matches SongInfo order.
+    artistLabel_->setStyleSheet(QStringLiteral("font-size: 15pt; font-weight: bold;"));
+    titleLabel_->setStyleSheet(QStringLiteral("font-size: 13pt;"));
+    albumLabel_->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    for (QLabel *l : {artistLabel_, titleLabel_, albumLabel_}) {
         l->setWordWrap(true);
         l->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
         infoCol->addWidget(l);
