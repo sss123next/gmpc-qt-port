@@ -25,6 +25,18 @@
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 /// Safely read a single MPD tag value (first instance).
+
+/** @brief Delete all tab-page widgets.  QTabWidget::clear() does NOT delete
+ *  the widgets it removes — they'd leak on every track change otherwise. */
+static void clearTabPages(QTabWidget *tabs)
+{
+    while (tabs->count() > 0) {
+        QWidget *w = tabs->widget(0);
+        tabs->removeTab(0);
+        delete w;
+    }
+}
+
 static QString tag(const mpd_song *song, mpd_tag_type type)
 {
     const char *v = mpd_song_get_tag(song, type, 0);
@@ -185,8 +197,8 @@ void NowPlaying::refreshMetadata()
     const QString prevTab = tabs_->currentIndex() >= 0
         ? tabs_->tabText(tabs_->currentIndex()) : QString();
 
-    // Clear old tabs.
-    tabs_->clear();
+    // Clear old tabs — QTabWidget::clear() does NOT delete the widgets.
+    clearTabPages(tabs_);
     tabs_->setVisible(false);
 
     if (!conn_ || !conn_->isConnected() || !conn_->hasHandle())
@@ -418,7 +430,7 @@ void NowPlaying::showNothing()
     artistLabel_->clear();
     albumLabel_->clear();
     lyricsView_->clear();
-    tabs_->clear();
+    clearTabPages(tabs_);
     tabs_->setVisible(false);
     hintLabel_->setText(tr("Nothing is playing"));
     curArtist_.clear();
