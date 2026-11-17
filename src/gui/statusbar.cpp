@@ -1,6 +1,7 @@
 #include "statusbar.h"
 
 #include <QHBoxLayout>
+#include <QStringList>
 
 StatusBar::StatusBar(QWidget *parent)
     : QWidget(parent)
@@ -34,9 +35,39 @@ void StatusBar::updateStatus(const Connection::Status &s)
         return;
 
     QString text;
-    if (s.state == MPD_STATE_PLAY)
-        text = tr("Playing — %1 kbps").arg(s.bitRate);
-    else if (s.state == MPD_STATE_PAUSE)
+    if (s.state == MPD_STATE_PLAY) {
+        // Format sample rate: 44100 → "44.1kHz", 48000 → "48kHz".
+        QString sr;
+        if (s.sampleRate > 0) {
+            if (s.sampleRate % 1000 == 0)
+                sr = QStringLiteral("%1kHz").arg(s.sampleRate / 1000);
+            else
+                sr = QStringLiteral("%1kHz").arg(s.sampleRate / 1000.0, 0, 'f', 1);
+        }
+        // Format bit depth.
+        QString depth;
+        if (s.bits > 0 && s.bits <= 32)
+            depth = QStringLiteral("%1bit").arg(s.bits);
+        // Format bitrate: ≥1000 → Mbps, else kbps.
+        QString br;
+        if (s.bitRate > 0) {
+            if (s.bitRate >= 1000)
+                br = QStringLiteral("%1Mbps").arg(s.bitRate / 1000.0, 0, 'f', 1);
+            else
+                br = QStringLiteral("%1kbps").arg(s.bitRate);
+        }
+
+        QStringList parts;
+        if (!sr.isEmpty())   parts << sr;
+        if (!depth.isEmpty()) parts << depth;
+        if (!br.isEmpty())   parts << br;
+        const QString fmt = parts.join(QLatin1Char(' '));
+
+        if (fmt.isEmpty())
+            text = tr("Playing");
+        else
+            text = tr("Playing — %1").arg(fmt);
+    } else if (s.state == MPD_STATE_PAUSE)
         text = tr("Paused");
     else
         text = tr("Stopped");

@@ -161,6 +161,14 @@ Connection::Status Connection::fetchStatus()
     s.elapsed       = mpd_status_get_elapsed_time(status);
     s.totalDuration = mpd_status_get_total_time(status);
     s.bitRate       = mpd_status_get_kbit_rate(status);
+    {
+        const mpd_audio_format *af = mpd_status_get_audio_format(status);
+        if (af) {
+            s.sampleRate = af->sample_rate;
+            s.bits       = af->bits;
+            s.channels   = af->channels;
+        }
+    }
     s.repeat        = mpd_status_get_repeat(status);
     s.random        = mpd_status_get_random(status);
     s.single        = mpd_status_get_single(status);

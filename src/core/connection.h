@@ -142,6 +142,9 @@ public:
         float elapsed = 0;             ///< seconds elapsed
         float totalDuration = 0;       ///< total track duration
         int bitRate = 0;               ///< kbit/s (0 if unknown)
+        unsigned sampleRate = 0;       ///< Hz (0 = unknown)
+        uint8_t bits = 0;              ///< bit depth or MPD_SAMPLE_FORMAT_*
+        uint8_t channels = 0;          ///< 0 = unknown
         bool repeat = false;
         bool random = false;
         bool single = false;
