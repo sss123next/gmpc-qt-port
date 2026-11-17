@@ -63,3 +63,13 @@ void CoverWidget::clear()
     setPixmap(QPixmap());          // must come before setText (clears text)
     setText(tr("No cover"));
 }
+
+void CoverWidget::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton && !pixmap().isNull()) {
+        emit clicked();
+        event->accept();
+        return;
+    }
+    QLabel::mousePressEvent(event);
+}

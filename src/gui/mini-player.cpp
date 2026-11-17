@@ -6,6 +6,7 @@
 
 #include "mini-player.h"
 #include "widgets/cover-widget.h"
+#include "widgets/cover-viewer.h"
 #include "metadata/metadata-manager.h"
 #include "core/playlist-model.h"
 #include "core/config.h"
@@ -44,6 +45,15 @@ MiniPlayer::MiniPlayer(QWidget *parent)
 
     createLayout();
     applyStyle();
+
+    // Click on cover → full-screen viewer.
+    connect(coverWidget_, &CoverWidget::clicked, this, [this] {
+        const QPixmap pm = coverWidget_->pixmap();
+        if (!pm.isNull()) {
+            auto *viewer = new CoverViewer();
+            viewer->show(pm);
+        }
+    });
 }
 
 // ── Layout construction ─────────────────────────────────────────────────────

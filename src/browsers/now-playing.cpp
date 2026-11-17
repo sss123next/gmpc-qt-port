@@ -4,6 +4,8 @@
  */
 
 #include "now-playing.h"
+#include "widgets/cover-widget.h"
+#include "widgets/cover-viewer.h"
 
 #include <QFileInfo>
 #include <QHBoxLayout>
@@ -61,6 +63,15 @@ NowPlaying::NowPlaying(QWidget *parent)
     lay->addWidget(hintLabel_);
 
     showNothing();
+
+    // Click on cover → full-screen viewer.
+    connect(cover_, &CoverWidget::clicked, this, [this] {
+        const QPixmap pm = cover_->pixmap();
+        if (!pm.isNull()) {
+            auto *viewer = new CoverViewer();
+            viewer->show(pm);
+        }
+    });
 }
 
 void NowPlaying::setMetadataManager(MetadataManager *mgr)

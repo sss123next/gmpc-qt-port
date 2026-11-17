@@ -11,6 +11,7 @@
 
 #include <QLabel>
 #include <QString>
+#include <QMouseEvent>
 
 class MetadataManager;
 
@@ -35,6 +36,13 @@ public:
     void setCover(const QPixmap &pixmap);
     /// Clear the displayed cover.
     void clear();
+
+signals:
+    /// Emitted on left-click when a cover is displayed.
+    void clicked();
+
+protected:
+    void mousePressEvent(QMouseEvent *event) override;
 
 private:
     MetadataManager *mgr_ = nullptr;

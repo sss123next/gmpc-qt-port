@@ -120,6 +120,8 @@ set(WIDGET_SOURCES
     src/widgets/song-info.h
     src/widgets/cover-widget.cpp
     src/widgets/cover-widget.h
+    src/widgets/cover-viewer.cpp
+    src/widgets/cover-viewer.h
 )
 
 set(TOOL_SOURCES
