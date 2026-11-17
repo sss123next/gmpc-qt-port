@@ -76,6 +76,7 @@ NowPlaying::NowPlaying(QWidget *parent)
         l->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
         infoCol->addWidget(l);
     }
+    infoCol->addStretch(1);
     topRow->addLayout(infoCol, 1);
     lay->addLayout(topRow);
 
