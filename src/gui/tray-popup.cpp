@@ -1,26 +1,26 @@
+/**
+ * @file tray-popup.cpp
+ * @brief Borderless mini-player window — simple stylesheet-based background,
+ *        CoverWidget for proven cover-art display.
+ */
+
 #include "tray-popup.h"
-#include "core/connection.h"
-#include "core/playlist-model.h"
+#include "widgets/cover-widget.h"
 #include "metadata/metadata-manager.h"
+#include "core/playlist-model.h"
 
 #include <QApplication>
 #include <QScreen>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QStyle>
-#include <QPixmap>
-#include <QPainter>
-#include <QPainterPath>
-#include <QStyleOption>
 #include <QDebug>
 
 // ── Geometry constants ──────────────────────────────────────────────────────
 
-static constexpr int kCoverPx       = 80;   ///< Cover image side (px).
-static constexpr int kMaxPopupW     = 400;  ///< Maximum popup width.
-static constexpr int kRadius        = 8;    ///< Corner radius for the background.
-static constexpr int kMinPopupW     = 260;  ///< Minimum popup width.
-static constexpr int kPopupMargin   = 8;    ///< Internal margin around content.
+static constexpr int kCoverPx     = 80;   ///< Cover image side (px).
+static constexpr int kRadius      = 8;    ///< Corner radius for the popup.
+static constexpr int kMargin      = 10;   ///< Internal margin.
 
 // ── Constructor ─────────────────────────────────────────────────────────────
 
@@ -30,7 +30,8 @@ TrayPopup::TrayPopup(QWidget *parent)
     // Frameless window, always on top, no taskbar entry.
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint
                    | Qt::WindowStaysOnTopHint | Qt::ToolTip);
-    setAttribute(Qt::WA_TranslucentBackground);
+    // NO WA_TranslucentBackground — stylesheet handles background with
+    // border-radius, no paintEvent needed.
     setAttribute(Qt::WA_ShowWithoutActivating);
     setAttribute(Qt::WA_OpaquePaintEvent, false);
 
@@ -46,58 +47,47 @@ TrayPopup::TrayPopup(QWidget *parent)
 
 void TrayPopup::createLayout()
 {
-    // ── Container widget: draws the rounded-rect background via paintEvent.
-    container_ = new QWidget(this);
-    container_->setAttribute(Qt::WA_TranslucentBackground, false);
+    auto *root = new QHBoxLayout(this);
+    root->setContentsMargins(kMargin, kMargin, kMargin, kMargin);
+    root->setSpacing(10);
 
-    auto *rootLay = new QHBoxLayout(container_);
-    rootLay->setContentsMargins(kPopupMargin, kPopupMargin,
-                                kPopupMargin, kPopupMargin);
-    rootLay->setSpacing(10);
-
-    // ── Left: cover art ───────────────────────────────────────────────
-    coverLabel_ = new QLabel(container_);
-    coverLabel_->setFixedSize(kCoverPx, kCoverPx);
-    coverLabel_->setAlignment(Qt::AlignCenter);
-    coverLabel_->setText(QStringLiteral("♪"));
-    coverLabel_->setStyleSheet(QStringLiteral(
-        "font-size: 28px; border: none;"));
-    coverLabel_->setVisible(showCover_);
+    // ── Left: CoverWidget (proven to work in NowPlaying) ──────────────
+    coverWidget_ = new CoverWidget(this);
+    coverWidget_->setFixedSize(kCoverPx, kCoverPx);
+    coverWidget_->setCoverSize(kCoverPx);
+    root->addWidget(coverWidget_);
 
     // ── Right: text info + buttons ──────────────────────────────────
-    auto *rightCol = new QVBoxLayout;
-    rightCol->setSpacing(4);
+    auto *right = new QVBoxLayout;
+    right->setSpacing(3);
 
-    titleLabel_ = new QLabel(container_);
+    titleLabel_ = new QLabel(this);
     titleLabel_->setWordWrap(false);
     titleLabel_->setTextFormat(Qt::PlainText);
     titleLabel_->setSizePolicy(QSizePolicy::MinimumExpanding,
                                QSizePolicy::Preferred);
-    titleLabel_->setStyleSheet(QStringLiteral("font-weight: bold; border: none;"));
     titleLabel_->setTextInteractionFlags(Qt::NoTextInteraction);
 
-    artistLabel_ = new QLabel(container_);
+    artistLabel_ = new QLabel(this);
     artistLabel_->setWordWrap(false);
     artistLabel_->setTextFormat(Qt::PlainText);
-    artistLabel_->setStyleSheet(QStringLiteral("border: none;"));
 
-    albumLabel_ = new QLabel(container_);
+    albumLabel_ = new QLabel(this);
     albumLabel_->setWordWrap(false);
     albumLabel_->setTextFormat(Qt::PlainText);
-    albumLabel_->setStyleSheet(QStringLiteral("border: none;"));
 
-    rightCol->addWidget(titleLabel_);
-    rightCol->addWidget(artistLabel_);
-    rightCol->addWidget(albumLabel_);
-    rightCol->addStretch();
+    right->addWidget(titleLabel_);
+    right->addWidget(artistLabel_);
+    right->addWidget(albumLabel_);
+    right->addStretch();
 
     // ── Transport buttons ────────────────────────────────────────────
-    buttonBar_ = new QWidget(container_);
+    buttonBar_ = new QWidget(this);
     auto *btnLay = new QHBoxLayout(buttonBar_);
     btnLay->setContentsMargins(0, 4, 0, 0);
     btnLay->setSpacing(4);
 
-    auto mkBtn = [&](const QStyle::StandardPixmap sp) {
+    auto mkBtn = [&](QStyle::StandardPixmap sp) {
         auto *b = new QPushButton(buttonBar_);
         b->setIcon(style()->standardIcon(sp));
         b->setFixedSize(24, 24);
@@ -121,17 +111,10 @@ void TrayPopup::createLayout()
     connect(stopBtn_, &QPushButton::clicked, this, &TrayPopup::stopClicked);
     connect(nextBtn_, &QPushButton::clicked, this, &TrayPopup::nextClicked);
 
-    rightCol->addWidget(buttonBar_);
+    right->addWidget(buttonBar_);
     buttonBar_->setVisible(showButtons_);
 
-    // ── Assemble ─────────────────────────────────────────────────────
-    rootLay->addWidget(coverLabel_);
-    rootLay->addLayout(rightCol, 1);
-
-    // The outer TrayPopup widget just wraps container_ with margin for shadow.
-    auto *outerLay = new QVBoxLayout(this);
-    outerLay->setContentsMargins(0, 0, 0, 0);
-    outerLay->addWidget(container_);
+    root->addLayout(right, 1);
 }
 
 // ── Metadata Manager ────────────────────────────────────────────────────────
@@ -139,35 +122,8 @@ void TrayPopup::createLayout()
 void TrayPopup::setMetadataManager(MetadataManager *mgr)
 {
     mgr_ = mgr;
-    if (mgr_) {
-        connect(mgr_, &MetadataManager::coverReady, this,
-                [this](const QString &artist, const QString &album,
-                       const QByteArray &data) {
-                    qDebug() << "TrayPopup::coverReady" << artist << album
-                             << "lastArtist_" << lastArtist_ << "lastAlbum_" << lastAlbum_
-                             << "data.size()" << data.size();
-                    if (artist != lastArtist_ || album != lastAlbum_) {
-                        qDebug() << "  → stale, ignoring";
-                        return;
-                    }
-                    QPixmap pm;
-                    if (pm.loadFromData(data)) {
-                        qDebug() << "  → setting pixmap";
-                        QPixmap scaled = pm.scaled(
-                            kCoverPx, kCoverPx, Qt::KeepAspectRatio,
-                            Qt::SmoothTransformation);
-                        coverLabel_->setPixmap(scaled);
-                        coverLabel_->setText({});
-                    } else {
-                        qDebug() << "  → loadFromData FAILED";
-                    }
-                });
-        connect(mgr_, &MetadataManager::coverNotFound, this,
-                [this](const QString &, const QString &) {
-                    coverLabel_->setPixmap(QPixmap());
-                    coverLabel_->setText(QStringLiteral("♪"));
-                });
-    }
+    if (coverWidget_)
+        coverWidget_->setMetadataManager(mgr);
 }
 
 // ── Show / Update ───────────────────────────────────────────────────────────
@@ -179,38 +135,17 @@ void TrayPopup::showSong(const SongEntry *song)
         return;
     }
 
-    // Update text labels.
-    titleLabel_->setText(song->title.isEmpty()
-                         ? song->uri
-                         : song->title);
+    titleLabel_->setText(song->title.isEmpty() ? song->uri : song->title);
     artistLabel_->setText(song->artist);
     albumLabel_->setText(song->album);
 
-    // Update cover if artist/album changed.
-    if (song->artist != lastArtist_ || song->album != lastAlbum_) {
-        qDebug() << "TrayPopup::showSong cover changed"
-                 << "artist:" << lastArtist_ << "→" << song->artist
-                 << "album:" << lastAlbum_ << "→" << song->album;
-        lastArtist_ = song->artist;
-        lastAlbum_  = song->album;
-        if (mgr_ && !song->artist.isEmpty() && !song->album.isEmpty()) {
-            coverLabel_->setText(QStringLiteral("⋯"));
-            mgr_->requestCover(song->artist, song->album, song->uri);
-        } else {
-            coverLabel_->setPixmap(QPixmap());
-            coverLabel_->setText(QStringLiteral("♪"));
-        }
-    } else {
-        qDebug() << "TrayPopup::showSong cover unchanged — skipping fetch";
-    }
+    // Delegate cover fetching to CoverWidget (proven pipeline).
+    if (!song->artist.isEmpty() && !song->album.isEmpty())
+        coverWidget_->fetchCover(song->artist, song->album, song->uri);
+    else
+        coverWidget_->clear();
 
-    // Resize to fit content, clamp to reasonable width.
-    container_->adjustSize();
-    int w = qMin(container_->minimumSizeHint().width(), kMaxPopupW);
-    w = qMax(w, qMin(kMinPopupW, container_->minimumSizeHint().width()));
-    container_->resize(w, container_->minimumSizeHint().height());
     adjustSize();
-
     positionOnScreen();
     startAutoHide();
 
@@ -225,10 +160,7 @@ void TrayPopup::clear()
     titleLabel_->clear();
     artistLabel_->clear();
     albumLabel_->clear();
-    coverLabel_->setPixmap(QPixmap());
-    coverLabel_->setText(QStringLiteral("♪"));
-    lastArtist_.clear();
-    lastAlbum_.clear();
+    coverWidget_->clear();
 }
 
 // ── Positioning ─────────────────────────────────────────────────────────────
@@ -236,10 +168,7 @@ void TrayPopup::clear()
 void TrayPopup::positionOnScreen()
 {
     const QScreen *screen = QApplication::primaryScreen();
-    if (!screen) {
-        move(100, 100);
-        return;
-    }
+    if (!screen) { move(100, 100); return; }
     const QRect g = screen->availableGeometry();
     const int pw = frameGeometry().width();
     const int ph = frameGeometry().height();
@@ -261,45 +190,31 @@ void TrayPopup::stopAutoHide()
     autoHideTimer_->stop();
 }
 
-// ── Paint: rounded-rect background ──────────────────────────────────────────
-
-void TrayPopup::paintEvent(QPaintEvent * /*event*/)
-{
-    QPainter p(this);
-    p.setRenderHint(QPainter::Antialiasing);
-
-    const QRect cr = container_->geometry();
-
-    QPainterPath path;
-    path.addRoundedRect(QRectF(cr), kRadius, kRadius);
-
-    p.fillPath(path, QColor(presetBg_));
-    p.setPen(QPen(QColor(presetFg_), 1));
-    p.drawPath(path);
-}
-
 // ── Style presets ─────────────────────────────────────────────────────────
 
 void TrayPopup::applyStyle()
 {
-    presetBg_ = presetFg_ = presetBtnBg_ = presetBtnFg_ = presetCoverBg_ = {};
+    presetBg_ = presetFg_ = presetBtnBg_ = presetBtnFg_ = {};
 
     if (style_ == Dark) {
-        presetBg_      = QStringLiteral("#2b2b2b");
-        presetFg_      = QStringLiteral("#e0e0e0");
-        presetBtnBg_   = QStringLiteral("#3c3c3c");
-        presetBtnFg_   = QStringLiteral("#ffffff");
-        presetCoverBg_ = QStringLiteral("#1a1a1a");
+        presetBg_    = QStringLiteral("#2b2b2b");
+        presetFg_    = QStringLiteral("#e0e0e0");
+        presetBtnBg_ = QStringLiteral("#3c3c3c");
+        presetBtnFg_ = QStringLiteral("#ffffff");
     } else {
-        presetBg_      = QStringLiteral("#f0f0f0");
-        presetFg_      = QStringLiteral("#222222");
-        presetBtnBg_   = QStringLiteral("#e0e0e0");
-        presetBtnFg_   = QStringLiteral("#222222");
-        presetCoverBg_ = QStringLiteral("#ffffff");
+        presetBg_    = QStringLiteral("#f0f0f0");
+        presetFg_    = QStringLiteral("#222222");
+        presetBtnBg_ = QStringLiteral("#e0e0e0");
+        presetBtnFg_ = QStringLiteral("#222222");
     }
 
-    container_->setAttribute(Qt::WA_TranslucentBackground, true);
+    // Popup background — stylesheet with border-radius, no paintEvent.
+    setStyleSheet(QStringLiteral(
+        "background: %1; border: 1px solid %2; border-radius: %3px;")
+        .arg(presetBg_, presetFg_)
+        .arg(kRadius));
 
+    // Labels.
     const QString labelStyle = QStringLiteral(
         "color: %1; background: transparent; border: none; padding: 0;")
         .arg(presetFg_);
@@ -307,10 +222,7 @@ void TrayPopup::applyStyle()
     artistLabel_->setStyleSheet(labelStyle);
     albumLabel_->setStyleSheet(labelStyle);
 
-    coverLabel_->setStyleSheet(QStringLiteral(
-        "background: %1; border: none; font-size: 28px; color: %2;")
-        .arg(presetCoverBg_, presetFg_));
-
+    // Transport buttons.
     const QString btnStyle = QStringLiteral(
         "QPushButton { background: %1; color: %2; border: none;"
         "  border-radius: 3px; padding: 2px; }"
@@ -320,8 +232,7 @@ void TrayPopup::applyStyle()
              style_ == Dark ? "#555555" : "#cccccc",
              style_ == Dark ? "#777777" : "#aaaaaa");
     for (auto *b : {prevBtn_, playBtn_, stopBtn_, nextBtn_}) {
-        if (b)
-            b->setStyleSheet(btnStyle);
+        if (b) b->setStyleSheet(btnStyle);
     }
 
     update();
@@ -343,13 +254,15 @@ void TrayPopup::setTimeoutSec(int sec)
 void TrayPopup::setShowCover(bool show)
 {
     showCover_ = show;
-    coverLabel_->setVisible(show);
+    if (coverWidget_)
+        coverWidget_->setVisible(show);
     adjustSize();
 }
 
 void TrayPopup::setShowButtons(bool show)
 {
     showButtons_ = show;
-    buttonBar_->setVisible(show);
+    if (buttonBar_)
+        buttonBar_->setVisible(show);
     adjustSize();
 }

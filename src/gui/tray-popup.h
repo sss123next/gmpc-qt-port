@@ -6,6 +6,8 @@
  *
  * Shows album cover, song title/artist/album, and optional transport
  * buttons in a frameless window with dark/light style presets.
+ * Background drawn via plain stylesheet (border-radius for rounded
+ * corners), cover via CoverWidget (proven to work in NowPlaying).
  */
 
 #include <QWidget>
@@ -15,6 +17,7 @@
 #include <QStyleOption>
 
 class MetadataManager;
+class CoverWidget;
 struct SongEntry;
 
 /// Borderless mini‑player with cover, song info, and transport controls.
@@ -30,11 +33,10 @@ public:
 
     explicit TrayPopup(QWidget *parent = nullptr);
 
-    /// Provide a MetadataManager for cover-art fetching.
+    /// Provide a MetadataManager for cover-art fetching (forwards to CoverWidget).
     void setMetadataManager(MetadataManager *mgr);
 
-    /** @brief Update the window for the current song and show.
-     *  @param song   Current song (may be null → clears display). */
+    /** @brief Update the window for the current song and show. */
     void showSong(const SongEntry *song);
 
     /// Immediately clear display and hide.
@@ -57,9 +59,6 @@ signals:
     void nextClicked();
     void previousClicked();
 
-protected:
-    void paintEvent(QPaintEvent *event) override;
-
 private:
     void positionOnScreen();
     void startAutoHide();
@@ -68,19 +67,18 @@ private:
     void createLayout();
 
     MetadataManager *mgr_ = nullptr;
+    CoverWidget *coverWidget_ = nullptr;
 
     StylePreset style_ = Dark;
-    int timeoutSec_ = 0;          ///< 0 = no auto-hide.
+    int timeoutSec_ = 0;
     bool showCover_ = true;
     bool showButtons_ = true;
 
     // Widgets
-    QWidget *container_ = nullptr;    ///< Rounded-rect background container.
-    QLabel  *coverLabel_ = nullptr;   ///< Album art (80×80).
-    QLabel  *titleLabel_ = nullptr;   ///< Track title.
-    QLabel  *artistLabel_ = nullptr;  ///< Artist name.
-    QLabel  *albumLabel_ = nullptr;   ///< Album name.
-    QWidget *buttonBar_ = nullptr;    ///< Transport buttons row.
+    QLabel  *titleLabel_ = nullptr;
+    QLabel  *artistLabel_ = nullptr;
+    QLabel  *albumLabel_ = nullptr;
+    QWidget *buttonBar_ = nullptr;
     QPushButton *playBtn_ = nullptr;
     QPushButton *stopBtn_ = nullptr;
     QPushButton *nextBtn_ = nullptr;
@@ -88,16 +86,9 @@ private:
 
     QTimer *autoHideTimer_ = nullptr;
 
-    // Cover-fetch tracking
-    QString lastArtist_;
-    QString lastAlbum_;
-    quint64 coverFetchId_ = 0;
-
-    // Cached preset colours (used by paintEvent instead of palette(), which
-    // doesn't reflect stylesheets).
+    // Cached preset colours
     QString presetBg_;
     QString presetFg_;
     QString presetBtnBg_;
     QString presetBtnFg_;
-    QString presetCoverBg_;
 };
