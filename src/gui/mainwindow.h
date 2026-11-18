@@ -20,12 +20,16 @@
 #include <QAbstractNativeEventFilter>
 #include <functional>
 
-#ifndef Q_OS_WIN
+#if !defined(Q_OS_WIN)
 #include <xcb/xcb_keysyms.h>
 #endif
 
 #include "browsers/browser-intent.h"
 #include "core/connection.h"
+
+// Used by MediaKeyFilter::dispatchAction — enum class with int backing,
+// forward-declaration is sufficient for pointer/parameter usage.
+enum class MediaKeyAction : int;
 
 class MpdCommands;
 class PlaylistModel;
@@ -54,8 +58,10 @@ class QueueSync;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
-    /// Intercepts X11 XF86Audio* keypresses from media keyboards.
-#ifndef Q_OS_WIN
+    /// Intercepts media-key events from the platform's windowing system.
+    ///   - X11:   XF86Audio* keysyms via xcb
+    ///   - Win:   WM_APPCOMMAND
+    ///   - Wayland: bail out (covered by MPRIS + IPC)
     class MediaKeyFilter : public QAbstractNativeEventFilter {
     public:
         explicit MediaKeyFilter(MpdCommands *cmds);
@@ -63,11 +69,16 @@ class MainWindow : public QMainWindow {
         bool nativeEventFilter(const QByteArray &eventType,
                                void *message, qintptr *result) override;
     private:
+        /** @brief Dispatch a resolved MediaKeyAction to the right MpdCommands call.
+         *  @return true if the action was handled (consumed). */
+        bool dispatchAction(MediaKeyAction action);
+
         MpdCommands *cmds_;
+#if !defined(Q_OS_WIN)
         xcb_key_symbols_t *keysyms_ = nullptr;
+#endif
     };
     friend class MediaKeyFilter;
-#endif
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
@@ -178,9 +189,7 @@ private:
 
     // Keyboard shortcuts
     void setupShortcuts();
-#ifndef Q_OS_WIN
     void setupMediaKeys();
-#endif
 
     // ── Zoom / Fullscreen ───────────────────────────────────────────────▲
     void setupZoomLevels();         ///< Ctrl+Plus/Minus zoom control.

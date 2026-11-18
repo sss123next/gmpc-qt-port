@@ -54,8 +54,15 @@
 #include <QCloseEvent>
 #include <QFileInfo>
 #include <QStandardPaths>
-#ifndef Q_OS_WIN
-#include <xcb/xcb_keysyms.h>
+
+// Platform-specific includes for media-key interception
+#include <qguiapplication_platform.h>       // QNativeInterface::QX11Application
+#if defined(Q_OS_WIN)
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>                      // WM_APPCOMMAND, GET_APPCOMMAND_LPARAM, etc.
+#endif
+#if !defined(Q_OS_WIN)
+#  include <xcb/xcb_keysyms.h>
 #endif
 
 namespace {
@@ -87,50 +94,85 @@ QStringList storedPlaylistNames(Connection *conn)
 
 }  // namespace
 
-#ifndef Q_OS_WIN
-
 // ── MediaKeyFilter ───────────────────────────────────────────────────────────
 
 MainWindow::MediaKeyFilter::MediaKeyFilter(MpdCommands *cmds)
     : cmds_(cmds)
 {
-    // Connect to the X display via the default xcb connection.
-    // On Wayland this will be nullptr and nativeEventFilter bails out.
-    xcb_connection_t *c = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(c)) {
-        xcb_disconnect(c);
-        return;
-    }
-    keysyms_ = xcb_key_symbols_alloc(c);
-    xcb_disconnect(c);
+#if !defined(Q_OS_WIN)
+    // X11: borrow Qt's own xcb connection to load the keysyms table.
+    // On Wayland, QX11Application is null → keysyms_ stays nullptr →
+    // nativeEventFilter bails out. MPRIS + IPC cover Wayland.
+    if (auto *x11 = qApp->nativeInterface<QNativeInterface::QX11Application>())
+        keysyms_ = xcb_key_symbols_alloc(x11->connection());
+    // keysyms_ may be nullptr here (Wayland) — that's fine.
+#endif
 }
 
 bool MainWindow::MediaKeyFilter::nativeEventFilter(
     const QByteArray &eventType, void *message, qintptr * /*result*/)
 {
-    if (eventType != "xcb_generic_event_t")
-        return false;
-    if (!keysyms_)
-        return false;
-
     // Respect the master switch — bail out when global hotkeys are disabled.
     if (!Config::instance().globalHotkeysEnabled())
         return false;
 
-    auto *ev = static_cast<xcb_generic_event_t *>(message);
-    if ((ev->response_type & 0x7f) != XCB_KEY_PRESS)
-        return false;
+#if defined(Q_OS_WIN)
+    // ── Windows: intercept WM_APPCOMMAND from media keyboards ───────────
+    if (eventType == "windows_generic_MSG") {
+        const auto *msg = static_cast<const MSG *>(message);
+        if (msg->message != WM_APPCOMMAND)
+            return false;
 
-    auto *kp = reinterpret_cast<xcb_key_press_event_t *>(ev);
-    xcb_keycode_t *codes = xcb_key_symbols_get_keycode(keysyms_, kp->detail);
-    if (!codes)
-        return false;
+        const int cmd = GET_APPCOMMAND_LPARAM(msg->lParam);
+        MediaKeyAction action = MediaKeyAction::None;
+        switch (cmd) {
+        case APPCOMMAND_MEDIA_PLAY:         action = MediaKeyAction::Play;     break;
+        case APPCOMMAND_MEDIA_PAUSE:        action = MediaKeyAction::Pause;    break;
+        case APPCOMMAND_MEDIA_PLAY_PAUSE:   action = MediaKeyAction::PlayPause; break;
+        case APPCOMMAND_MEDIA_STOP:         action = MediaKeyAction::Stop;     break;
+        case APPCOMMAND_MEDIA_NEXT:         action = MediaKeyAction::Next;     break;
+        case APPCOMMAND_MEDIA_PREVIOUS:     action = MediaKeyAction::Previous; break;
+        // APPCOMMAND_MEDIA_REWIND (13) and APPCOMMAND_MEDIA_FAST_FORWARD (18)
+        // are not mapped by default — the user can configure bindings through
+        // the Preferences dialog only for X11 keysyms. Windows keeps the
+        // fixed mapping above, which matches the XF86Audio defaults.
+        default:
+            return false;
+        }
+        return dispatchAction(action);
+    }
 
-    xcb_keysym_t ks = xcb_key_symbols_get_keysym(keysyms_, kp->detail, 0);
-    free(codes);
+#else // !Q_OS_WIN — Linux / Unix
+    // ── X11: intercept xcb key events (XF86Audio* keys) ────────────────
+    if (eventType == "xcb_generic_event_t") {
+        if (!keysyms_)
+            return false;
 
-    // Route through configurable bindings
-    const auto action = Config::instance().actionForKey(static_cast<quint32>(ks));
+        auto *ev = static_cast<xcb_generic_event_t *>(message);
+        if ((ev->response_type & 0x7f) != XCB_KEY_PRESS)
+            return false;
+
+        auto *kp = reinterpret_cast<xcb_key_press_event_t *>(ev);
+        xcb_keycode_t *codes = xcb_key_symbols_get_keycode(keysyms_, kp->detail);
+        if (!codes)
+            return false;
+
+        xcb_keysym_t ks = xcb_key_symbols_get_keysym(keysyms_, kp->detail, 0);
+        free(codes);
+
+        return dispatchAction(
+            Config::instance().actionForKey(static_cast<quint32>(ks)));
+    }
+    // Wayland: fall through — no global key interception via native events.
+    // Media keys are handled via MPRIS (org.mpris.MediaPlayer2) and/or
+    // the IPC socket (gmpc-qt --next/--previous from the compositor config).
+#endif
+
+    return false;
+}
+
+bool MainWindow::MediaKeyFilter::dispatchAction(MediaKeyAction action)
+{
     switch (action) {
     case MediaKeyAction::Play:
         cmds_->play(); return true;
@@ -161,11 +203,11 @@ bool MainWindow::MediaKeyFilter::nativeEventFilter(
 
 MainWindow::MediaKeyFilter::~MediaKeyFilter()
 {
+#if !defined(Q_OS_WIN)
     if (keysyms_)
         xcb_key_symbols_free(keysyms_);
+#endif
 }
-
-#endif // Q_OS_WIN
 
 // ── MainWindow ───────────────────────────────────────────────────────────────
 
@@ -214,9 +256,7 @@ void MainWindow::setupUi()
 
     setupMenuBar();
     setupShortcuts();
-#ifndef Q_OS_WIN
     setupMediaKeys();
-#endif
     setupZoomLevels();
 
     auto *central = new QWidget(this);
@@ -984,7 +1024,6 @@ void MainWindow::setupShortcuts()
 
 // ── Multimedia keys ─────────────────────────────────────────────────────────
 
-#ifndef Q_OS_WIN
 void MainWindow::setupMediaKeys()
 {
     auto *filter = new MediaKeyFilter(cmds_);
@@ -993,7 +1032,6 @@ void MainWindow::setupMediaKeys()
     // The filter is a QObject child of the application (no leak);
     // cleaned up on app exit.
 }
-#endif
 
 // ── Zoom levels ──────────────────────────────────────────────────────────────
 
