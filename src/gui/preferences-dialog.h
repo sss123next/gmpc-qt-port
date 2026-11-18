@@ -105,6 +105,7 @@ private:
     QCheckBox    *trayPopupShowButtons_;
     QCheckBox    *miniPlayerDraggable_;
     QCheckBox    *miniPlayerHideOnClick_;
+    QSpinBox     *miniPlayerOpacity_;
 
     // Profiles group
     QListWidget  *profileList_;

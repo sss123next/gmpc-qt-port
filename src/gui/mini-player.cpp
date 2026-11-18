@@ -363,6 +363,12 @@ void MiniPlayer::setHideOnClick(bool on)
     hideOnClick_ = on;
 }
 
+void MiniPlayer::setOpacityPercent(int percent)
+{
+    opacityPercent_ = qBound(0, percent, 100);
+    setWindowOpacity(opacityPercent_ / 100.0);
+}
+
 // ── Hide event — save position ──────────────────────────────────────────────
 
 void MiniPlayer::hideEvent(QHideEvent *event)

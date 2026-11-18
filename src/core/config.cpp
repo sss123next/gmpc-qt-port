@@ -256,6 +256,10 @@ bool Config::miniPlayerHideOnClick() const
     { return s_.value("miniPlayer/hideOnClick", true).toBool(); }
 void Config::setMiniPlayerHideOnClick(bool v)
     { s_.setValue("miniPlayer/hideOnClick", v); }
+int Config::miniPlayerOpacity() const
+    { return s_.value("miniPlayer/opacity", 100).toInt(); }
+void Config::setMiniPlayerOpacity(int percent)
+    { s_.setValue("miniPlayer/opacity", qBound(0, percent, 100)); }
 
 // ── Profiles ──────────────────────────────────────────────────────────────
 QList<ConnectionProfile> Config::profiles() const

@@ -315,6 +315,12 @@ void PreferencesDialog::setupUi()
     miniPlayerHideOnClick_->setChecked(true);
     popupForm->addRow(QString(), miniPlayerHideOnClick_);
 
+    miniPlayerOpacity_ = new QSpinBox(this);
+    miniPlayerOpacity_->setRange(10, 100);
+    miniPlayerOpacity_->setSuffix(tr("%"));
+    miniPlayerOpacity_->setValue(100);
+    popupForm->addRow(tr("Opacity:"), miniPlayerOpacity_);
+
     innerLay->addWidget(popupGroup);
 
     // ── Playlist group ──────────────────────────────────────────────
@@ -644,6 +650,7 @@ void PreferencesDialog::loadFromConfig()
     trayPopupShowButtons_->setChecked(cfg.trayPopupShowButtons());
     miniPlayerDraggable_->setChecked(cfg.miniPlayerDraggable());
     miniPlayerHideOnClick_->setChecked(cfg.miniPlayerHideOnClick());
+    miniPlayerOpacity_->setValue(cfg.miniPlayerOpacity());
 
     // Playlist
     headerMarkup_->setText(cfg.playlistHeaderMarkup());
@@ -752,6 +759,7 @@ void PreferencesDialog::accept()
     cfg.setTrayPopupShowButtons(trayPopupShowButtons_->isChecked());
     cfg.setMiniPlayerDraggable(miniPlayerDraggable_->isChecked());
     cfg.setMiniPlayerHideOnClick(miniPlayerHideOnClick_->isChecked());
+    cfg.setMiniPlayerOpacity(miniPlayerOpacity_->value());
 
     // Playlist
     cfg.setPlaylistHeaderMarkup(headerMarkup_->text());

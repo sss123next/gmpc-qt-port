@@ -220,6 +220,9 @@ public:
     /// Hide mini-player on left-click on non-button, non-cover area (default on).
     bool miniPlayerHideOnClick() const;
     void setMiniPlayerHideOnClick(bool v);
+    /// Mini-player opacity percent (0–100, 100 = fully opaque, default 100).
+    int miniPlayerOpacity() const;
+    void setMiniPlayerOpacity(int percent);
 
     // ── Profiles ─────────────────────────────────────────────────────
     /** @brief All saved connection profiles (read from QSettings). */

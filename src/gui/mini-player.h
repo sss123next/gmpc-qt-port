@@ -85,6 +85,9 @@ public:
     /// Hide window on left-click on non-button, non-cover area (default on).
     void setHideOnClick(bool on);
     bool hideOnClick() const { return hideOnClick_; }
+    /// Window opacity percent 0–100 (100 = fully opaque).
+    void setOpacityPercent(int percent);
+    int opacityPercent() const { return opacityPercent_; }
 
 signals:
     void playPauseClicked();
@@ -143,6 +146,7 @@ private:
     // Drag state
     bool draggable_ = false;  ///< Whether mouse-drag is enabled.
     bool hideOnClick_ = true; ///< Hide on left-click (non-button, non-cover).
+    int opacityPercent_ = 100; ///< Window opacity 0–100.
     QPoint dragStartPos_;
     bool dragging_ = false;
     bool dragged_ = false;    ///< True if a drag actually moved the window (vs click).
