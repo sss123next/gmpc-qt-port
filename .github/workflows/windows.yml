@@ -1,13 +1,20 @@
-# Windows (MSYS2/MinGW) build workflow
+# Windows (MSYS2/CLANG64) build workflow
 #
-# Builds gmpc-qt natively on a Windows runner using MSYS2 with MinGW-w64 (GCC),
+# Builds gmpc-qt natively on a Windows runner using MSYS2 with Clang/LLVM,
 # CMake/Ninja, and Qt6 from MSYS2 packages.  Runs only on tags (releases).
 # On a new tag push, builds the binary, bundles Qt DLLs via windeployqt,
 # and attaches the ZIP archive to the GitHub Release.
 #
 # Trigger:
-#   git tag v0.1.0
-#   git push origin v0.1.0
+#   git tag v0.2.0
+#   git push origin v0.2.0
+#
+# Notes on CLANG64 migration (MSYS2 deprecated MINGW64 as of 2026-03-15):
+#   - msystem: CLANG64 (LLVM/Clang toolchain, Universal CRT)
+#   - Package prefix: mingw-w64-clang-x86_64-*
+#   - Path: /clang64 instead of /mingw64
+#   - Runtime DLLs: libc++.dll, libc++abi.dll, libunwind.dll
+#     (instead of libgcc_s_seh-1.dll, libstdc++-6.dll, libwinpthread-1.dll)
 
 name: Build Windows
 
@@ -34,34 +41,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup MSYS2 / MinGW-w64
+      - name: Setup MSYS2 / CLANG64
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: CLANG64
           update: true
           install: >-
-            mingw-w64-x86_64-qt6-base
-            mingw-w64-x86_64-qt6-svg
-            mingw-w64-x86_64-qt6-tools
-            mingw-w64-x86_64-curl
-            mingw-w64-x86_64-sqlite3
-            mingw-w64-x86_64-taglib
-            mingw-w64-x86_64-openssl
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-meson
-            mingw-w64-x86_64-pkgconf
+            mingw-w64-clang-x86_64-qt6-base
+            mingw-w64-clang-x86_64-qt6-svg
+            mingw-w64-clang-x86_64-qt6-tools
+            mingw-w64-clang-x86_64-curl
+            mingw-w64-clang-x86_64-sqlite3
+            mingw-w64-clang-x86_64-taglib
+            mingw-w64-clang-x86_64-openssl
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-ninja
+            mingw-w64-clang-x86_64-meson
+            mingw-w64-clang-x86_64-pkgconf
 
-      # libmpdclient is not packaged in MSYS2 — build from source
+      # libmpdclient is not packaged in MSYS2 — build from source.
+      # NB: Meson on Windows auto-detects MSVC first; force the CLANG64
+      # compiler explicitly to avoid building with the wrong toolchain.
       # Note: since v2.18 libmpdclient uses Meson, not CMake.
       - name: Build libmpdclient
+        env:
+          CC: /clang64/bin/clang
         run: |
           curl -fsSLo /tmp/libmpdclient.tar.xz \
             https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.27.tar.xz
           tar xJf /tmp/libmpdclient.tar.xz -C /tmp
           meson setup /tmp/libmpdclient-build /tmp/libmpdclient-2.27 \
             --buildtype release \
-            --prefix /mingw64
+            --prefix /clang64
           meson install -C /tmp/libmpdclient-build
 
       - name: Configure
@@ -75,13 +86,13 @@ jobs:
 
       - name: Deploy Qt & dependency DLLs
         run: |
-          /mingw64/bin/windeployqt \
+          /clang64/bin/windeployqt \
             --compiler-runtime \
             build/gmpc-qt.exe
 
       # Copy non-Qt DLLs that gmpc-qt.exe imports (libmpdclient, libcurl,
-      # libsqlite3, libtag, libcrypto/libssl, MinGW runtime, …).
-      # windeployqt handles Qt + MinGW runtime DLLs; we cover the rest.
+      # libsqlite3, libtag, libcrypto/libssl, LLVM runtime, …).
+      # windeployqt handles Qt + compiler runtime DLLs; we cover the rest.
       - name: Copy dependency DLLs (non-Qt)
         run: |
           for dll in $(objdump -p build/gmpc-qt.exe | grep 'DLL Name' | awk '{print $NF}'); do
@@ -93,15 +104,15 @@ jobs:
               Qt*)
                 ;; # Already deployed by windeployqt
               *)
-                cp "/mingw64/bin/$dll" build/ 2>/dev/null \
-                  || find /mingw64 -name "$dll" -exec cp {} build/ \; 2>/dev/null \
+                cp "/clang64/bin/$dll" build/ 2>/dev/null \
+                  || find /clang64 -name "$dll" -exec cp {} build/ \; 2>/dev/null \
                   || true
                 ;;
             esac
           done
-          # Also grab MinGW runtime in case --compiler-runtime missed them
-          for dll in libgcc_s_seh-1 libstdc++-6 libwinpthread-1; do
-            cp "/mingw64/bin/${dll}.dll" build/ 2>/dev/null || true
+          # Also grab LLVM/Clang runtime in case --compiler-runtime missed them
+          for dll in libc++ libc++abi libunwind; do
+            cp "/clang64/bin/${dll}.dll" build/ 2>/dev/null || true
           done
 
       # Gather everything into a portable ZIP
