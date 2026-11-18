@@ -107,6 +107,10 @@ bool MainWindow::MediaKeyFilter::nativeEventFilter(
     if (!keysyms_)
         return false;
 
+    // Respect the master switch — bail out when global hotkeys are disabled.
+    if (!Config::instance().globalHotkeysEnabled())
+        return false;
+
     auto *ev = static_cast<xcb_generic_event_t *>(message);
     if ((ev->response_type & 0x7f) != XCB_KEY_PRESS)
         return false;

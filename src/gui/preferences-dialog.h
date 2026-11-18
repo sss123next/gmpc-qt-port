@@ -33,6 +33,8 @@ public:
 
     /// Apply current UI values to Config and sync to disk.
     void accept() override;
+    /// Save geometry even on cancel.
+    void reject() override;
 
     /** @brief Привязать транспорт сервера: fading, выходы и ReplayGain живут на нём,
      *  а не в Config — их значение читается у MPD при открытии окна.
@@ -122,6 +124,7 @@ private:
     QCheckBox     *metadataOnline_;
 
     // Multimedia-keys group
+    QCheckBox   *globalHotkeysEnabled_;
     struct KeyBindingRow {
         QLabel     *keysymLabel;   ///< Human-readable keysym name
         QComboBox  *actionCombo;   ///< Action selector

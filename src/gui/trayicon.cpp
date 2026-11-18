@@ -55,6 +55,12 @@ void TrayIcon::setupMenu()
             mainWindow_->activateWindow();
         }
     });
+    auto *prefsAct = menu->addAction(tr("Preferences…"));
+    connect(prefsAct, &QAction::triggered, this, [this] {
+        auto *mw = qobject_cast<MainWindow *>(mainWindow_);
+        if (mw)
+            mw->showPreferences();
+    });
     menu->addSeparator();
 
     auto *miniPlayerAct = menu->addAction(tr("Mini Player"));

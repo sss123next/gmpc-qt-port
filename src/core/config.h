@@ -227,7 +227,18 @@ public:
     QString activeProfile() const;
     void setActiveProfile(const QString &name);
 
+    // ── Preferences dialog ──────────────────────────────────────────
+    int preferencesWidth() const;
+    int preferencesHeight() const;
+    void setPreferencesSize(int w, int h);
+    int preferencesX() const;
+    int preferencesY() const;
+    void setPreferencesPos(int x, int y);
+
     // ── Multimedia keys ────────────────────────────────────────────
+    /// Master switch: disable all global media-key hotkeys (default enabled).
+    bool globalHotkeysEnabled() const;
+    void setGlobalHotkeysEnabled(bool v);
     /// Persistent key → action bindings (defaults match XF86Audio keysyms).
     QList<MediaKeyBinding> mediaKeyBindings() const;
     void setMediaKeyBindings(const QList<MediaKeyBinding> &list);

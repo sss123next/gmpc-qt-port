@@ -293,6 +293,26 @@ QString Config::activeProfile() const
 void Config::setActiveProfile(const QString &name)
     { s_.setValue("profiles/active", name); }
 
+// ── Preferences dialog ────────────────────────────────────────────────────
+int Config::preferencesWidth() const
+    { return s_.value("preferences/width", 0).toInt(); }
+int Config::preferencesHeight() const
+    { return s_.value("preferences/height", 0).toInt(); }
+void Config::setPreferencesSize(int w, int h)
+    { s_.setValue("preferences/width", w); s_.setValue("preferences/height", h); }
+int Config::preferencesX() const
+    { return s_.value("preferences/x", -1).toInt(); }
+int Config::preferencesY() const
+    { return s_.value("preferences/y", -1).toInt(); }
+void Config::setPreferencesPos(int x, int y)
+    { s_.setValue("preferences/x", x); s_.setValue("preferences/y", y); }
+
+// ── Multimedia keys ───────────────────────────────────────────────────────
+bool Config::globalHotkeysEnabled() const
+    { return s_.value("mediakeys/globalEnabled", true).toBool(); }
+void Config::setGlobalHotkeysEnabled(bool v)
+    { s_.setValue("mediakeys/globalEnabled", v); }
+
 // ── Default media key table ─────────────────────────────────────────────
 static QList<MediaKeyBinding> defaultMediaKeyBindings()
 {

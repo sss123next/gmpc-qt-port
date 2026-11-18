@@ -21,6 +21,36 @@ PreferencesDialog::PreferencesDialog(QWidget *parent)
     setWindowTitle(tr("Preferences"));
     setupUi();
     loadFromConfig();
+
+    // Restore saved geometry, or choose a reasonable default.
+    auto &cfg = Config::instance();
+    int w = cfg.preferencesWidth();
+    int h = cfg.preferencesHeight();
+    if (w > 0 && h > 0) {
+        resize(w, h);
+    } else {
+        // Default: ~60 % of the primary screen, capped reasonably.
+        QScreen *screen = QApplication::primaryScreen();
+        if (screen) {
+            QSize avail = screen->availableSize();
+            w = qBound(640, avail.width() * 3 / 5, 1200);
+            h = qBound(480, avail.height() * 3 / 5, 900);
+        } else {
+            w = 800;
+            h = 600;
+        }
+        resize(w, h);
+    }
+
+    int x = cfg.preferencesX();
+    int y = cfg.preferencesY();
+    if (x >= 0 && y >= 0) {
+        move(x, y);
+    } else if (parent) {
+        // Centre on parent window when no saved position.
+        QRect parentGeo = parent->geometry();
+        move(parentGeo.center() - QRect(0, 0, w, h).center());
+    }
 }
 
 void PreferencesDialog::setupUi()
@@ -383,6 +413,12 @@ void PreferencesDialog::setupUi()
     auto *mmGroup = new QGroupBox(tr("Multimedia Keys"), this);
     auto *mmForm = new QFormLayout(mmGroup);
 
+    // Master switch for global hotkeys
+    globalHotkeysEnabled_ = new QCheckBox(
+        tr("Enable global media-key hotkeys"), this);
+    globalHotkeysEnabled_->setChecked(true);
+    mmForm->addRow(globalHotkeysEnabled_);
+
     // Build a static table of known XF86Audio keysyms
     static const struct { quint32 ks; const char *name; } knownKeys[] = {
         { 0x1008ff11, "XF86AudioPlay"       },
@@ -638,6 +674,9 @@ void PreferencesDialog::loadFromConfig()
         profileList_->addItem(p.name.isEmpty() ? tr("(unnamed)") : p.name);
     }
 
+    // Multimedia keys — global hotkeys toggle
+    globalHotkeysEnabled_->setChecked(cfg.globalHotkeysEnabled());
+
     // Multimedia keys — load saved bindings
     keyBindings_ = cfg.mediaKeyBindings();
     for (auto &row : keyBindingsRows_) {
@@ -735,6 +774,8 @@ void PreferencesDialog::accept()
     cfg.setProfiles(profiles_);
 
     // Multimedia keys — collect from combo boxes
+    cfg.setGlobalHotkeysEnabled(globalHotkeysEnabled_->isChecked());
+
     {
         QList<MediaKeyBinding> bindings;
         for (const auto &row : keyBindingsRows_) {
@@ -747,7 +788,22 @@ void PreferencesDialog::accept()
         cfg.setMediaKeyBindings(bindings);
     }
 
+    // Save dialog geometry
+    cfg.setPreferencesSize(width(), height());
+    cfg.setPreferencesPos(x(), y());
+
     cfg.sync();
 
     QDialog::accept();
+}
+
+void PreferencesDialog::reject()
+{
+    // Save geometry even on cancel — user may have resized/moved the window.
+    auto &cfg = Config::instance();
+    cfg.setPreferencesSize(width(), height());
+    cfg.setPreferencesPos(x(), y());
+    cfg.sync();
+
+    QDialog::reject();
 }
