@@ -15,12 +15,12 @@
         };
       in {
         # ── Installable package ──────────────────────────────────────────
-        packages.default = pkgs.callPackage ./build-aux/nix/package.nix {
+        packages.default = pkgs.callPackage ./packaging/nix/package.nix {
           src = self;
         };
 
-        # ── Development shell (from build-aux) ───────────────────────────
-        devShells.default = pkgs.callPackage ./build-aux/nix/dev-shell.nix { };
+        # ── Development shell (from packaging) ────────────────────────
+        devShells.default = pkgs.callPackage ./packaging/nix/dev-shell.nix { };
       }
     );
 }

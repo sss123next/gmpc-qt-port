@@ -19,7 +19,10 @@
 #include <QTimer>
 #include <QAbstractNativeEventFilter>
 #include <functional>
+
+#ifndef Q_OS_WIN
 #include <xcb/xcb_keysyms.h>
+#endif
 
 #include "browsers/browser-intent.h"
 #include "core/connection.h"
@@ -52,6 +55,7 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
     /// Intercepts X11 XF86Audio* keypresses from media keyboards.
+#ifndef Q_OS_WIN
     class MediaKeyFilter : public QAbstractNativeEventFilter {
     public:
         explicit MediaKeyFilter(MpdCommands *cmds);
@@ -63,6 +67,7 @@ class MainWindow : public QMainWindow {
         xcb_key_symbols_t *keysyms_ = nullptr;
     };
     friend class MediaKeyFilter;
+#endif
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
@@ -173,7 +178,9 @@ private:
 
     // Keyboard shortcuts
     void setupShortcuts();
+#ifndef Q_OS_WIN
     void setupMediaKeys();
+#endif
 
     // ── Zoom / Fullscreen ───────────────────────────────────────────────▲
     void setupZoomLevels();         ///< Ctrl+Plus/Minus zoom control.

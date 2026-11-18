@@ -1,0 +1,95 @@
+# Windows (MSYS2/MinGW) build workflow
+#
+# Builds gmpc-qt natively on a Windows runner using MSYS2 with MinGW-w64 (GCC),
+# CMake/Ninja, and Qt6 from MSYS2 packages.  Runs only on tags (releases).
+# On a new tag push, builds the binary, bundles Qt DLLs via windeployqt,
+# and attaches the ZIP archive to the GitHub Release.
+#
+# Trigger:
+#   git tag v0.1.0
+#   git push origin v0.1.0
+
+name: Build Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'gmpc-qt-*'
+
+permissions:
+  contents: write
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2 / MinGW-w64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-svg
+            mingw-w64-x86_64-qt6-tools
+            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-sqlite3
+            mingw-w64-x86_64-taglib
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+
+      # libmpdclient is not packaged in MSYS2 — build from source
+      - name: Build libmpdclient
+        run: |
+          curl -fsSLo /tmp/libmpdclient.tar.gz \
+            https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.24.tar.gz
+          tar xzf /tmp/libmpdclient.tar.gz -C /tmp
+          cmake -S /tmp/libmpdclient-2.24 -B /tmp/libmpdclient-build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX=/mingw64
+          cmake --build /tmp/libmpdclient-build --target install
+
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Deploy Qt & dependency DLLs
+        run: |
+          /mingw64/bin/windeployqt \
+            --compiler-runtime \
+            build/gmpc-qt.exe
+
+      # Gather everything into a portable ZIP
+      - name: Package ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build/gmpc-qt.exe, build/*.dll, build/platforms, build/styles, build/imageformats, build/iconengines, build/tls -DestinationPath gmpc-qt-windows-x86_64.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmpc-qt-windows-x86_64
+          path: gmpc-qt-windows-x86_64.zip
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: gmpc-qt-windows-x86_64.zip

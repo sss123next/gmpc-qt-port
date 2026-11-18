@@ -33,7 +33,9 @@
 #include "browsers/music-database-model.h"
 #include "browsers/file-system-model.h"
 
+#ifndef Q_OS_WIN
 #include "mpris/mpris-player.h"
+#endif
 
 #include <functional>
 #include <QApplication>
@@ -52,7 +54,9 @@
 #include <QCloseEvent>
 #include <QFileInfo>
 #include <QStandardPaths>
+#ifndef Q_OS_WIN
 #include <xcb/xcb_keysyms.h>
+#endif
 
 namespace {
 
@@ -82,6 +86,8 @@ QStringList storedPlaylistNames(Connection *conn)
 }
 
 }  // namespace
+
+#ifndef Q_OS_WIN
 
 // ── MediaKeyFilter ───────────────────────────────────────────────────────────
 
@@ -159,6 +165,8 @@ MainWindow::MediaKeyFilter::~MediaKeyFilter()
         xcb_key_symbols_free(keysyms_);
 }
 
+#endif // Q_OS_WIN
+
 // ── MainWindow ───────────────────────────────────────────────────────────────
 
 MainWindow::MainWindow(QWidget *parent)
@@ -206,7 +214,9 @@ void MainWindow::setupUi()
 
     setupMenuBar();
     setupShortcuts();
+#ifndef Q_OS_WIN
     setupMediaKeys();
+#endif
     setupZoomLevels();
 
     auto *central = new QWidget(this);
@@ -295,7 +305,9 @@ void MainWindow::setupUi()
     trayIcon_->setMiniPlayer(miniPlayer_);
 
     // MPRIS DBus interface
+#ifndef Q_OS_WIN
     mpris_ = new MprisPlayer(conn_, cmds_, this);
+#endif
 
     // Window start state: hidden trumps minimised, both override normal show.
     // hide() works with the tray (window goes into the tray); without a tray
@@ -972,6 +984,7 @@ void MainWindow::setupShortcuts()
 
 // ── Multimedia keys ─────────────────────────────────────────────────────────
 
+#ifndef Q_OS_WIN
 void MainWindow::setupMediaKeys()
 {
     auto *filter = new MediaKeyFilter(cmds_);
@@ -980,6 +993,7 @@ void MainWindow::setupMediaKeys()
     // The filter is a QObject child of the application (no leak);
     // cleaned up on app exit.
 }
+#endif
 
 // ── Zoom levels ──────────────────────────────────────────────────────────────
 

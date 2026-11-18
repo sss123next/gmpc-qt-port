@@ -9,12 +9,17 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC OFF)  # no .ui files — pure code layout
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg DBus LinguistTools)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg LinguistTools)
+if(NOT WIN32)
+    find_package(Qt6 REQUIRED COMPONENTS DBus)
+endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBMPDCLIENT REQUIRED IMPORTED_TARGET libmpdclient)
 pkg_check_modules(SQLITE3 REQUIRED IMPORTED_TARGET sqlite3)
 pkg_check_modules(CURL REQUIRED IMPORTED_TARGET libcurl)
-pkg_check_modules(XCB_KEYSYMS REQUIRED IMPORTED_TARGET xcb-keysyms)
+if(NOT WIN32)
+    pkg_check_modules(XCB_KEYSYMS REQUIRED IMPORTED_TARGET xcb-keysyms)
+endif()
 pkg_check_modules(TAGLIB REQUIRED IMPORTED_TARGET taglib)
 
 # ── Sources ───────────────────────────────────────────────────────────────────
@@ -137,12 +142,16 @@ set(TOOL_SOURCES
 )
 
 set(MPRIS_SOURCES
-    src/mpris/mpris-player.cpp
-    src/mpris/mpris-player.h
-    # Сборка полей MPRIS `Metadata` — чистая функция, тестируется отдельно от DBus.
-    src/mpris/metadata-map.cpp
-    src/mpris/metadata-map.h
 )
+if(NOT WIN32)
+    set(MPRIS_SOURCES
+        src/mpris/mpris-player.cpp
+        src/mpris/mpris-player.h
+        # Сборка полей MPRIS `Metadata` — чистая функция, тестируется отдельно от DBus.
+        src/mpris/metadata-map.cpp
+        src/mpris/metadata-map.h
+    )
+endif()
 
 set(MAIN_SOURCE
     src/main.cpp
@@ -171,13 +180,18 @@ target_link_libraries(gmpc-qt PRIVATE
     Qt6::Widgets
     Qt6::Network
     Qt6::Svg
-    Qt6::DBus
     PkgConfig::LIBMPDCLIENT
     PkgConfig::SQLITE3
     PkgConfig::CURL
-    PkgConfig::XCB_KEYSYMS
     PkgConfig::TAGLIB
 )
+
+if(NOT WIN32)
+    target_link_libraries(gmpc-qt PRIVATE
+        Qt6::DBus
+        PkgConfig::XCB_KEYSYMS
+    )
+endif()
 
 # ── Translations ──────────────────────────────────────────────────────────────
 set(TS_FILES
