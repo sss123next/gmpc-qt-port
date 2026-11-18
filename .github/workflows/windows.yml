@@ -49,19 +49,20 @@ jobs:
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-meson
             mingw-w64-x86_64-pkgconf
 
       # libmpdclient is not packaged in MSYS2 — build from source
+      # Note: since v2.18 libmpdclient uses Meson, not CMake.
       - name: Build libmpdclient
         run: |
           curl -fsSLo /tmp/libmpdclient.tar.xz \
             https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.27.tar.xz
           tar xJf /tmp/libmpdclient.tar.xz -C /tmp
-          cmake -S /tmp/libmpdclient-2.27 -B /tmp/libmpdclient-build \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DCMAKE_INSTALL_PREFIX=/mingw64
-          cmake --build /tmp/libmpdclient-build --target install
+          meson setup /tmp/libmpdclient-build /tmp/libmpdclient-2.27 \
+            --buildtype release \
+            --prefix /mingw64
+          meson install -C /tmp/libmpdclient-build
 
       - name: Configure
         run: |
