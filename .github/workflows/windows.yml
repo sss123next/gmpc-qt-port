@@ -79,6 +79,31 @@ jobs:
             --compiler-runtime \
             build/gmpc-qt.exe
 
+      # Copy non-Qt DLLs that gmpc-qt.exe imports (libmpdclient, libcurl,
+      # libsqlite3, libtag, libcrypto/libssl, MinGW runtime, …).
+      # windeployqt handles Qt + MinGW runtime DLLs; we cover the rest.
+      - name: Copy dependency DLLs (non-Qt)
+        run: |
+          for dll in $(objdump -p build/gmpc-qt.exe | grep 'DLL Name' | awk '{print $NF}'); do
+            case "$dll" in
+              KERNEL32*|USER32*|GDI32*|ADVAPI32*|SHELL32*|COMCTL32*|COMDLG32*| \
+              OLE32*|OLEAUT32*|WINMM*|WS2_32*|VERSION*|SHLWAPI*|IMM32*| \
+              MSVCRT*|UCRTBASE*|API-MS-WIN*|ext-ms-win*)
+                ;; # Windows system DLLs — don't bundle
+              Qt*)
+                ;; # Already deployed by windeployqt
+              *)
+                cp "/mingw64/bin/$dll" build/ 2>/dev/null \
+                  || find /mingw64 -name "$dll" -exec cp {} build/ \; 2>/dev/null \
+                  || true
+                ;;
+            esac
+          done
+          # Also grab MinGW runtime in case --compiler-runtime missed them
+          for dll in libgcc_s_seh-1 libstdc++-6 libwinpthread-1; do
+            cp "/mingw64/bin/${dll}.dll" build/ 2>/dev/null || true
+          done
+
       # Gather everything into a portable ZIP
       - name: Package ZIP
         shell: pwsh
