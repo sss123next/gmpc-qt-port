@@ -77,6 +77,8 @@ public:
     void setWindowMaximized(bool v);
     bool startHidden() const;
     void setStartHidden(bool v);
+    bool startMinimized() const;
+    void setStartMinimized(bool v);
 
     // ── Playback ────────────────────────────────────────────────────
     bool stopOnExit() const;

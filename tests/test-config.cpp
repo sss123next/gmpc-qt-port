@@ -266,6 +266,58 @@ TEST_CASE("MediaKey empty bindings saved and restored as empty set")
     CHECK(again.isEmpty());
 }
 
+TEST_CASE("GlobalHotkeysEnabled defaults to true")
+{
+    clearSettings();
+    auto &cfg = Config::instance();
+    CHECK(cfg.globalHotkeysEnabled());
+}
+
+TEST_CASE("GlobalHotkeysEnabled round-trip through set -> sync -> re-read")
+{
+    clearSettings();
+    auto &cfg = Config::instance();
+
+    cfg.setGlobalHotkeysEnabled(false);
+    cfg.sync();
+    CHECK_FALSE(cfg.globalHotkeysEnabled());
+
+    cfg.setGlobalHotkeysEnabled(true);
+    cfg.sync();
+    CHECK(cfg.globalHotkeysEnabled());
+}
+
+TEST_CASE("GlobalHotkeysEnabled survives setMediaKeyBindings")
+{
+    // Regression test: setMediaKeyBindings must NOT nuke globalEnabled.
+    clearSettings();
+    auto &cfg = Config::instance();
+
+    // Save globalEnabled = false and some custom bindings simultaneously.
+    cfg.setGlobalHotkeysEnabled(false);
+    QList<MediaKeyBinding> bindings = {
+        { 0x1008ff11, MediaKeyAction::Stop }
+    };
+    cfg.setMediaKeyBindings(bindings);
+    cfg.sync();
+
+    // Both must survive
+    CHECK_FALSE(cfg.globalHotkeysEnabled());
+    CHECK_EQ(cfg.mediaKeyBindings().size(), 1);
+    CHECK_EQ(cfg.actionForKey(0x1008ff11), MediaKeyAction::Stop);
+
+    // Now overwrite bindings — globalEnabled stays.
+    cfg.setMediaKeyBindings({});
+    cfg.sync();
+    CHECK_FALSE(cfg.globalHotkeysEnabled());
+    CHECK(cfg.mediaKeyBindings().isEmpty());
+
+    // Finally flip global back on.
+    cfg.setGlobalHotkeysEnabled(true);
+    cfg.sync();
+    CHECK(cfg.globalHotkeysEnabled());
+}
+
 // ── Proxy ─────────────────────────────────────────────────────────────────
 
 TEST_CASE("Proxy defaults are disabled with empty host")

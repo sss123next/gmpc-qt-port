@@ -57,6 +57,10 @@ bool Config::startHidden() const
     { return s_.value("window/startHidden", false).toBool(); }
 void Config::setStartHidden(bool v)
     { s_.setValue("window/startHidden", v); }
+bool Config::startMinimized() const
+    { return s_.value("window/startMinimized", false).toBool(); }
+void Config::setStartMinimized(bool v)
+    { s_.setValue("window/startMinimized", v); }
 
 bool Config::stopOnExit() const
     { return s_.value("playback/stopOnExit", false).toBool(); }
@@ -332,12 +336,15 @@ static const char *mkGroup = "mediakeys";
 
 QList<MediaKeyBinding> Config::mediaKeyBindings() const
 {
-    // If no saved bindings, return defaults
-    if (!s_.childGroups().contains(QLatin1StringView(mkGroup)))
+    // If no saved custom bindings, return defaults.
+    // Checking for the count key is precise — childGroups() would also match
+    // mediakeys/globalEnabled and then return an empty list instead of defaults.
+    const QString countKey = QStringLiteral("%1/count").arg(mkGroup);
+    if (!s_.contains(countKey))
         return defaultMediaKeyBindings();
 
     QList<MediaKeyBinding> list;
-    const int count = s_.value(QStringLiteral("%1/count").arg(mkGroup), 0).toInt();
+    const int count = s_.value(countKey, 0).toInt();
     for (int i = 0; i < count; ++i) {
         const QString p = QStringLiteral("%1/%2/").arg(mkGroup).arg(i);
         MediaKeyBinding b;
@@ -351,9 +358,14 @@ QList<MediaKeyBinding> Config::mediaKeyBindings() const
 
 void Config::setMediaKeyBindings(const QList<MediaKeyBinding> &list)
 {
-    // Remove old
-    s_.remove(mkGroup);
-    s_.setValue(QStringLiteral("%1/count").arg(mkGroup), list.size());
+    // Remove old numbered entries only — do NOT wipe the whole group because
+    // sibling keys like "globalEnabled" share the "mediakeys/" prefix.
+    const QString countKey = QStringLiteral("%1/count").arg(mkGroup);
+    const int oldCount = s_.value(countKey, 0).toInt();
+    for (int i = 0; i < oldCount; ++i)
+        s_.remove(QStringLiteral("%1/%2").arg(mkGroup).arg(i));
+
+    s_.setValue(countKey, list.size());
     for (int i = 0; i < list.size(); ++i) {
         const auto &b = list[i];
         const QString p = QStringLiteral("%1/%2/").arg(mkGroup).arg(i);
