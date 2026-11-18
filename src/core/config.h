@@ -217,6 +217,9 @@ public:
     /// Enable mouse-drag repositioning (default off).
     bool miniPlayerDraggable() const;
     void setMiniPlayerDraggable(bool v);
+    /// Hide mini-player on left-click on non-button, non-cover area (default on).
+    bool miniPlayerHideOnClick() const;
+    void setMiniPlayerHideOnClick(bool v);
 
     // ── Profiles ─────────────────────────────────────────────────────
     /** @brief All saved connection profiles (read from QSettings). */

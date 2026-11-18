@@ -275,6 +275,7 @@ void MainWindow::setupUi()
     miniPlayer_->setMarginX(cfg.miniPlayerMarginX());
     miniPlayer_->setMarginY(cfg.miniPlayerMarginY());
     miniPlayer_->setDraggable(cfg.miniPlayerDraggable());
+    miniPlayer_->setHideOnClick(cfg.miniPlayerHideOnClick());
 
     // Share QueueSync with CurrentPlaylist for Low Memory Mode.
     currentPlaylist_->setQueueSync(queueSync_);

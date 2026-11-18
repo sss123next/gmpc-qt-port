@@ -282,10 +282,14 @@ void MiniPlayer::restoreGeometry()
 
 void MiniPlayer::mousePressEvent(QMouseEvent *event)
 {
-    if (draggable_ && event->button() == Qt::LeftButton) {
+    if (event->button() == Qt::LeftButton) {
         dragStartPos_ = event->globalPosition().toPoint();
-        dragging_ = true;
-        setCursor(Qt::ClosedHandCursor);
+        dragged_ = false;
+
+        if (draggable_) {
+            dragging_ = true;
+            setCursor(Qt::ClosedHandCursor);
+        }
         event->accept();
         return;
     }
@@ -296,6 +300,8 @@ void MiniPlayer::mouseMoveEvent(QMouseEvent *event)
 {
     if (dragging_) {
         const QPoint delta = event->globalPosition().toPoint() - dragStartPos_;
+        if (!dragged_ && (delta.manhattanLength() >= 5))
+            dragged_ = true;
         move(pos() + delta);
         dragStartPos_ = event->globalPosition().toPoint();
         posMode_ = PosCustom;           // drag → custom positioning
@@ -303,6 +309,40 @@ void MiniPlayer::mouseMoveEvent(QMouseEvent *event)
         return;
     }
     QWidget::mouseMoveEvent(event);
+}
+
+void MiniPlayer::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (event->button() != Qt::LeftButton) {
+        QWidget::mouseReleaseEvent(event);
+        return;
+    }
+
+    const bool wasDragging = dragging_;
+    dragging_ = false;
+
+    if (draggable_)
+        setCursor(Qt::OpenHandCursor);
+
+    // If the window was actually dragged, don't hide.
+    if (dragged_) {
+        event->accept();
+        return;
+    }
+
+    // Hide-on-click: skip if disabled or if the click was on a button or cover.
+    if (hideOnClick_) {
+        QWidget *child = childAt(event->position().toPoint());
+        if (child == prevBtn_ || child == playBtn_
+            || child == stopBtn_ || child == nextBtn_
+            || child == coverWidget_) {
+            event->accept();
+            return;
+        }
+        hide();
+    }
+
+    event->accept();
 }
 
 // ── Drag enable/disable ─────────────────────────────────────────────────────
@@ -316,6 +356,11 @@ void MiniPlayer::setDraggable(bool on)
     }
     draggable_ = on;
     setCursor(on ? Qt::OpenHandCursor : Qt::ArrowCursor);
+}
+
+void MiniPlayer::setHideOnClick(bool on)
+{
+    hideOnClick_ = on;
 }
 
 // ── Hide event — save position ──────────────────────────────────────────────

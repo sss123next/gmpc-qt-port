@@ -311,6 +311,10 @@ void PreferencesDialog::setupUi()
     miniPlayerDraggable_ = new QCheckBox(tr("Draggable (reposition with mouse)"), this);
     popupForm->addRow(QString(), miniPlayerDraggable_);
 
+    miniPlayerHideOnClick_ = new QCheckBox(tr("Hide on click"), this);
+    miniPlayerHideOnClick_->setChecked(true);
+    popupForm->addRow(QString(), miniPlayerHideOnClick_);
+
     innerLay->addWidget(popupGroup);
 
     // ── Playlist group ──────────────────────────────────────────────
@@ -639,6 +643,7 @@ void PreferencesDialog::loadFromConfig()
     trayPopupShowCover_->setChecked(cfg.trayPopupShowCover());
     trayPopupShowButtons_->setChecked(cfg.trayPopupShowButtons());
     miniPlayerDraggable_->setChecked(cfg.miniPlayerDraggable());
+    miniPlayerHideOnClick_->setChecked(cfg.miniPlayerHideOnClick());
 
     // Playlist
     headerMarkup_->setText(cfg.playlistHeaderMarkup());
@@ -746,6 +751,7 @@ void PreferencesDialog::accept()
     cfg.setTrayPopupShowCover(trayPopupShowCover_->isChecked());
     cfg.setTrayPopupShowButtons(trayPopupShowButtons_->isChecked());
     cfg.setMiniPlayerDraggable(miniPlayerDraggable_->isChecked());
+    cfg.setMiniPlayerHideOnClick(miniPlayerHideOnClick_->isChecked());
 
     // Playlist
     cfg.setPlaylistHeaderMarkup(headerMarkup_->text());

@@ -82,6 +82,9 @@ public:
     /// Enable/disable mouse-drag repositioning (default off).
     void setDraggable(bool on);
     bool isDraggable() const { return draggable_; }
+    /// Hide window on left-click on non-button, non-cover area (default on).
+    void setHideOnClick(bool on);
+    bool hideOnClick() const { return hideOnClick_; }
 
 signals:
     void playPauseClicked();
@@ -92,6 +95,7 @@ signals:
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void hideEvent(QHideEvent *event) override;
 
 private:
@@ -138,6 +142,8 @@ private:
 
     // Drag state
     bool draggable_ = false;  ///< Whether mouse-drag is enabled.
+    bool hideOnClick_ = true; ///< Hide on left-click (non-button, non-cover).
     QPoint dragStartPos_;
     bool dragging_ = false;
+    bool dragged_ = false;    ///< True if a drag actually moved the window (vs click).
 };

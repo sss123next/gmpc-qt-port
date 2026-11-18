@@ -252,6 +252,10 @@ bool Config::miniPlayerDraggable() const
     { return s_.value("miniPlayer/draggable", false).toBool(); }
 void Config::setMiniPlayerDraggable(bool v)
     { s_.setValue("miniPlayer/draggable", v); }
+bool Config::miniPlayerHideOnClick() const
+    { return s_.value("miniPlayer/hideOnClick", true).toBool(); }
+void Config::setMiniPlayerHideOnClick(bool v)
+    { s_.setValue("miniPlayer/hideOnClick", v); }
 
 // ── Profiles ──────────────────────────────────────────────────────────────
 QList<ConnectionProfile> Config::profiles() const
