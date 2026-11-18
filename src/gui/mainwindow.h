@@ -216,6 +216,8 @@ protected:
 
     // Cached song-id to avoid redundant cover/songinfo updates.
     int lastSongId_ = -1;
+    /// Last known MPD state (for resume detection).
+    int lastState_ = MPD_STATE_UNKNOWN;
     /// Last known current song (kept even when model is cleared in LMM).
     SongEntry lastSong_;
     /// Last volume applied to the widget, so a drag is not fought by polling.

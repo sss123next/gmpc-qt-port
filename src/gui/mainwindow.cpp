@@ -749,11 +749,20 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
 
     // Only update song-dependent widgets when the song actually changes.
     const int songId = song ? song->id : -1;
-    if (songId == lastSongId_)
+
+    // Detect resume from pause/stop — show mini-player even if same song.
+    const bool resumed = lastState_ != MPD_STATE_PLAY
+                      && lastState_ != MPD_STATE_UNKNOWN
+                      && s.state == MPD_STATE_PLAY
+                      && songId == lastSongId_;
+    if (s.state != MPD_STATE_UNKNOWN)
+        lastState_ = s.state;
+
+    if (songId == lastSongId_ && !resumed)
         return;
     lastSongId_ = songId;
 
-    // Auto-show mini-player on track change (updates if already visible).
+    // Auto-show mini-player on track change or resume (updates if already visible).
     if (miniPlayer_ && Config::instance().miniPlayerEnabled()) {
         if (song)
             miniPlayer_->showSong(song);
