@@ -23,6 +23,11 @@ int main(int argc, char *argv[])
     app.setApplicationVersion("0.1.0");
     app.setOrganizationName("gmpc-qt");
 
+    // Tray-based app: closing/hiding the last window must NOT terminate the
+    // process — MiniPlayer auto-hide or close-to-tray would otherwise cause
+    // a silent quit when all QWidget windows are hidden.
+    app.setQuitOnLastWindowClosed(false);
+
     // The MPD_* variables are consumed deep inside Connection/Config; say
     // once what they resolved to so a surprise target is traceable.
     const MpdEnvSettings env = mpdEnvFromEnvironment();
