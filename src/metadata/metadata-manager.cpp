@@ -27,15 +27,19 @@ MetadataManager::MetadataManager(const QString &cachePath,
                     onCoverData(pendingArtist_, pendingAlbum_, data);
                     pendingArtist_.clear();
                     pendingAlbum_.clear();
+                    refreshingCover_ = false;
                 }
             });
 
     connect(coverProvider_, &CoverProvider::notFound, this,
             [this]() {
                 if (!pendingArtist_.isEmpty()) {
-                    emit coverNotFound(pendingArtist_, pendingAlbum_);
+                    // During a refresh, keep old cache/display on failure.
+                    if (!refreshingCover_)
+                        emit coverNotFound(pendingArtist_, pendingAlbum_);
                     pendingArtist_.clear();
                     pendingAlbum_.clear();
+                    refreshingCover_ = false;
                 }
             });
 
@@ -51,6 +55,7 @@ MetadataManager::MetadataManager(const QString &cachePath,
                     emit lyricsReady(pendingArtistLyrics_, pendingTitleLyrics_, text);
                     pendingArtistLyrics_.clear();
                     pendingTitleLyrics_.clear();
+                    refreshingLyrics_ = false;
                 }
             });
 
@@ -78,15 +83,19 @@ MetadataManager::MetadataManager(const QString &cachePath,
                     emit lyricsReady(pendingArtistLyrics_, pendingTitleLyrics_, plain);
                     pendingArtistLyrics_.clear();
                     pendingTitleLyrics_.clear();
+                    refreshingLyrics_ = false;
                 }
             });
 
     connect(lyricsFallback_, &LyricsOvhProvider::notFound, this,
             [this]() {
                 if (!pendingArtistLyrics_.isEmpty()) {
-                    emit lyricsNotFound(pendingArtistLyrics_, pendingTitleLyrics_);
+                    // During a refresh, keep old cache/display on failure.
+                    if (!refreshingLyrics_)
+                        emit lyricsNotFound(pendingArtistLyrics_, pendingTitleLyrics_);
                     pendingArtistLyrics_.clear();
                     pendingTitleLyrics_.clear();
+                    refreshingLyrics_ = false;
                 }
             });
 
@@ -174,6 +183,62 @@ void MetadataManager::requestLyrics(const QString &artist, const QString &title,
 void MetadataManager::setMusicDir(const QString &dir)
 {
     coverProvider_->setMusicDir(dir);
+}
+
+void MetadataManager::refreshCover(const QString &artist, const QString &album,
+                                   const QString &uri)
+{
+    if (!Config::instance().metadataEnabled())
+        return;
+
+    // Mark as refresh so notFound doesn't destroy existing cache/display.
+    refreshingCover_ = true;
+
+    // Bypass pending dedup and call the full provider pipeline directly.
+    pendingArtist_ = artist;
+    pendingAlbum_  = album;
+
+    // Skip CoverProvider's own cache as well via skipCache flag.
+    coverProvider_->fetchCover(artist, album, uri, /*skipCache=*/true);
+}
+
+void MetadataManager::refreshLyrics(const QString &artist, const QString &title,
+                                    const QString &uri)
+{
+    if (!Config::instance().metadataEnabled())
+        return;
+
+    refreshingLyrics_ = true;
+
+    // Bypass requestLyrics' cache check: stash pending and call the
+    // first provider directly.  The fallback chain still works on notFound.
+    pendingArtistLyrics_ = artist;
+    pendingTitleLyrics_ = title;
+
+    // Try embedded first (fast, local).
+    bool triedEmbedded = false;
+    if (!uri.isEmpty() && !musicDir_.isEmpty()) {
+        const QString absPath = musicDir_ + QLatin1Char('/') + uri;
+        const QString embedded = readEmbeddedLyrics(absPath);
+        if (!embedded.isEmpty()) {
+            // New data: overwrite cache and emit.
+            cachePut(QString("lyrics:%1:%2").arg(artist, title),
+                     embedded.toUtf8());
+            emit lyricsReady(artist, title, embedded);
+            return;
+        }
+        triedEmbedded = true;
+    }
+
+    if (!Config::instance().metadataOnline()) {
+        // Nothing online and embedded failed — keep old cache/display.
+        pendingArtistLyrics_.clear();
+        pendingTitleLyrics_.clear();
+        refreshingLyrics_ = false;
+        return;
+    }
+
+    lyricsProvider_->fetchLyrics(artist, title);
 }
 
 void MetadataManager::onCoverData(const QString &artist, const QString &album,

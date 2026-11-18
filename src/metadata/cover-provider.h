@@ -34,8 +34,9 @@ public:
 
     /// Initiate an async cover fetch for artist/album.
     /// @param uri  Song file URI from MPD (relative to music dir), for local file lookup.
+    /// @param skipCache  If true, bypass cache and force full provider pipeline.
     void fetchCover(const QString &artist, const QString &album,
-                    const QString &uri = QString());
+                    const QString &uri = QString(), bool skipCache = false);
 
     /// Use a custom downloader (for test injection).
     void setDownloader(AsyncDownload *dl);

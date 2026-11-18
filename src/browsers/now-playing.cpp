@@ -99,6 +99,23 @@ NowPlaying::NowPlaying(QWidget *parent)
     tabs_->setVisible(false);  // shown only when there is extra data
     lay->addWidget(tabs_);
 
+    // ── Мини-кнопки обновления ─────────────────────────────────────────
+    auto *refreshRow = new QHBoxLayout;
+    refreshRow->setContentsMargins(0, 4, 0, 2);
+    refreshCoverBtn_ = new QPushButton(QStringLiteral("↻ Cover"), this);
+    refreshLyricsBtn_ = new QPushButton(QStringLiteral("↻ Lyrics"), this);
+    for (auto *btn : {refreshCoverBtn_, refreshLyricsBtn_}) {
+        btn->setFlat(true);
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setStyleSheet(QStringLiteral(
+            "QPushButton { font-size: 10pt; padding: 2px 8px; }"
+            "QPushButton:hover { color: palette(highlight); }"));
+    }
+    refreshRow->addStretch();
+    refreshRow->addWidget(refreshLyricsBtn_);
+    refreshRow->addWidget(refreshCoverBtn_);
+    lay->addLayout(refreshRow);
+
     // ── Текст песни ────────────────────────────────────────────────────
     lyricsView_ = new QPlainTextEdit(this);
     lyricsView_->setObjectName(QStringLiteral("lyricsView"));
@@ -121,6 +138,12 @@ NowPlaying::NowPlaying(QWidget *parent)
             coverViewer_ = new CoverViewer();
         coverViewer_->show(cover_->coverData());
     });
+
+    // Refresh buttons.
+    connect(refreshCoverBtn_, &QPushButton::clicked,
+            this, &NowPlaying::onRefreshCover);
+    connect(refreshLyricsBtn_, &QPushButton::clicked,
+            this, &NowPlaying::onRefreshLyrics);
 }
 
 // ── Connection & MetadataManager ────────────────────────────────────────────
@@ -478,6 +501,26 @@ void NowPlaying::onLyricsNotFound(const QString &artist, const QString &title)
         return;
     lyricsView_->setPlainText({});
     hintLabel_->setText(tr("No lyrics found"));
+}
+
+// ── Refresh buttons ─────────────────────────────────────────────────────────
+
+void NowPlaying::onRefreshCover()
+{
+    if (!mgr_ || curArtist_.isEmpty() || curAlbum_.isEmpty())
+        return;
+    // Clear current display and force a fresh fetch through the full pipeline.
+    cover_->clear();
+    mgr_->refreshCover(curArtist_, curAlbum_, curUri_);
+}
+
+void NowPlaying::onRefreshLyrics()
+{
+    if (!mgr_ || curArtist_.isEmpty())
+        return;
+    lyricsView_->clear();
+    hintLabel_->setText(tr("Refreshing lyrics\u2026"));
+    mgr_->refreshLyrics(curArtist_, curTitle_, curUri_);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

@@ -60,7 +60,7 @@ QString CoverProvider::cacheKey() const
 }
 
 void CoverProvider::fetchCover(const QString &artist, const QString &album,
-                               const QString &uri)
+                               const QString &uri, bool skipCache)
 {
     const auto &cfg = Config::instance();
 
@@ -84,12 +84,14 @@ void CoverProvider::fetchCover(const QString &artist, const QString &album,
         return;
     }
 
-    // Step 1 — check cache (SQLite)
-    QByteArray cached = cache_.get(cacheKey());
-    if (!cached.isEmpty()) {
-        qDebug() << "  → cache hit";
-        emit coverReady(cached);
-        return;
+    // Step 1 — check cache (skip if refresh requested)
+    if (!skipCache) {
+        QByteArray cached = cache_.get(cacheKey());
+        if (!cached.isEmpty()) {
+            qDebug() << "  → cache hit";
+            emit coverReady(cached);
+            return;
+        }
     }
 
     // Step 2 — local file alongside the song (cover.jpg, folder.jpg, etc.)

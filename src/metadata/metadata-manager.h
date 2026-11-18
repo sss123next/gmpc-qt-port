@@ -51,6 +51,15 @@ public:
      *  Passes through to CoverProvider::setMusicDir(). */
     void setMusicDir(const QString &dir);
 
+    /** @brief Force re-fetch cover: invalidates cache and runs full provider pipeline.
+     *  Emits coverReady/coverNotFound when done. */
+    void refreshCover(const QString &artist, const QString &album,
+                      const QString &uri = QString());
+    /** @brief Force re-fetch lyrics: invalidates cache and runs full provider pipeline.
+     *  Emits lyricsReady/lyricsNotFound when done. */
+    void refreshLyrics(const QString &artist, const QString &title,
+                       const QString &uri = QString());
+
 signals:
     /// Emitted when cover image data is ready.
     void coverReady(const QString &artist, const QString &album,
@@ -84,6 +93,11 @@ private:
     QString pendingAlbum_;
     QString pendingArtistLyrics_;
     QString pendingTitleLyrics_;
+
+    // Refresh-in-progress flags: suppress "not found" emissions on failure
+    // so existing cache and display are preserved when re-fetch yields nothing.
+    bool refreshingCover_ = false;
+    bool refreshingLyrics_ = false;
 };
 
 // ── Forward-declare external providers ──────────────────────────────────────

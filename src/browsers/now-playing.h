@@ -12,6 +12,7 @@
 #include <QFormLayout>
 #include <QString>
 #include <QTabWidget>
+#include <QPushButton>
 #include "browser-widget.h"
 
 class QLabel;
@@ -52,6 +53,11 @@ private slots:
     /// Лирики нет ни у одного провайдера.
     void onLyricsNotFound(const QString &artist, const QString &title);
 
+    /** @brief Принудительно перезапросить обложку (сброс кеша + рефетч). */
+    void onRefreshCover();
+    /** @brief Принудительно перезапросить текст песни (сброс кеша + рефетч). */
+    void onRefreshLyrics();
+
 private:
     /** @brief Ключ «артист\\nназвание» текущего запроса: ответы по уже сменившемуся
      *  трэку отбрасываются — иначе текст чужой песни занял бы экран. */
@@ -82,6 +88,8 @@ private:
     QPlainTextEdit *lyricsView_;
     QTabWidget *tabs_;
     QLabel *hintLabel_;
+    QPushButton *refreshCoverBtn_ = nullptr;
+    QPushButton *refreshLyricsBtn_ = nullptr;
 
     // ── Вкладки метаданных (создаются один раз, текст обновляется на месте) ──
     bool tabsBuilt_ = false;
