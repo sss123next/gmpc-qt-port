@@ -329,6 +329,27 @@ public slots:
     /// Установить режим ReplayGain (значение enum mpd_replay_gain_mode).
     virtual void setReplayGainMode(int mode);
 
+    // -- database management -------------------------------------------------
+    /** @brief Trigger a database update (rescan for new/changed files).
+     *
+     *  Corresponds to MPD command `update`.  The server returns a job ID
+     *  which is discarded — callers that need progress tracking can extend
+     *  this later.
+     *
+     *  @returns The job ID assigned by the server, or -1 on error / no connection.
+     */
+    [[nodiscard]] virtual int updateDatabase();
+
+    /** @brief Trigger a full database rescan (like update, but also purges
+     *  entries for deleted files).
+     *
+     *  Requires libmpdclient ≥ 2.12 / MPD ≥ 0.20.  Falls back to updateDatabase()
+     *  when the command is not available.
+     *
+     *  @returns The job ID assigned by the server, or -1 on error / no connection.
+     */
+    [[nodiscard]] virtual int rescanDatabase();
+
 private:
     /** @brief Идентификатор трэка в очереди по точному совпадению URI.
      *  @returns songid или -1, если трэка в очереди нет (и вне соединения).

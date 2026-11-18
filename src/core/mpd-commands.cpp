@@ -627,3 +627,37 @@ void MpdCommands::muteToggle() {
         RUN("setvol", mpd_run_set_volume(MPD, prevVol));
     }
 }
+
+// -------------------------------------------------------------------
+//  Database management
+// -------------------------------------------------------------------
+
+int MpdCommands::updateDatabase()
+{
+    if (!conn_->isConnected())
+        return -1;
+    // mpd_run_update returns the job id; consumeError clears any error state.
+    if (!conn_->hasHandle())
+        return -1;
+    int jobId = mpd_run_update(MPD, nullptr);
+    conn_->consumeError("update");
+    return jobId;
+}
+
+int MpdCommands::rescanDatabase()
+{
+    if (!conn_->isConnected())
+        return -1;
+    if (!conn_->hasHandle())
+        return -1;
+    // mpd_run_rescan is available since libmpdclient 2.12.
+    // If the symbol is missing (older library), fall back to update.
+    int jobId = -1;
+#if defined(MPD_VERSION_MAJOR) && (MPD_VERSION_MAJOR >= 2 && MPD_VERSION_MINOR >= 12)
+    jobId = mpd_run_rescan(MPD, nullptr);
+#else
+    jobId = mpd_run_update(MPD, nullptr);
+#endif
+    conn_->consumeError("rescan");
+    return jobId;
+}

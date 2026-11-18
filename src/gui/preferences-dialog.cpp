@@ -119,8 +119,10 @@ void PreferencesDialog::setupUi()
     // ── Window group ─────────────────────────────────────────────────
     auto *winGroup = new QGroupBox(tr("Window"), this);
     auto *winForm = new QFormLayout(winGroup);
-    startHidden_ = new QCheckBox(tr("Start minimized to tray"), this);
+    startHidden_ = new QCheckBox(tr("Start hidden (to tray if enabled)"), this);
     winForm->addRow(startHidden_);
+    startMinimized_ = new QCheckBox(tr("Start minimized to taskbar"), this);
+    winForm->addRow(startMinimized_);
     innerLay->addWidget(winGroup);
 
     // ── Proxy group ─────────────────────────────────────────────────
@@ -596,6 +598,7 @@ void PreferencesDialog::loadFromConfig()
     autoConnect_->setChecked(cfg.autoConnect());
     stopOnExit_->setChecked(cfg.stopOnExit());
     startHidden_->setChecked(cfg.startHidden());
+    startMinimized_->setChecked(cfg.startMinimized());
 
     // Proxy
     proxyEnabled_->setChecked(cfg.proxyEnabled());
@@ -716,6 +719,7 @@ void PreferencesDialog::accept()
     cfg.setAutoConnect(autoConnect_->isChecked());
     cfg.setStopOnExit(stopOnExit_->isChecked());
     cfg.setStartHidden(startHidden_->isChecked());
+    cfg.setStartMinimized(startMinimized_->isChecked());
 
     // Proxy
     cfg.setProxyEnabled(proxyEnabled_->isChecked());
@@ -773,9 +777,9 @@ void PreferencesDialog::accept()
     }
     cfg.setProfiles(profiles_);
 
-    // Multimedia keys — collect from combo boxes
-    cfg.setGlobalHotkeysEnabled(globalHotkeysEnabled_->isChecked());
-
+    // Multimedia keys — collect from combo boxes.
+    // Save bindings FIRST, then the master toggle — setMediaKeyBindings used to
+    // nuke the whole mediakeys/ group (fixed), but the order is now defensive.
     {
         QList<MediaKeyBinding> bindings;
         for (const auto &row : keyBindingsRows_) {
@@ -787,6 +791,7 @@ void PreferencesDialog::accept()
         }
         cfg.setMediaKeyBindings(bindings);
     }
+    cfg.setGlobalHotkeysEnabled(globalHotkeysEnabled_->isChecked());
 
     // Save dialog geometry
     cfg.setPreferencesSize(width(), height());

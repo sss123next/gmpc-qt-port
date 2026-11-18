@@ -295,11 +295,16 @@ void MainWindow::setupUi()
     // MPRIS DBus interface
     mpris_ = new MprisPlayer(conn_, cmds_, this);
 
-    // Start hidden if configured
-    if (cfg.startHidden())
+    // Window start state: hidden trumps minimised, both override normal show.
+    // hide() works with the tray (window goes into the tray); without a tray
+    // the window is simply invisible — the user asked for it.
+    if (cfg.startHidden()) {
         hide();
-    else
+    } else if (cfg.startMinimized()) {
+        showMinimized();
+    } else {
         show();
+    }
 }
 
 void MainWindow::setupMenuBar()
@@ -336,6 +341,8 @@ void MainWindow::setupMenuBar()
     file->addSeparator();
 
     // ── Connection profiles submenu ──────────────────────────────────
+    // Only profiles live here; Connect/Disconnect and database actions
+    // are in the Server menu.
     auto *profileMenu = file->addMenu(tr("Connection"));
     connect(profileMenu, &QMenu::aboutToShow, this, [this, profileMenu] {
         profileMenu->clear();
@@ -352,22 +359,6 @@ void MainWindow::setupMenuBar()
             act->setChecked(label == active);
             act->setData(p.name);
         }
-
-        profileMenu->addSeparator();
-
-        QAction *connectAct = profileMenu->addAction(tr("Connect"));
-        connect(connectAct, &QAction::triggered, this, [this] {
-            auto &cfg = Config::instance();
-            conn_->disconnect();
-            connectWith(MpdResolvedSettings::fromConfig(
-                cfg.host(), cfg.port(), cfg.password(), cfg.socketPath(),
-                cfg.connectionTimeout()));
-        });
-
-        QAction *disconnect = profileMenu->addAction(tr("Disconnect"));
-        connect(disconnect, &QAction::triggered, this, [this] {
-            conn_->disconnect();
-        });
     });
 
     connect(profileMenu, &QMenu::triggered, this, [this](QAction *act) {
@@ -395,9 +386,6 @@ void MainWindow::setupMenuBar()
     file->addAction(tr("&Quit"), QKeySequence::Quit, qApp, &QApplication::quit);
 
     auto *view = menuBar()->addMenu(tr("&View"));
-    // Оригинал держал этот пункт в меню View («_View server information»).
-    view->addAction(tr("Server &Information..."), this, &MainWindow::showServerInfo);
-    view->addSeparator();
     auto *miniAct = view->addAction(tr("&Mini Player"));
     miniAct->setCheckable(true);
     miniAct->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
@@ -417,6 +405,68 @@ void MainWindow::setupMenuBar()
     });
     // Поп-ап ещё не создан на момент setupMenuBar() — setChecked пропускаем,
     // окно стартует скрытым, check state синхронизируется при первом клике.
+
+    // ── Server menu ──────────────────────────────────────────────────────
+    auto *server = menuBar()->addMenu(tr("&Server"));
+
+    QAction *updateAct = server->addAction(tr("Update Database"));
+    connect(updateAct, &QAction::triggered, this, [this] {
+        const int jobId = cmds_->updateDatabase();
+        if (jobId < 0)
+            statusBar_->showMessage(tr("Update failed — not connected?"));
+        else
+            statusBar_->showMessage(tr("Database update started (job %1)").arg(jobId));
+    });
+
+    QAction *rescanAct = server->addAction(tr("Rescan Database"));
+    connect(rescanAct, &QAction::triggered, this, [this] {
+        const int jobId = cmds_->rescanDatabase();
+        if (jobId < 0)
+            statusBar_->showMessage(tr("Rescan failed — not connected?"));
+        else
+            statusBar_->showMessage(tr("Database rescan started (job %1)").arg(jobId));
+    });
+
+    server->addSeparator();
+
+    QAction *connectAct = server->addAction(tr("&Connect"));
+    connect(connectAct, &QAction::triggered, this, [this] {
+        auto &cfg = Config::instance();
+        conn_->disconnect();
+        connectWith(MpdResolvedSettings::fromConfig(
+            cfg.host(), cfg.port(), cfg.password(), cfg.socketPath(),
+            cfg.connectionTimeout()));
+    });
+
+    QAction *disconnectAct = server->addAction(tr("&Disconnect"));
+    connect(disconnectAct, &QAction::triggered, this, [this] {
+        conn_->disconnect();
+    });
+
+    // Enable/disable server actions based on connection state.
+    connect(conn_, &Connection::connected, this,
+            [updateAct, rescanAct, disconnectAct, connectAct] {
+        updateAct->setEnabled(true);
+        rescanAct->setEnabled(true);
+        disconnectAct->setEnabled(true);
+        connectAct->setEnabled(false);
+    });
+    connect(conn_, &Connection::disconnected, this,
+            [updateAct, rescanAct, disconnectAct, connectAct] {
+        updateAct->setEnabled(false);
+        rescanAct->setEnabled(false);
+        disconnectAct->setEnabled(false);
+        connectAct->setEnabled(true);
+    });
+    // Initial state (before any connect signal)
+    updateAct->setEnabled(false);
+    rescanAct->setEnabled(false);
+    disconnectAct->setEnabled(false);
+    connectAct->setEnabled(true);
+
+    server->addSeparator();
+
+    server->addAction(tr("Server &Information..."), this, &MainWindow::showServerInfo);
 
     auto *help = menuBar()->addMenu(tr("&Help"));
     help->addAction(tr("&About"), this, &MainWindow::showAbout);
