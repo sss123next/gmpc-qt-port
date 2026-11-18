@@ -122,9 +122,6 @@
 
 ## Тестирование (doctest + trompeloeil)
 
-### do
-
-### do
 ### doctest (v2.x)
 
 | Принцип | Правило |
