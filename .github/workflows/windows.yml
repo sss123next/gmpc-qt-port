@@ -49,6 +49,7 @@ jobs:
             mingw-w64-x86_64-openssl
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
 
       # libmpdclient is not packaged in MSYS2 — build from source
       - name: Build libmpdclient
