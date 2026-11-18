@@ -67,6 +67,7 @@ private:
     // Window group
     QCheckBox    *startHidden_;
     QCheckBox    *startMinimized_;
+    QComboBox    *languageCombo_;
 
     // Proxy group
     QCheckBox    *proxyEnabled_;

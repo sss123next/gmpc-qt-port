@@ -99,6 +99,9 @@ public:
     /// Search-as-you-type (live filtering) in playlist and search browsers.
     bool searchAsType() const;
     void setSearchAsType(bool v);
+    /// Language override: empty = auto (system locale), or a locale code like "ru", "zh_CN".
+    QString language() const;
+    void setLanguage(const QString &locale);
 
     // ── Server ────────────────────────────────────────────────────────
     QString musicDirectory() const;

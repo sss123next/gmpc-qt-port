@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(gmpc-qt VERSION 0.1.1 LANGUAGES CXX)
+project(gmpc-qt VERSION 0.1.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines")  # for C++20 coroutines if used later
@@ -9,7 +9,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC OFF)  # no .ui files — pure code layout
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg DBus)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg DBus LinguistTools)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBMPDCLIENT REQUIRED IMPORTED_TARGET libmpdclient)
 pkg_check_modules(SQLITE3 REQUIRED IMPORTED_TARGET sqlite3)
@@ -177,6 +177,17 @@ target_link_libraries(gmpc-qt PRIVATE
     PkgConfig::CURL
     PkgConfig::XCB_KEYSYMS
     PkgConfig::TAGLIB
+)
+
+# ── Translations ──────────────────────────────────────────────────────────────
+set(TS_FILES
+    translations/gmpc-qt_zh_CN.ts
+    translations/gmpc-qt_ru.ts
+)
+
+qt_add_translations(gmpc-qt
+    TS_FILES ${TS_FILES}
+    RESOURCE_PREFIX /i18n
 )
 
 # ── Install ───────────────────────────────────────────────────────────────────

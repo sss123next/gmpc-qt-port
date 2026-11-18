@@ -123,6 +123,14 @@ void PreferencesDialog::setupUi()
     winForm->addRow(startHidden_);
     startMinimized_ = new QCheckBox(tr("Start minimized to taskbar"), this);
     winForm->addRow(startMinimized_);
+
+    languageCombo_ = new QComboBox(this);
+    languageCombo_->addItem(tr("System default (auto)"), QString());
+    languageCombo_->addItem(QStringLiteral("English"),       QStringLiteral("en"));
+    languageCombo_->addItem(QStringLiteral("Русский"),        QStringLiteral("ru"));
+    languageCombo_->addItem(QStringLiteral("中文 (简体)"),    QStringLiteral("zh_CN"));
+    winForm->addRow(tr("Language:"), languageCombo_);
+
     innerLay->addWidget(winGroup);
 
     // ── Proxy group ─────────────────────────────────────────────────
@@ -609,6 +617,12 @@ void PreferencesDialog::loadFromConfig()
     stopOnExit_->setChecked(cfg.stopOnExit());
     startHidden_->setChecked(cfg.startHidden());
     startMinimized_->setChecked(cfg.startMinimized());
+    {
+        const QString lang = cfg.language();
+        int idx = languageCombo_->findData(lang);
+        if (idx >= 0)
+            languageCombo_->setCurrentIndex(idx);
+    }
 
     // Proxy
     proxyEnabled_->setChecked(cfg.proxyEnabled());
@@ -732,6 +746,7 @@ void PreferencesDialog::accept()
     cfg.setStopOnExit(stopOnExit_->isChecked());
     cfg.setStartHidden(startHidden_->isChecked());
     cfg.setStartMinimized(startMinimized_->isChecked());
+    cfg.setLanguage(languageCombo_->currentData().toString());
 
     // Proxy
     cfg.setProxyEnabled(proxyEnabled_->isChecked());

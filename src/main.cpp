@@ -10,6 +10,8 @@
 #include <QApplication>
 #include <QLoggingCategory>
 #include <QLocalServer>
+#include <QLocale>
+#include <QTranslator>
 #include "gui/mainwindow.h"
 #include "core/config.h"
 #include "core/mpd-env.h"
@@ -22,6 +24,22 @@ int main(int argc, char *argv[])
     app.setApplicationName("gmpc-qt");
     app.setApplicationVersion("0.1.0");
     app.setOrganizationName("gmpc-qt");
+
+    // ── Load translations ────────────────────────────────────────────
+    // .qm files are embedded as Qt resources via qt_add_translations
+    // in CMakeLists.txt (RESOURCE_PREFIX /i18n).
+    // If Config has an explicit language override, use it; otherwise
+    // auto-detect from the system locale.
+    QTranslator translator;
+    const QString lang = Config::instance().language();
+    QLocale locale;
+    if (!lang.isEmpty())
+        locale = QLocale(lang);
+    if (translator.load(locale, QStringLiteral("gmpc-qt"),
+                        QStringLiteral("_"), QStringLiteral(":/i18n")))
+    {
+        app.installTranslator(&translator);
+    }
 
     // Tray-based app: closing/hiding the last window must NOT terminate the
     // process — MiniPlayer auto-hide or close-to-tray would otherwise cause

@@ -2,6 +2,8 @@
 
 **G**nome **M**usic **P**layer **C**lient — перерождённый в Qt.
 
+![gmpc-qt](scr.png)
+
 Порт оригинального [gmpc](https://github.com/nicklan/gmpc) (GNOME Music Player Client,
 последний стабильный релиз 2011) на **Qt6** и **C++20**, сгенерированный в основном LLM
 под чутким — *и не очень* — руководством человека с клавиатурой.

@@ -90,6 +90,10 @@ bool Config::searchAsType() const
     { return s_.value("general/searchAsType", false).toBool(); }
 void Config::setSearchAsType(bool v)
     { s_.setValue("general/searchAsType", v); }
+QString Config::language() const
+    { return s_.value("general/language", "").toString().trimmed(); }
+void Config::setLanguage(const QString &locale)
+    { s_.setValue("general/language", locale); }
 
 // ── Server ─────────────────────────────────────────────────────────────────
 QString Config::musicDirectory() const
