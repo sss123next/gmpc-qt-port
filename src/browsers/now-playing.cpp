@@ -13,6 +13,7 @@
 #include "core/playlist-model.h"
 
 #include <QFileInfo>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPlainTextEdit>
@@ -68,9 +69,25 @@ NowPlaying::NowPlaying(QWidget *parent)
 
     // ── Верх: крупная обложка слева, теги справа ──────────────────────
     auto *topRow = new QHBoxLayout;
+
+    auto *coverContainer = new QWidget(this);
+    auto *coverGrid = new QGridLayout(coverContainer);
+    coverGrid->setContentsMargins(0, 0, 0, 0);
+    coverGrid->setSpacing(0);
+
     cover_ = new CoverWidget(this);
     cover_->setCoverSize(256);
-    topRow->addWidget(cover_, 0, Qt::AlignTop);
+    coverGrid->addWidget(cover_, 0, 0);
+
+    refreshCoverBtn_ = new QPushButton(this);
+    refreshCoverBtn_->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
+    refreshCoverBtn_->setFixedSize(24, 24);
+    refreshCoverBtn_->setFlat(true);
+    refreshCoverBtn_->setCursor(Qt::PointingHandCursor);
+    refreshCoverBtn_->setToolTip(tr("Refresh cover"));
+    coverGrid->addWidget(refreshCoverBtn_, 0, 0, Qt::AlignBottom | Qt::AlignRight);
+
+    topRow->addWidget(coverContainer, 0, Qt::AlignTop);
 
     auto *infoCol = new QVBoxLayout;
     artistLabel_ = new QLabel(this);
@@ -99,29 +116,28 @@ NowPlaying::NowPlaying(QWidget *parent)
     tabs_->setVisible(false);  // shown only when there is extra data
     lay->addWidget(tabs_);
 
-    // ── Мини-кнопки обновления ─────────────────────────────────────────
-    auto *refreshRow = new QHBoxLayout;
-    refreshRow->setContentsMargins(0, 4, 0, 2);
-    refreshCoverBtn_ = new QPushButton(QStringLiteral("↻ Cover"), this);
-    refreshLyricsBtn_ = new QPushButton(QStringLiteral("↻ Lyrics"), this);
-    for (auto *btn : {refreshCoverBtn_, refreshLyricsBtn_}) {
-        btn->setFlat(true);
-        btn->setCursor(Qt::PointingHandCursor);
-        btn->setStyleSheet(QStringLiteral(
-            "QPushButton { font-size: 10pt; padding: 2px 8px; }"
-            "QPushButton:hover { color: palette(highlight); }"));
-    }
-    refreshRow->addStretch();
-    refreshRow->addWidget(refreshLyricsBtn_);
-    refreshRow->addWidget(refreshCoverBtn_);
-    lay->addLayout(refreshRow);
+    // ── Область текста песни ───────────────────────────────────────────
+    // Контейнер с текстом и кнопкой обновления поверх.
+    auto *lyricsContainer = new QWidget(this);
+    auto *lyricsGrid = new QGridLayout(lyricsContainer);
+    lyricsGrid->setContentsMargins(0, 0, 0, 0);
+    lyricsGrid->setSpacing(0);
 
-    // ── Текст песни ────────────────────────────────────────────────────
     lyricsView_ = new QPlainTextEdit(this);
     lyricsView_->setObjectName(QStringLiteral("lyricsView"));
     lyricsView_->setReadOnly(true);
     lyricsView_->setLineWrapMode(QPlainTextEdit::WidgetWidth);
-    lay->addWidget(lyricsView_, 1);
+    lyricsGrid->addWidget(lyricsView_, 0, 0);
+
+    refreshLyricsBtn_ = new QPushButton(this);
+    refreshLyricsBtn_->setIcon(style()->standardIcon(QStyle::SP_BrowserReload));
+    refreshLyricsBtn_->setFixedSize(24, 24);
+    refreshLyricsBtn_->setFlat(true);
+    refreshLyricsBtn_->setCursor(Qt::PointingHandCursor);
+    refreshLyricsBtn_->setToolTip(tr("Refresh lyrics"));
+    lyricsGrid->addWidget(refreshLyricsBtn_, 0, 0, Qt::AlignTop | Qt::AlignRight);
+
+    lay->addWidget(lyricsContainer, 1);
 
     hintLabel_ = new QLabel(this);
     hintLabel_->setObjectName(QStringLiteral("hintLabel"));
