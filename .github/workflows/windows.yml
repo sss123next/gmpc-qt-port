@@ -53,10 +53,10 @@ jobs:
       # libmpdclient is not packaged in MSYS2 — build from source
       - name: Build libmpdclient
         run: |
-          curl -fsSLo /tmp/libmpdclient.tar.gz \
-            https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.24.tar.gz
-          tar xzf /tmp/libmpdclient.tar.gz -C /tmp
-          cmake -S /tmp/libmpdclient-2.24 -B /tmp/libmpdclient-build \
+          curl -fsSLo /tmp/libmpdclient.tar.xz \
+            https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.27.tar.xz
+          tar xJf /tmp/libmpdclient.tar.xz -C /tmp
+          cmake -S /tmp/libmpdclient-2.27 -B /tmp/libmpdclient-build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_INSTALL_PREFIX=/mingw64
