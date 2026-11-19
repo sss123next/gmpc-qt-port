@@ -63,9 +63,9 @@ bool Connection::connectToServer(const QString &host, int port,
         }
     }
 
-    LOG_INFO("Connected to MPD at %s (port %d)",
-             host.isEmpty() ? "<from environment>"
-                            : qPrintable(host), port);
+    const QString hostDisplay = host.isEmpty()
+        ? QStringLiteral("<from environment>") : host;
+    LOG_INFO("Connected to MPD at {} (port {})", hostDisplay, port);
     connected_ = true;
     if (!autoReconnecting_)
         reconnectDelayMs_ = 0;
@@ -127,8 +127,8 @@ QString Connection::consumeError(const char *context)
     const MpdErrorAction action = classifyMpdError(static_cast<int>(code));
     mpd_connection_clear_error(conn_);
 
-    LOG_WARN("MPD command failed (%s): %s",
-             context ? context : "mpd", qPrintable(message));
+    LOG_WARN("MPD command failed ({}): {}",
+             context ? context : "mpd", message);
     emit commandFailed(context ? tr("%1: %2").arg(QString::fromUtf8(context), message)
                               : message);
 
@@ -296,7 +296,7 @@ void Connection::scheduleReconnect()
         ? kReconnectBaseMs
         : std::min(reconnectDelayMs_ * 2, kReconnectMaxMs);
 
-    LOG_INFO("Reconnecting to MPD in %d ms", reconnectDelayMs_);
+    LOG_INFO("Reconnecting to MPD in {} ms", reconnectDelayMs_);
     reconnectTimer_->start(reconnectDelayMs_);
 }
 

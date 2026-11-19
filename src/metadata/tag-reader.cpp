@@ -98,7 +98,7 @@ static TagLib::ByteVector scanEmbeddedID3v2(const QString &path)
         if (id3Data.size() < totalSize)
             break;
 
-        LOG_INFO("TagReader: found embedded ID3v2 at offset %1, size %2 bytes",
+        LOG_INFO("TagReader: found embedded ID3v2 at offset {}, size {} bytes",
                  pos, totalSize);
         return TagLib::ByteVector(id3Data.constData(), id3Data.size());
     }
@@ -160,7 +160,7 @@ static EmbeddedCover coverFromMpeg(const QString &path)
     EmbeddedCover c;
     c.data = QByteArray(apic->picture().data(), apic->picture().size());
     c.mime = QString::fromStdString(apic->mimeType().to8Bit(true));
-    LOG_INFO("TagReader: embedded cover from MPEG (%1 bytes, %2)",
+    LOG_INFO("TagReader: embedded cover from MPEG ({} bytes, {})",
              c.data.size(), c.mime);
     return c;
 }
@@ -178,7 +178,7 @@ static EmbeddedCover coverFromFlac(const QString &path)
             EmbeddedCover c;
             c.data = QByteArray(pic->data().data(), pic->data().size());
             c.mime = QString::fromStdString(pic->mimeType().to8Bit(true));
-            LOG_INFO("TagReader: embedded cover from FLAC (%1 bytes, %2)",
+            LOG_INFO("TagReader: embedded cover from FLAC ({} bytes, {})",
                      c.data.size(), c.mime);
             return c;
         }
@@ -218,7 +218,7 @@ static EmbeddedCover coverFromOggVorbis(const QString &path)
     EmbeddedCover c;
     c.data = QByteArray(pic.data().data(), pic.data().size());
     c.mime = QString::fromStdString(pic.mimeType().to8Bit(true));
-    LOG_INFO("TagReader: embedded cover from Ogg (%1 bytes, %2)",
+    LOG_INFO("TagReader: embedded cover from Ogg ({} bytes, {})",
              c.data.size(), c.mime);
     return c;
 }
@@ -250,7 +250,7 @@ static EmbeddedCover coverFromMp4(const QString &path)
     c.data = QByteArray(art.data().data(), art.data().size());
     // MP4 covr format is implicitly JPEG or PNG; libmp4v2 stores format.
     c.mime = (art.format() == TagLib::MP4::CoverArt::PNG) ? "image/png" : "image/jpeg";
-    LOG_INFO("TagReader: embedded cover from MP4 (%1 bytes, %2)",
+    LOG_INFO("TagReader: embedded cover from MP4 ({} bytes, {})",
              c.data.size(), c.mime);
     return c;
 }
@@ -285,7 +285,7 @@ static EmbeddedCover coverFromApe(const QString &path)
 
     EmbeddedCover c;
     c.data = QByteArray(imgData.data(), imgData.size());
-    LOG_INFO("TagReader: embedded cover from APE/WavPack (%1 bytes)", c.data.size());
+    LOG_INFO("TagReader: embedded cover from APE/WavPack ({} bytes)", c.data.size());
     return c;
 }
 
@@ -315,7 +315,7 @@ static EmbeddedCover coverFromMatroska(const QString &path)
             EmbeddedCover c;
             c.data = QByteArray(raw.data(), static_cast<int>(raw.size()));
             c.mime = mime;
-            LOG_INFO("TagReader: embedded cover from Matroska attachment (%1 bytes, %2)",
+            LOG_INFO("TagReader: embedded cover from Matroska attachment ({} bytes, {})",
                      c.data.size(), c.mime);
             return c;
         }
@@ -331,7 +331,7 @@ static EmbeddedCover coverFromMatroska(const QString &path)
         if (mpegFile.ID3v2Tag()) {
             EmbeddedCover c = coverFromID3v2Tag(mpegFile.ID3v2Tag());
             if (!c.data.isEmpty()) {
-                LOG_INFO("TagReader: embedded cover from Matroska ID3v2 (%1 bytes, %2)",
+                LOG_INFO("TagReader: embedded cover from Matroska ID3v2 ({} bytes, {})",
                          c.data.size(), c.mime);
                 return c;
             }
@@ -366,7 +366,7 @@ EmbeddedCover readEmbeddedCover(const QString &filePath)
     // AIFF, DSF, DFF: rarely carry embedded cover art.
 
     if (cover.data.isEmpty())
-        LOG_INFO("TagReader: no embedded cover in %1", filePath);
+        LOG_INFO("TagReader: no embedded cover in {}", filePath);
 
     return cover;
 }
@@ -414,7 +414,7 @@ static QString lyricsFromID3v2(const QString &path)
     if (text.trimmed().isEmpty())
         return {};
 
-    LOG_INFO("TagReader: extracted lyrics from ID3v2 USLT (%1 chars)", text.size());
+    LOG_INFO("TagReader: extracted lyrics from ID3v2 USLT ({} chars)", text.size());
     return text;
 }
 
@@ -436,7 +436,7 @@ QString readEmbeddedLyrics(const QString &filePath)
     if (!ref.isNull() && ref.file()) {
         const QString text = lyricsFromProperties(ref);
         if (!text.isEmpty()) {
-            LOG_INFO("TagReader: extracted lyrics from property map (%1 chars)", text.size());
+            LOG_INFO("TagReader: extracted lyrics from property map ({} chars)", text.size());
             return text;
         }
     }
@@ -451,7 +451,7 @@ QString readEmbeddedLyrics(const QString &filePath)
             if (mpegFile.ID3v2Tag()) {
                 const QString text = lyricsFromID3v2Tag(mpegFile.ID3v2Tag());
                 if (!text.isEmpty()) {
-                    LOG_INFO("TagReader: extracted lyrics from Matroska ID3v2 (%1 chars)",
+                    LOG_INFO("TagReader: extracted lyrics from Matroska ID3v2 ({} chars)",
                              text.size());
                     return text;
                 }
@@ -459,6 +459,6 @@ QString readEmbeddedLyrics(const QString &filePath)
         }
     }
 
-    LOG_INFO("TagReader: no embedded lyrics in %1", filePath);
+    LOG_INFO("TagReader: no embedded lyrics in {}", filePath);
     return {};
 }

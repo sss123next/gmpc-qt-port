@@ -122,7 +122,7 @@ private:
 
         retryMs_ = kRetryBaseMs;
         setWatching(true);
-        LOG_DEBUG("idle: слушаю события MPD на fd %d", fd);
+        LOG_DEBUG("idle: слушаю события MPD на fd {}", fd);
     }
 
     /** @brief Сокет готов — читаем список событий и снова уходим в idle. */
@@ -198,7 +198,7 @@ private:
         if (!wanted_)
             return;   // нас уже остановили — переподключаться не надо
 
-        LOG_WARN("idle: %s — новая попытка через %d мс", qPrintable(error), retryMs_);
+        LOG_WARN("idle: {} — новая попытка через {} мс", error, retryMs_);
         if (!retryTimer_) {
             retryTimer_ = new QTimer(this);
             retryTimer_->setSingleShot(true);

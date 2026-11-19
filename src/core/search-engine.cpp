@@ -116,9 +116,9 @@ public:
                 close();   // соединением больше нельзя пользоваться — откроем заново
         }
 
-        LOG_DEBUG("search #%llu: %d трэков, всего %d%s",
-                  static_cast<unsigned long long>(job.id),
-                  static_cast<int>(hits.size()), total,
+        LOG_DEBUG("search #{}: {} трэков, всего {}{}",
+                  job.id,
+                  hits.size(), total,
                   error.isEmpty() ? "" : " с ошибкой");
 
         if (!isStale(job.id))

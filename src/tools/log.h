@@ -4,14 +4,26 @@
  * @file log.h
  * @brief Logging macros with std::source_location (C++20).
  *
- * All macros accept a printf-style format string and arguments.
+ * All macros accept a std::format-style format string and arguments.
  * File, line, and function are captured automatically.
  * LOG_DEBUG is a no-op in release builds.
+ *
+ * QString is accepted directly — no .toUtf8().constData() needed.
  */
 
 #include <cstdio>
-#include <cstdarg>
 #include <source_location>
+#include <format>
+#include <string>
+#include <QString>
+
+// ── Formatter so std::format can print QString ────────────────────────────
+template <>
+struct std::formatter<QString, char> : std::formatter<std::string, char> {
+    auto format(const QString &s, auto &ctx) const {
+        return std::formatter<std::string, char>::format(s.toStdString(), ctx);
+    }
+};
 
 ///@cond internal
 namespace detail {
@@ -19,25 +31,22 @@ namespace detail {
 /// Maximum log-message length.
 inline constexpr std::size_t kLogBufSize = 4096;
 
-/// Write a printf-style log line to stderr with meta-data.
+/// Write a {}-format log line to stderr with meta-data.
+template <typename... Args>
 inline void logPrintf(const std::source_location &loc,
                       const char *level,
-                      const char *fmt,
-                      ...)
+                      std::format_string<Args...> fmt,
+                      Args &&...args)
 {
     char buf[kLogBufSize];
-    // 1) write header: "LEVEL file:line (func) "
     int hdr = std::snprintf(buf, sizeof(buf),
                             "%s %s:%u (%s) ",
                             level,
                             loc.file_name(), loc.line(),
                             loc.function_name());
 
-    // 2) append user message
-    va_list ap;
-    va_start(ap, fmt);
-    std::vsnprintf(buf + hdr, sizeof(buf) - hdr, fmt, ap);
-    va_end(ap);
+    std::string body = std::format(fmt, std::forward<Args>(args)...);
+    std::snprintf(buf + hdr, sizeof(buf) - hdr, "%s", body.c_str());
 
     buf[sizeof(buf) - 1] = '\0';
     std::fputs(buf, stderr);
@@ -86,4 +95,3 @@ inline void logPrintf(const std::source_location &loc,
                             "ERROR", (fmt) __VA_OPT__(, )               \
                             ##__VA_ARGS__);                              \
     } while (0)
-

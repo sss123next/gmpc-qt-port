@@ -369,8 +369,8 @@ void CurrentPlaylist::moveBlockFromIds(const QList<int> &songIds, int destRow)
 
     int first = 0, count = 0;
     if (!contiguousBlock(rows, &first, &count)) {
-        LOG_INFO("очередь: непоследовательное выделение не перемещается (%d строк)",
-                 static_cast<int>(rows.size()));
+        LOG_INFO("очередь: непоследовательное выделение не перемещается ({} строк)",
+                 rows.size());
         return;
     }
     moveBlock(first, count, destRow);

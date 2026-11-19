@@ -81,7 +81,7 @@ public:
         }
 
         if (!error.isEmpty()) {
-            LOG_WARN("queue-sync: %s", qUtf8Printable(error));
+            LOG_WARN("queue-sync: {}", error);
             emit failed(error);
         }
     }
@@ -245,16 +245,14 @@ private:
                 queue_ = std::move(songs);
                 version_ = before.version;
                 hasState_ = true;
-                LOG_DEBUG("queue-sync: очередь перечитана целиком, %d строк, версия %u",
-                          static_cast<int>(queue_.size()),
-                          static_cast<unsigned>(version_));
+                LOG_DEBUG("queue-sync: очередь перечитана целиком, {} строк, версия {}",
+                          queue_.size(), version_);
                 emit replaced(queue_, version_);
                 return Outcome::Ok;
             }
 
-            LOG_DEBUG("queue-sync: очередь изменилась во время перечтения (%u → %u), попытка %d",
-                      static_cast<unsigned>(before.version),
-                      static_cast<unsigned>(after.version), attempt + 1);
+            LOG_DEBUG("queue-sync: очередь изменилась во время перечтения ({} → {}), попытка {}",
+                      before.version, after.version, attempt + 1);
         }
 
         // Очередь крутят быстрее, чем мы её читаем. Состояния не оставляем: пусть
@@ -282,8 +280,8 @@ private:
             // Версия откатилась — сервер перезапустился: дифф от нашей версии он считает
             // «из будущего» и отдаёт всю очередь списком позиций. Тот же полный список,
             // только без внятной границы; проще перечитать самому.
-            LOG_DEBUG("queue-sync: версия очереди откатилась с %u до %u — полное перечтение",
-                      static_cast<unsigned>(version_), static_cast<unsigned>(now.version));
+            LOG_DEBUG("queue-sync: версия очереди откатилась с {} до {} — полное перечтение",
+                      version_, now.version);
             forget();
             return loadFull(error);
         }
@@ -308,8 +306,8 @@ private:
         if (!applied.ok) {
             // Дифф не описывает очередь: сервер хранит историю изменений короче, чем мы
             // её не читали. Единственный честный выход — полный список.
-            LOG_DEBUG("queue-sync: дифф от версии %u не сошёлся с длиной %d — полное перечтение",
-                      static_cast<unsigned>(version_), now.length);
+            LOG_DEBUG("queue-sync: дифф от версии {} не сошёлся с длиной {} — полное перечтение",
+                      version_, now.length);
             forget();
             return loadFull(error);
         }
