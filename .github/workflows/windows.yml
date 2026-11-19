@@ -91,29 +91,51 @@ jobs:
             --compiler-runtime \
             build/gmpc-qt.exe
 
-      # Copy non-Qt DLLs that gmpc-qt.exe imports (libmpdclient, libcurl,
-      # libsqlite3, libtag, libcrypto/libssl, LLVM runtime, …).
-      # windeployqt handles Qt + compiler runtime DLLs; we cover the rest.
-      - name: Copy dependency DLLs (non-Qt)
+      # Copy all non-system DLLs recursively to closure.
+      # windeployqt deploys Qt DLLs + compiler runtime (libc++ etc.)
+      # but NOT transitive dependencies of Qt itself (ICU, zlib, …).
+      # This step scans EVERY DLL in build/ (exe + Qt + plugins) and
+      # copies any missing DLL — like ldd on Linux.
+      #
+      # NB: System DLLs (KERNEL32, …) are intentionally excluded.
+      - name: Copy dependency DLLs (recursive closure)
         run: |
-          for dll in $(objdump -p build/gmpc-qt.exe | grep 'DLL Name' | awk '{print $NF}'); do
+          : > /tmp/dll_visited.txt
+          scan_dll() {
+            local dll="$1"
+            # normalise: strip leading path
+            dll="${dll##*/}"
             case "$dll" in
-              KERNEL32*|USER32*|GDI32*|ADVAPI32*|SHELL32*|COMCTL32*|COMDLG32*| \
-              OLE32*|OLEAUT32*|WINMM*|WS2_32*|VERSION*|SHLWAPI*|IMM32*| \
-              MSVCRT*|UCRTBASE*|API-MS-WIN*|ext-ms-win*)
-                ;; # Windows system DLLs — don't bundle
-              Qt*)
-                ;; # Already deployed by windeployqt
-              *)
-                cp "/clang64/bin/$dll" build/ 2>/dev/null \
-                  || find /clang64 -name "$dll" -exec cp {} build/ \; 2>/dev/null \
-                  || true
-                ;;
+              KERNEL32*|USER32*|GDI32*|ADVAPI32*|SHELL32*|COMCTL32*| \
+              COMDLG32*|OLE32*|OLEAUT32*|WINMM*|WS2_32*|VERSION*| \
+              SHLWAPI*|IMM32*|MSVCRT*|UCRTBASE*|API-MS-WIN*|ext-ms-win*| \
+              RPCRT4*|SECUR32*|SETUPAPI*|PSAPI*|CRYPT32*|WLDAP32*)
+                return ;;
             esac
-          done
-          # Also grab LLVM/Clang runtime in case --compiler-runtime missed them
-          for dll in libc++ libc++abi libunwind; do
-            cp "/clang64/bin/${dll}.dll" build/ 2>/dev/null || true
+            grep -qxF "$dll" /tmp/dll_visited.txt 2>/dev/null && return
+            echo "$dll" >> /tmp/dll_visited.txt
+            # locate source
+            local src=""
+            if [ -f "/clang64/bin/$dll" ]; then
+              src="/clang64/bin/$dll"
+            else
+              src=$(find /clang64 -name "$dll" -print -quit 2>/dev/null)
+            fi
+            [ -z "$src" ] && return
+            # copy if not already in build/
+            if [ ! -f "build/$dll" ]; then
+              cp "$src" build/
+            fi
+            # recurse into its imports
+            while IFS= read -r dep; do
+              scan_dll "$dep"
+            done < <(objdump -p "$src" 2>/dev/null | grep 'DLL Name' | awk '{print $NF}')
+          }
+          # 1) scan gmpc-qt.exe direct imports
+          while IFS= read -r dll; do scan_dll "$dll"; done < <(objdump -p build/gmpc-qt.exe | grep 'DLL Name' | awk '{print $NF}')
+          # 2) scan every DLL already placed by windeployqt (Qt + plugins)
+          find build/ -name '*.dll' | while IFS= read -r f; do
+            scan_dll "$(basename "$f")"
           done
 
       # Gather everything into a portable ZIP
