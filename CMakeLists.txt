@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(gmpc-qt VERSION 0.2.0 LANGUAGES CXX)
+project(gmpc-qt VERSION 0.2.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -160,7 +160,7 @@ set(MAIN_SOURCE
 )
 
 # ── Target ────────────────────────────────────────────────────────────────────
-qt_add_executable(gmpc-qt
+qt_add_executable(gmpc-qt WIN32
     ${MAIN_SOURCE}
     ${CORE_SOURCES}
     ${GUI_SOURCES}
@@ -171,6 +171,11 @@ qt_add_executable(gmpc-qt
     ${TOOL_SOURCES}
     ${MPRIS_SOURCES}
 )
+
+# Windows resource file: application icon (gmpc.ico)
+if(WIN32)
+    target_sources(gmpc-qt PRIVATE src/resources/gmpc-win32.rc)
+endif()
 
 target_include_directories(gmpc-qt PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src

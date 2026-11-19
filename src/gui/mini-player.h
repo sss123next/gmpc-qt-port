@@ -50,6 +50,10 @@ public:
     /** @brief Update the window for the current song and show. */
     void showSong(const SongEntry *song);
 
+    /// Обновить содержимое (метаданные + обложка) без показа/скрытия.
+    /// Используется из onStatusChanged, чтобы окно не выскакивало само.
+    void updateContent(const SongEntry *song);
+
     /// Immediately clear display and hide.
     void clear();
 

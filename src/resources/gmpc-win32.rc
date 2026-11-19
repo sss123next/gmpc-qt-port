@@ -1,0 +1,3 @@
+// Windows resource script for gmpc-qt
+// Application icon — used by the window, taskbar, and .exe itself.
+AppIcon ICON "gmpc.ico"

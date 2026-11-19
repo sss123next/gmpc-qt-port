@@ -34,8 +34,14 @@ MiniPlayer::MiniPlayer(QWidget *parent)
     // ToolTip flag tells the WM (especially tiling ones like Awesome) to
     // NOT manage this window — no tiling, no resizing, no decorations.
     // Position is set manually and remembered across sessions.
+    // On Windows, ToolTip prevents mouse events — use Tool instead.
+#if defined(Q_OS_WIN)
+    setWindowFlags(Qt::Tool | Qt::FramelessWindowHint
+                   | Qt::WindowStaysOnTopHint);
+#else
     setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint
                    | Qt::WindowStaysOnTopHint);
+#endif
     setAttribute(Qt::WA_ShowWithoutActivating);
     setAttribute(Qt::WA_OpaquePaintEvent, false);
 
@@ -144,7 +150,7 @@ void MiniPlayer::setMetadataManager(MetadataManager *mgr)
 
 // ── Show / Update ───────────────────────────────────────────────────────────
 
-void MiniPlayer::showSong(const SongEntry *song)
+void MiniPlayer::updateContent(const SongEntry *song)
 {
     if (!song) {
         clear();
@@ -169,8 +175,12 @@ void MiniPlayer::showSong(const SongEntry *song)
     adjustSize();
     positionOnScreen();
     startAutoHide();
+}
 
-    if (!isVisible())
+void MiniPlayer::showSong(const SongEntry *song)
+{
+    updateContent(song);
+    if (!isVisible() && song)
         show();
 }
 

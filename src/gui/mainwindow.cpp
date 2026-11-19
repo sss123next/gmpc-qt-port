@@ -816,7 +816,9 @@ void MainWindow::onStatusChanged(const Connection::Status &s)
         return;
     lastSongId_ = songId;
 
-    // Auto-show mini-player on track change or resume (updates if already visible).
+    // Auto-show mini-player on track change — единое поведение для всех платформ.
+    // На Windows это тоже работает: окно не зависает в углу благодаря Qt::Tool
+    // вместо Qt::ToolTip (см. MiniPlayer::MiniPlayer).
     if (miniPlayer_ && Config::instance().miniPlayerEnabled()) {
         if (song)
             miniPlayer_->showSong(song);
