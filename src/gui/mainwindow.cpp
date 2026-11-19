@@ -274,6 +274,9 @@ void MainWindow::setupUi()
     // ── Widgets for the control bar ──────────────────────────────────────
     coverWidget_ = new CoverWidget(this);
     coverWidget_->setMetadataManager(metadataMgr_);
+    coverWidget_->hide();   // не встроен в layout — используется только как
+                            // триггер загрузки обложек; без hide() висит в
+                            // левом верхнем углу окна (особенно на Windows).
     songInfo_ = new SongInfo(this);
     volumeWidget_ = new VolumeWidget(this);
     connect(volumeWidget_, &VolumeWidget::volumeChanged,

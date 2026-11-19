@@ -8,8 +8,11 @@
  * toggles, volume slider, seek slider, time label, and current-song
  * label.  Updated via MPD status push from ControlBar::updateStatus().
  *
- * CoverWidget and VolumeWidget are created and owned by MainWindow,
- * injected here for layout placement.
+ * SongInfo and VolumeWidget are created and owned by MainWindow,
+ * injected here for layout placement. CoverWidget is NOT placed in the
+ * control bar — it lives as a hidden trigger widget in MainWindow
+ * (used only for cover fetching; MiniPlayer and NowPlaying have their
+ * own visible CoverWidget instances).
  */
 
 #include <QWidget>
