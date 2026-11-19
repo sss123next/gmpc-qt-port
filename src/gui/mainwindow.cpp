@@ -130,8 +130,8 @@ bool MainWindow::MediaKeyFilter::nativeEventFilter(
         case APPCOMMAND_MEDIA_PAUSE:        action = MediaKeyAction::Pause;    break;
         case APPCOMMAND_MEDIA_PLAY_PAUSE:   action = MediaKeyAction::PlayPause; break;
         case APPCOMMAND_MEDIA_STOP:         action = MediaKeyAction::Stop;     break;
-        case APPCOMMAND_MEDIA_NEXT:         action = MediaKeyAction::Next;     break;
-        case APPCOMMAND_MEDIA_PREVIOUS:     action = MediaKeyAction::Previous; break;
+        case APPCOMMAND_MEDIA_NEXTTRACK:    action = MediaKeyAction::Next;     break;
+        case APPCOMMAND_MEDIA_PREVIOUSTRACK: action = MediaKeyAction::Previous; break;
         // APPCOMMAND_MEDIA_REWIND (13) and APPCOMMAND_MEDIA_FAST_FORWARD (18)
         // are not mapped by default — the user can configure bindings through
         // the Preferences dialog only for X11 keysyms. Windows keeps the
