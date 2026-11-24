@@ -217,6 +217,13 @@ void DatabaseBrowser::setupUi()
     trackHeader->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(trackHeader, &QWidget::customContextMenuRequested,
             this, &DatabaseBrowser::showHeaderMenu);
+    connect(trackHeader, &QHeaderView::sectionResized,
+            this, [this](int logicalIndex, int, int newSize) {
+        if (applyingColumns_)
+            return;
+        Config::instance().setDatabaseColumnWidth(
+            DatabaseTrackModel::columnKey(logicalIndex), newSize);
+    });
     applyColumnConfig();
 
     rl->addWidget(trackTable_, 1);
@@ -400,6 +407,7 @@ void DatabaseBrowser::setHeaderInfo(const QString &title, const QString &subtitl
 
 void DatabaseBrowser::applyColumnConfig()
 {
+    applyingColumns_ = true;
     auto &cfg = Config::instance();
     QHeaderView *header = trackTable_->horizontalHeader();
 
@@ -422,12 +430,23 @@ void DatabaseBrowser::applyColumnConfig()
             header->setSectionResizeMode(c, QHeaderView::ResizeToContents);
     }
 
-    applyingColumns_ = true;
+    // Восстановить сохранённые ширины: они переключают колонку на Interactive.
+    for (int column = 0; column < DatabaseTrackModel::ColumnCount; ++column) {
+        if (column == DatabaseTrackModel::TitleColumn)
+            continue;   // Stretch не хранит ширину
+        const QString key = DatabaseTrackModel::columnKey(column);
+        const int w = cfg.databaseColumnWidth(key, -1);
+        if (w > 0 && !header->isSectionHidden(column)) {
+            header->setSectionResizeMode(column, QHeaderView::Interactive);
+            header->resizeSection(column, w);
+        }
+    }
+
     int target = 0;
     for (const QString &key : cfg.databaseColumnsOrder()) {
         const int column = DatabaseTrackModel::columnForKey(key);
         if (column < 0)
-            continue;   // ключ из другой версии — нашего столбца за ним нет
+            continue;
         header->moveSection(header->visualIndex(column), target++);
     }
     applyingColumns_ = false;

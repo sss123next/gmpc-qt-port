@@ -151,6 +151,11 @@ QStringList Config::databaseColumnsOrder() const
 void Config::setDatabaseColumnsOrder(const QStringList &keys)
     { s_.setValue("database/columnOrder", keys.join(QLatin1Char(','))); }
 
+int Config::databaseColumnWidth(const QString &key, int defaultWidth) const
+    { return s_.value("database/columnWidths/" + key, defaultWidth).toInt(); }
+void Config::setDatabaseColumnWidth(const QString &key, int width)
+    { s_.setValue("database/columnWidths/" + key, width); }
+
 // ── Metadata ─────────────────────────────────────────────────────────────
 QString Config::discogsToken() const
     { return s_.value("metadata/discogsToken", "").toString(); }

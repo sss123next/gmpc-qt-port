@@ -148,6 +148,10 @@ public:
     QStringList databaseColumnsOrder() const;
     void setDatabaseColumnsOrder(const QStringList &keys);
 
+    /// Ширина колонки таблицы трэков базы (-1 = не задана, используется дефолтная).
+    int databaseColumnWidth(const QString &key, int defaultWidth = -1) const;
+    void setDatabaseColumnWidth(const QString &key, int width);
+
     // ── Metadata ────────────────────────────────────────────────────
     QString discogsToken() const;
     void setDiscogsToken(const QString &t);
