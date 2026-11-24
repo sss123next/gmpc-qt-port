@@ -151,8 +151,10 @@ TEST_CASE("MusicDatabaseModel has name and stats columns")
     MockConnection conn;
     FakeCmds cmds(&conn);
     MusicDatabaseModel model(&conn, &cmds);
-    CHECK_EQ(model.columnCount({}), 2);
+    CHECK_EQ(model.columnCount({}), 3);  // имя, объём, распорка
     CHECK_FALSE(model.headerData(1, Qt::Horizontal).toString().isEmpty());
+    // Колонка-распорка: без подписи, без данных, только резервирует место.
+    CHECK(model.headerData(2, Qt::Horizontal).toString().isEmpty());
 }
 
 TEST_CASE("MusicDatabaseModel loadGroups is safe when disconnected")

@@ -245,7 +245,7 @@ int MusicDatabaseModel::rowCount(const QModelIndex &parent) const
 
 int MusicDatabaseModel::columnCount(const QModelIndex &) const
 {
-    return 2; // имя, объём
+    return 3; // имя, объём, распорка
 }
 
 QVariant MusicDatabaseModel::data(const QModelIndex &index, int role) const

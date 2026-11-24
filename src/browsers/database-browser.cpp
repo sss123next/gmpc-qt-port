@@ -137,13 +137,12 @@ void DatabaseBrowser::setupUi()
     // Вертикальный скролл — всегда навырост.
     tree_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     tree_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    // На темах с оверлей-скроллами (GTK, KDE) даже AlwaysOn рисуется поверх
-    // viewport — последняя колонка уходит под ползунок. Стиль-шит на скроллбаре
-    // переключает Qt на QStyleSheetStyle, который не поддерживает оверлей:
-    // скроллбар гарантированно занимает место в раскладке.
+    // На темах с оверлей-скроллами даже AlwaysOn рисуется поверх viewport.
+    // Два уровня защиты: стильшит на скроллбаре (QSS переключает Qt на свою
+    // отрисовку, без оверлея) плюс viewportMargins, резервирующий место.
     tree_->verticalScrollBar()->setStyleSheet(
         QStringLiteral("QScrollBar:vertical { width: 12px; }"));
-    // Двойной клик занят добавлением в очередь; раскрывают стрелку и Right/Left.
+    tree_->setScrollbarMargin(12);
     // Двойной клик занят добавлением в очередь; раскрывают стрелку и Right/Left.
     tree_->setExpandsOnDoubleClick(false);
     tree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -151,6 +150,11 @@ void DatabaseBrowser::setupUi()
     tree_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     tree_->header()->setSectionResizeMode(1, QHeaderView::Interactive);
     tree_->header()->resizeSection(1, 120);
+    // Третья колонка — распорка, отодвигающая правую границу колонки
+    // счётчиков левее полосы скролла. Без неё оверлей-скроллбар перекрывает
+    // край секции, и ресайз последней колонки невозможен.
+    tree_->header()->setSectionResizeMode(2, QHeaderView::Fixed);
+    tree_->header()->resizeSection(2, 12);
     tree_->setSortingEnabled(true);
     tree_->sortByColumn(0, Qt::AscendingOrder);
     treeProxy_->setSortRole(MusicDbRoles::SortRole);
@@ -222,6 +226,7 @@ void DatabaseBrowser::setupUi()
     trackTable_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     trackTable_->verticalScrollBar()->setStyleSheet(
         QStringLiteral("QScrollBar:vertical { width: 12px; }"));
+    trackTable_->setScrollbarMargin(12);
     trackTable_->setSortingEnabled(true);
     trackTable_->sortByColumn(DatabaseTrackModel::TitleColumn,
                               Qt::AscendingOrder);
