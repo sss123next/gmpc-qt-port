@@ -204,6 +204,7 @@ void NowPlaying::setSong(const SongEntry *song)
     curTitle_  = name;
     curAlbum_  = song->album;
     curUri_    = song->uri;
+    lastSongId_ = song->id;
 
     // Чужой текст не должен пережить смену трэка, даже если страница скрыта:
     // при возврате он выглядел бы лирикой нового.
@@ -214,9 +215,10 @@ void NowPlaying::setSong(const SongEntry *song)
     if (coverViewer_ && !coverViewer_->isVisible())
         coverViewer_->clear();
 
-    // Если страница скрыта — обложку, вкладки и лирику обновим при активации.
+    // Если страница скрыта — не грузим обложку/табы/лирику: это сделает
+    // onActivate(), если ID трэка отличается от lastSongId_.
     if (!isVisible()) {
-        needsRefresh_ = true;
+        needCover_ = true;
         return;
     }
 
@@ -225,6 +227,7 @@ void NowPlaying::setSong(const SongEntry *song)
         cover_->clear();
     else
         cover_->fetchCover(curArtist_, curAlbum_, curUri_);
+    needCover_ = false;
 
     refreshMetadata();
     requestLyricsForCurrent();
@@ -234,34 +237,57 @@ void NowPlaying::setSong(const SongEntry *song)
 
 void NowPlaying::onActivate()
 {
-    if (needsRefresh_) {
-        needsRefresh_ = false;
-        // Fetch deferred cover.
-        if (curArtist_.isEmpty() || curAlbum_.isEmpty())
-            cover_->clear();
-        else
-            cover_->fetchCover(curArtist_, curAlbum_, curUri_);
-        refreshMetadata();
-        requestLyricsForCurrent();
+    if (curArtist_.isEmpty() && curAlbum_.isEmpty()) {
+        if (titleLabel_->text().isEmpty())
+            return;
+        showNothing();
+        return;
     }
+
+    // Быстро сверяемся с сервером: играет ли тот же трэк?
+    if (conn_ && conn_->isConnected()) {
+        Connection::ResponseScope scope(*conn_, "status");
+        mpd_status *status = mpd_run_status(conn_->raw());
+        const int curId = status ? mpd_status_get_song_id(status) : -1;
+        if (status) mpd_status_free(status);
+
+        if (curId == lastSongId_ && lastSongId_ >= 0) {
+            // Трэк не менялся — догружаем только обложку, если не успели.
+            if (needCover_ && !curArtist_.isEmpty() && !curAlbum_.isEmpty()) {
+                cover_->fetchCover(curArtist_, curAlbum_, curUri_);
+                needCover_ = false;
+            }
+            return;
+        }
+    }
+
+    // Трэк сменился (или статус не получить) — перезагружаем всё.
+    if (curArtist_.isEmpty() || curAlbum_.isEmpty())
+        cover_->clear();
+    else
+        cover_->fetchCover(curArtist_, curAlbum_, curUri_);
+    needCover_ = false;
+
+    refreshMetadata();
+    requestLyricsForCurrent();
 }
 
 void NowPlaying::onDeactivate()
 {
     if (Config::instance().lowMemoryMode()) {
         // In Low Memory Mode, free heavyweight resources immediately.
-        // Set needsRefresh_ so onActivate re-fetches cover, metadata
-        // and lyrics when the user switches back.
-        needsRefresh_ = true;
+        // Сбрасываем lastSongId_ — при возврате onActivate() увидит
+        // расхождение и перезагрузит всё заново.
+        lastSongId_ = -2;
+        needCover_ = true;
         cover_->clear();
         lyricsView_->clear();
         clearTabs();
         hintLabel_->setText(tr("Low Memory Mode — data freed"));
         if (coverViewer_ && coverViewer_->isVisible())
             coverViewer_->clear();
-    } else {
-        needsRefresh_ = false;
     }
+    // Normal режим — ничего не делаем: ресурсы не тратим на скрытой странице.
 }
 
 /// Запросить лирику для текущего трэка.
@@ -370,7 +396,11 @@ void NowPlaying::refreshMetadata()
         Connection::ResponseScope scope(*conn_, "currentsong");
         mpd = mpd_run_current_song(conn_->raw());
     }
-    if (!mpd) return;
+    if (!mpd) {
+        // Ничего не играет — чистим табы от прошлого трэка.
+        clearTabs();
+        return;
+    }
 
     // Collect tags.
     const QString track      = tag(mpd, MPD_TAG_TRACK);
@@ -600,6 +630,8 @@ void NowPlaying::showNothing()
     curTitle_.clear();
     curAlbum_.clear();
     curUri_.clear();
+    lastSongId_ = -2;
+    needCover_ = false;
     if (coverViewer_)
         coverViewer_->clear();
 }

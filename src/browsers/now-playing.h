@@ -117,7 +117,8 @@ private:
     QString curTitle_;
     QString curAlbum_;
     QString curUri_;
-    bool needsRefresh_ = false;
+    int lastSongId_ = -2;     ///< songid последнего показанного трэка (-2 = никогда)
+    bool needCover_ = false;  ///< обложка не загружена (трэк сменился, а страница была скрыта)
 
     void requestLyricsForCurrent();
 };
