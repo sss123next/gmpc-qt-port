@@ -18,7 +18,7 @@
 
 - **5 个浏览器**，通过侧边栏导航（BrowserStack）：
   - **当前播放列表** — 表格形式队列（12 列，排序，拖拽 DnD，右键菜单）
-  - **音乐数据库** ⚠️ — 艺术家 → 专辑 → 音轨三级懒加载树；**尚未就绪**
+  - **音乐数据库** — 主从视图资料库：左边按任意标签分组（艺术家/风格/年份…）显示群组与专辑，含服务器端曲目计数与时长，延迟加载专辑，名称过滤；右边始终显示选中节点的歌曲表，配有封面、统计信息、过滤器和可自定义列
   - **文件浏览** ⚠️ — MPD 文件系统树，导航与激活；**尚未就绪**
   - **搜索** — 全文搜索，带历史记录（Ctrl+↑/↓），实时搜索（回车或随输入即时搜索），结果窗口与排序
   - **播放列表编辑** — 管理已保存的播放列表（新建/重命名/删除，拖拽排序，双击播放）
@@ -41,7 +41,7 @@
   - `metadataOnline` — 允许网络来源（MusicBrainz、Last.FM、Deezer、Discogs、LrcLib、LyricsOvh）。不勾选则仅使用缓存和本地文件
 - **CoverViewer** — 点击封面进入全屏查看
 - **TagReader** — 从音频文件中提取内嵌图片和歌词（含 Matroska MKV/MKA）
-- **Song Info** — 曲目详细元数据窗口，含歌词
+- **Track Info** — 选中曲目的详细元数据窗口，含封面、标签页（详情/制作/ID与排序/技术信息）和歌词 — 与 Now Playing 页面相同的视觉体验
 - **Server Info** — MPD 服务器信息与统计
 
 ### 队列
@@ -139,12 +139,14 @@ src/
 ├── gui/           # MainWindow, ControlBar, StatusBar, TrayIcon,
 │                  # MiniPlayer, BrowserStack, PreferencesDialog,
 │                  # AddUrlDialog, ColumnChooserDialog,
-│                  # SongInfoDialog, ServerInfoDialog
+│                  # SongInfoDialog, TrackInfoWindow,
+│                  # ServerInfoDialog
 ├── browsers/      # CurrentPlaylist, DatabaseBrowser, FileBrowser,
 │                  # SearchBrowser, PlaylistEditor, NowPlaying,
 │                  # BrowserIntent, MusicDatabaseModel, FileSystemModel
 ├── widgets/       # VolumeWidget, ProgressSlider, SongInfo,
-│                  # CoverWidget, CoverViewer
+│                  # CoverWidget, CoverViewer,
+│                  # TrackInfoPanel
 ├── metadata/      # MetadataManager, CoverProvider, CacheSqlite, TagReader
 ├── providers/     # LastFM, Discogs, Deezer, LrcLib, LyricsOvh, MusicBrainz
 ├── mpris/         # MprisPlayer, MetadataMap

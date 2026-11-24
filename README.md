@@ -74,7 +74,9 @@ MPD протоколы копятся в дистрибутивных форка
 - **CoverViewer** — полноэкранный просмотр обложки по клику
 - **TagReader** — извлечение встроенных изображений и текста песни
   из аудиофайлов (включая Matroska MKV/MKA)
-- **Song Info** — окно детальных метаданных трека с лирикой
+- **Track Info** — детальное окно метаданных выбранного трека с обложкой,
+  вкладками (Details / Credits / IDs & Sort / Technical) и лирикой —
+  тот же визуал, что и страница Now Playing
 - **Server Info** — информация и статистика MPD-сервера
 
 ### Очередь
@@ -185,12 +187,14 @@ src/
 ├── gui/           # MainWindow, ControlBar, StatusBar, TrayIcon,
 │                  # MiniPlayer, BrowserStack, PreferencesDialog,
 │                  # AddUrlDialog, ColumnChooserDialog,
-│                  # SongInfoDialog, ServerInfoDialog
+│                  # SongInfoDialog, TrackInfoWindow,
+│                  # ServerInfoDialog
 ├── browsers/      # CurrentPlaylist, DatabaseBrowser, FileBrowser,
 │                  # SearchBrowser, PlaylistEditor, NowPlaying,
 │                  # BrowserIntent, MusicDatabaseModel, FileSystemModel
 ├── widgets/       # VolumeWidget, ProgressSlider, SongInfo,
-│                  # CoverWidget, CoverViewer
+│                  # CoverWidget, CoverViewer,
+│                  # TrackInfoPanel
 ├── metadata/      # MetadataManager, CoverProvider, CacheSqlite, TagReader
 ├── providers/     # LastFM, Discogs, Deezer, LrcLib, LyricsOvh, MusicBrainz
 ├── mpris/         # MprisPlayer, MetadataMap
