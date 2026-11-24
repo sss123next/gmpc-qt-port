@@ -42,6 +42,15 @@ public:
     };
     Q_ENUM(PositionMode)
 
+    /// Which corner/point of the window is pinned to the anchor point.
+    enum AnchorCorner {
+        AnchorTopLeft     = 0,
+        AnchorTopRight    = 1,
+        AnchorBottomRight = 2,
+        AnchorBottomLeft  = 3,
+        AnchorCenter      = 4,
+    };
+
     explicit MiniPlayer(QWidget *parent = nullptr);
 
     /// Provide a MetadataManager for cover-art fetching (forwards to CoverWidget).
@@ -103,10 +112,15 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     void hideEvent(QHideEvent *event) override;
 
 private:
     void positionOnScreen();
+    /// Re‑apply positioning from cached anchor (called on resize).
+    void applyAnchorPosition();
+    /// Compute anchor point from current mode/screen/margins.
+    void computeAnchor(const QRect &screenGeom);
     void startAutoHide();
     void stopAutoHide();
     void applyStyle();
@@ -146,6 +160,11 @@ private:
     QString presetFg_;
     QString presetBtnBg_;
     QString presetBtnFg_;
+
+    // Cached anchor for corner positioning (re‑applied on resize).
+    int anchorX_ = -1;
+    int anchorY_ = -1;
+    AnchorCorner anchorCorner_ = AnchorCenter;
 
     // Drag state
     bool draggable_ = false;  ///< Whether mouse-drag is enabled.

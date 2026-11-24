@@ -175,7 +175,9 @@ void MiniPlayer::updateContent(const SongEntry *song)
     if (coverViewer_ && !coverViewer_->isVisible())
         coverViewer_->clear();
 
-    positionOnScreen();
+    // Defer positioning so QLayout::SetFixedSize has time to update
+    // width()/height() after setText() above.
+    QTimer::singleShot(0, this, &MiniPlayer::positionOnScreen);
     startAutoHide();
 }
 
@@ -213,41 +215,79 @@ void MiniPlayer::positionOnScreen()
     const QScreen *screen = resolveScreen();
     if (!screen) { move(100, 100); return; }
     const QRect g = screen->availableGeometry();
-    const int pw = frameGeometry().width();
-    const int ph = frameGeometry().height();
 
-    int x, y;
+    computeAnchor(g);
+    applyAnchorPosition();
+}
+
+void MiniPlayer::computeAnchor(const QRect &g)
+{
     switch (posMode_) {
     case PosTopLeft:
-        x = g.x() + marginX_;
-        y = g.y() + marginY_;
+        anchorX_ = g.x() + marginX_;
+        anchorY_ = g.y() + marginY_;
+        anchorCorner_ = AnchorTopLeft;
         break;
     case PosTopRight:
-        x = g.x() + g.width() - pw - marginX_;
-        y = g.y() + marginY_;
+        anchorX_ = g.x() + g.width() - marginX_;
+        anchorY_ = g.y() + marginY_;
+        anchorCorner_ = AnchorTopRight;
         break;
     case PosBottomLeft:
-        x = g.x() + marginX_;
-        y = g.y() + g.height() - ph - marginY_;
+        anchorX_ = g.x() + marginX_;
+        anchorY_ = g.y() + g.height() - marginY_;
+        anchorCorner_ = AnchorBottomLeft;
         break;
     case PosBottomRight:
-        x = g.x() + g.width()  - pw - marginX_;
-        y = g.y() + g.height() - ph - marginY_;
+        anchorX_ = g.x() + g.width()  - marginX_;
+        anchorY_ = g.y() + g.height() - marginY_;
+        anchorCorner_ = AnchorBottomRight;
         break;
     case PosCustom: {
-        // Use saved absolute position if valid, else fall back to centre.
-        const int sx = cfg.miniPlayerX();
-        const int sy = cfg.miniPlayerY();
+        const int sx = Config::instance().miniPlayerX();
+        const int sy = Config::instance().miniPlayerY();
         if (sx >= 0 && sy >= 0) {
-            x = sx;
-            y = sy;
+            anchorX_ = sx;
+            anchorY_ = sy;
+            anchorCorner_ = AnchorTopLeft;  // saved absolute pos = top-left
             break;
         }
         // fall through to centre
     }
     default:  // PosCenter
-        x = g.x() + (g.width()  - pw) / 2;
-        y = g.y() + (g.height() - ph) / 2;
+        anchorX_ = g.x() + g.width()  / 2;
+        anchorY_ = g.y() + g.height() / 2;
+        anchorCorner_ = AnchorCenter;
+        break;
+    }
+}
+
+void MiniPlayer::applyAnchorPosition()
+{
+    const int pw = width();
+    const int ph = height();
+    int x, y;
+    switch (anchorCorner_) {
+    case AnchorTopLeft:
+        x = anchorX_;
+        y = anchorY_;
+        break;
+    case AnchorTopRight:
+        x = anchorX_ - pw;
+        y = anchorY_;
+        break;
+    case AnchorBottomRight:
+        x = anchorX_ - pw;
+        y = anchorY_ - ph;
+        break;
+    case AnchorBottomLeft:
+        x = anchorX_;
+        y = anchorY_ - ph;
+        break;
+    case AnchorCenter:
+    default:
+        x = anchorX_ - pw / 2;
+        y = anchorY_ - ph / 2;
         break;
     }
     move(x, y);
@@ -336,8 +376,16 @@ void MiniPlayer::mouseReleaseEvent(QMouseEvent *event)
     if (draggable_)
         setCursor(Qt::OpenHandCursor);
 
-    // If the window was actually dragged, don't hide.
+    // If the window was actually dragged, update anchor and persist the new
+    // position immediately so next positionOnScreen() doesn't reload the old
+    // saved position from Config.
     if (dragged_) {
+        anchorX_ = x();
+        anchorY_ = y();
+        anchorCorner_ = AnchorTopLeft;  // absolute position = top-left
+        auto &cfg = Config::instance();
+        cfg.setMiniPlayerX(anchorX_);
+        cfg.setMiniPlayerY(anchorY_);
         event->accept();
         return;
     }
@@ -379,6 +427,20 @@ void MiniPlayer::setOpacityPercent(int percent)
 {
     opacityPercent_ = qBound(0, percent, 100);
     setWindowOpacity(opacityPercent_ / 100.0);
+}
+
+// ── Resize event — re‑anchor corner modes ───────────────────────────────────
+
+void MiniPlayer::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    // For corner modes the pinned edge must stay fixed when the window
+    // resizes (e.g. longer/shorter title changes width).
+    // Apply the cached anchor — computed once per mode/screen change.
+    if (posMode_ == PosTopLeft    || posMode_ == PosTopRight ||
+        posMode_ == PosBottomLeft || posMode_ == PosBottomRight) {
+        applyAnchorPosition();
+    }
 }
 
 // ── Hide event — save position ──────────────────────────────────────────────
