@@ -12,12 +12,14 @@
 #include <mpd/tag.h>
 
 #include "tools/log.h"
+#include <algorithm>
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QScrollBar>
 #include <QSplitter>
 #include <QTableView>
 #include <QTimer>
@@ -106,8 +108,6 @@ void DatabaseBrowser::setupUi()
     lay->setContentsMargins(0, 0, 0, 0);
 
     // Ширина скролл-бара на этой теме — для резерва от оверлей-скроллов.
-    const int sbw = style()->pixelMetric(QStyle::PM_ScrollBarExtent);
-
     // ── Верхняя строка: способ группировки и фильтр дерева ───────────────
     auto *topBar = new QHBoxLayout;
     topBar->addWidget(new QLabel(tr("Browse by:"), this));
@@ -138,11 +138,17 @@ void DatabaseBrowser::setupUi()
     // скролл-бара последняя колонка оказывается под ним и не ресайзится.
     tree_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     tree_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    // На системах с оверлей-скроллами (GTK) даже AlwaysOn рисуется поверх
-    // viewport. Резервируем место справа, чтобы последняя колонка оставалась
-    // доступной для ресайза.
-    if (style()->styleHint(QStyle::SH_ScrollBar_Transient))
-        tree_->setScrollbarMargin(sbw);
+    // Когда скролл-бар активен (есть что крутить), на оверлей-темах он рисуется
+    // поверх viewport и скрывает правую границу последней колонки. Отслеживаем
+    // диапазон: если >0, сдвигаем содержимое на ширину скролла.
+    const int sbw = std::max(style()->pixelMetric(QStyle::PM_ScrollBarExtent), 12);
+    auto updateTreeMargin = [this, sbw]() {
+        const bool scrolling = tree_->verticalScrollBar()->maximum() > 0;
+        tree_->setScrollbarMargin(scrolling ? sbw : 0);
+    };
+    connect(tree_->verticalScrollBar(), &QScrollBar::rangeChanged,
+            this, updateTreeMargin);
+    QTimer::singleShot(0, this, updateTreeMargin);
     // Двойной клик занят добавлением в очередь; раскрывают стрелку и Right/Left.
     tree_->setExpandsOnDoubleClick(false);
     tree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -219,8 +225,15 @@ void DatabaseBrowser::setupUi()
     trackTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
     trackTable_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     trackTable_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
-    if (style()->styleHint(QStyle::SH_ScrollBar_Transient))
-        trackTable_->setScrollbarMargin(sbw); // резерв под оверлей
+    {
+        auto updateMargin = [this, sbw]() {
+            const bool scrolling = trackTable_->verticalScrollBar()->maximum() > 0;
+            trackTable_->setScrollbarMargin(scrolling ? sbw : 0);
+        };
+        connect(trackTable_->verticalScrollBar(), &QScrollBar::rangeChanged,
+                this, updateMargin);
+        QTimer::singleShot(0, this, updateMargin);
+    }
     trackTable_->setSortingEnabled(true);
     trackTable_->sortByColumn(DatabaseTrackModel::TitleColumn,
                               Qt::AscendingOrder);
