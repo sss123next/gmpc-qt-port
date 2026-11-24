@@ -147,7 +147,8 @@ void DatabaseBrowser::setupUi()
     tree_->setExpandsOnDoubleClick(false);
     tree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     tree_->header()->setStretchLastSection(false);
-    tree_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    // Обе колонки Interactive — пользователь может менять ширину.
+    tree_->header()->setSectionResizeMode(0, QHeaderView::Interactive);
     tree_->header()->setSectionResizeMode(1, QHeaderView::Interactive);
     tree_->header()->resizeSection(1, 120);
     // Третья колонка — распорка, отодвигающая правую границу колонки
@@ -155,6 +156,26 @@ void DatabaseBrowser::setupUi()
     // край секции, и ресайз последней колонки невозможен.
     tree_->header()->setSectionResizeMode(2, QHeaderView::Fixed);
     tree_->header()->resizeSection(2, 12);
+    // Восстановить сохранённые ширины.
+    applyingColumns_ = true;
+    {
+        auto &cfg = Config::instance();
+        const int wn = cfg.databaseColumnWidth(QStringLiteral("tree_name"), 180);
+        tree_->header()->resizeSection(0, wn);
+        const int ws = cfg.databaseColumnWidth(QStringLiteral("tree_stats"), 120);
+        tree_->header()->resizeSection(1, ws);
+    }
+    applyingColumns_ = false;
+    // Сохранять ширину при ручном ресайзе.
+    connect(tree_->header(), &QHeaderView::sectionResized, this,
+            [this](int idx, int, int w) {
+        if (applyingColumns_) return;
+        auto &cfg = Config::instance();
+        if (idx == 0)
+            cfg.setDatabaseColumnWidth(QStringLiteral("tree_name"), w);
+        else if (idx == 1)
+            cfg.setDatabaseColumnWidth(QStringLiteral("tree_stats"), w);
+    });
     tree_->setSortingEnabled(true);
     tree_->sortByColumn(0, Qt::AscendingOrder);
     treeProxy_->setSortRole(MusicDbRoles::SortRole);

@@ -72,13 +72,25 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);
 
-    // Left pane: directory tree
+    // Left pane: directory tree — только колонка имени, остальные скрыты.
     leftView_->setModel(model_);
-    leftView_->setHeaderHidden(true);
     leftView_->setExpandsOnDoubleClick(true);
     leftView_->setSelectionMode(QAbstractItemView::SingleSelection);
     leftView_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    leftView_->header()->setStretchLastSection(true);
+    {
+        auto *lh = leftView_->header();
+        lh->setStretchLastSection(false);
+        lh->setSectionResizeMode(0, QHeaderView::Interactive);
+        lh->hideSection(1);  // Type
+        lh->hideSection(2);  // Duration
+        const int w = Config::instance().fileBrowserColumnWidth(QLatin1String("tree_name"), -1);
+        if (w > 0)
+            lh->resizeSection(0, w);
+        connect(lh, &QHeaderView::sectionResized, this, [](int idx, int, int w) {
+            if (idx == 0)
+                Config::instance().setFileBrowserColumnWidth(QLatin1String("tree_name"), w);
+        });
+    }
 
     // Right pane: content of selected directory (same model, flat subtree)
     rightView_->setModel(model_);
