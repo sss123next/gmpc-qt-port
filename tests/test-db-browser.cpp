@@ -327,13 +327,13 @@ TEST_CASE("DatabaseBrowser filter narrows groups and keeps matches")
     auto *filter = browser.findChild<QLineEdit *>("databaseFilter");
     REQUIRE(filter != nullptr);
     filter->setText("radio");
-    waitDebounce();
+    QMetaObject::invokeMethod(&browser, "applyTreeFilter", Qt::DirectConnection);
 
     REQUIRE_EQ(tree->model()->rowCount(), 1);
     CHECK(tree->model()->index(0, 0).data().toString() == "Radiohead");
 
     filter->clear();
-    waitDebounce();
+    QMetaObject::invokeMethod(&browser, "applyTreeFilter", Qt::DirectConnection);
     CHECK_EQ(tree->model()->rowCount(), 2);
 }
 

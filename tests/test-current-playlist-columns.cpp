@@ -38,7 +38,7 @@ struct ViewFixture {
     PlaylistModel model;
     CurrentPlaylist view{&conn, &cmds, &model};
 
-    QHeaderView *header() const { return view.treeView()->header(); }
+    QHeaderView *header() const { return view.treeView()->horizontalHeader(); }
 };
 
 } // namespace

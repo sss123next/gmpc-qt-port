@@ -83,7 +83,7 @@ void MiniPlayer::createLayout()
     titleLabel_ = new QLabel(this);
     titleLabel_->setWordWrap(false);
     titleLabel_->setTextFormat(Qt::PlainText);
-    titleLabel_->setSizePolicy(QSizePolicy::MinimumExpanding,
+    titleLabel_->setSizePolicy(QSizePolicy::Preferred,
                                QSizePolicy::Preferred);
     titleLabel_->setTextInteractionFlags(Qt::NoTextInteraction);
 
@@ -135,6 +135,9 @@ void MiniPlayer::createLayout()
 
     root->addLayout(right, 1);
 
+    // Always fit window to content — no manual adjustSize() needed.
+    root->setSizeConstraint(QLayout::SetFixedSize);
+
     // Cursor hint for drag (may be disabled by config later).
     setCursor(Qt::OpenHandCursor);
 }
@@ -172,7 +175,6 @@ void MiniPlayer::updateContent(const SongEntry *song)
     if (coverViewer_ && !coverViewer_->isVisible())
         coverViewer_->clear();
 
-    adjustSize();
     positionOnScreen();
     startAutoHide();
 }
@@ -471,7 +473,6 @@ void MiniPlayer::setShowCover(bool show)
     showCover_ = show;
     if (coverWidget_)
         coverWidget_->setVisible(show);
-    adjustSize();
 }
 
 void MiniPlayer::setShowButtons(bool show)
@@ -479,7 +480,6 @@ void MiniPlayer::setShowButtons(bool show)
     showButtons_ = show;
     if (buttonBar_)
         buttonBar_->setVisible(show);
-    adjustSize();
 }
 
 // ── Position setters ────────────────────────────────────────────────────────
