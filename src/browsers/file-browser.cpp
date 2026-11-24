@@ -134,16 +134,25 @@ FileBrowser::~FileBrowser() = default;
 void FileBrowser::onLeftSelectionChanged()
 {
     QModelIndex idx = leftView_->currentIndex();
-    // Правая панель показывает поддерево выбранного каталога как плоский список.
-    // Невалидный индекс — ничего не выбрано — правая панель пуста.
     rightView_->setRootIndex(idx);
 
     if (!idx.isValid())
         return;
 
-    // Auto-expand the right view columns
-    for (int c = 0; c < rightView_->header()->count(); ++c)
-        rightView_->resizeColumnToContents(c);
+    auto &cfg = Config::instance();
+
+    // ── Правая панель: автофит, если ещё ни разу не ресайзили ────────
+    bool hasRightWidths = false;
+    for (int c = 0; c < 3 && !hasRightWidths; ++c)
+        hasRightWidths = cfg.fileBrowserColumnWidth(QLatin1String(colKeys[c]), -1) > 0;
+    if (!hasRightWidths)
+        for (int c = 0; c < rightView_->header()->count(); ++c)
+            rightView_->resizeColumnToContents(c);
+
+    // ── Левое дерево: автофит колонки имени ──────────────────────────
+    const int nameW = cfg.fileBrowserColumnWidth(QLatin1String("tree_name"), -1);
+    if (nameW <= 0)
+        leftView_->resizeColumnToContents(0);
 }
 
 void FileBrowser::enterDirectory(const QModelIndex &contentIndex)
