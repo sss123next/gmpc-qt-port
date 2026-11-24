@@ -218,7 +218,7 @@
     <message>
         <location filename="../src/browsers/current-playlist.cpp" line="514"/>
         <source>Info</source>
-        <translation type="unfinished">信息</translation>
+        <translation>信息</translation>
     </message>
     <message>
         <location filename="../src/browsers/current-playlist.cpp" line="518"/>
@@ -266,23 +266,23 @@
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="113"/>
         <source>Browse by:</source>
-        <translation type="unfinished"></translation>
+        <translation>浏览方式：</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="120"/>
         <source>Filter artists and albums…</source>
-        <translation type="unfinished"></translation>
+        <translation>过滤艺术家和专辑…</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="227"/>
         <source>Filter tracks…</source>
-        <translation type="unfinished"></translation>
+        <translation>过滤曲目…</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="269"/>
         <location filename="../src/browsers/database-browser.cpp" line="422"/>
         <source>Select an artist or album</source>
-        <translation type="unfinished"></translation>
+        <translation>选择艺术家或专辑</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="279"/>
@@ -313,7 +313,7 @@
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="388"/>
         <source>Group</source>
-        <translation type="unfinished"></translation>
+        <translation>分组</translation>
     </message>
     <message numerus="yes">
         <location filename="../src/browsers/database-browser.cpp" line="429"/>
@@ -332,7 +332,7 @@
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="513"/>
         <source>Edit Columns…</source>
-        <translation type="unfinished"></translation>
+        <translation>编辑列…</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.h" line="70"/>
@@ -345,7 +345,7 @@
     <message>
         <location filename="../src/browsers/database-track-model.cpp" line="107"/>
         <source>#</source>
-        <translation type="unfinished"></translation>
+        <translation>#</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-track-model.cpp" line="108"/>
@@ -765,7 +765,7 @@ Gnome Music Player Client 的 Qt 移植版本。
     <message>
         <location filename="../src/browsers/music-database-model.cpp" line="64"/>
         <source>(Unknown)</source>
-        <translation type="unfinished"></translation>
+        <translation>(未知)</translation>
     </message>
     <message numerus="yes">
         <location filename="../src/browsers/music-database-model.cpp" line="266"/>
@@ -779,17 +779,17 @@ Gnome Music Player Client 的 Qt 移植版本。
     <message>
         <location filename="../src/browsers/music-database-model.cpp" line="267"/>
         <source>%1 · %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 · %2</translation>
     </message>
     <message>
         <location filename="../src/browsers/music-database-model.cpp" line="306"/>
         <source>Group</source>
-        <translation type="unfinished"></translation>
+        <translation>分组</translation>
     </message>
     <message>
         <location filename="../src/browsers/music-database-model.cpp" line="308"/>
         <source>Tracks · Time</source>
-        <translation type="unfinished"></translation>
+        <translation>曲目 · 时长</translation>
     </message>
 </context>
 <context>
@@ -1330,12 +1330,12 @@ Gnome Music Player Client 的 Qt 移植版本。
     <message>
         <location filename="../src/gui/preferences-dialog.cpp" line="128"/>
         <source>System default (auto)</source>
-        <translation type="unfinished"></translation>
+        <translation>系统默认（自动）</translation>
     </message>
     <message>
         <location filename="../src/gui/preferences-dialog.cpp" line="132"/>
         <source>Language:</source>
-        <translation type="unfinished"></translation>
+        <translation>语言：</translation>
     </message>
     <message>
         <location filename="../src/gui/preferences-dialog.cpp" line="137"/>
@@ -2152,7 +2152,7 @@ Gnome Music Player Client 的 Qt 移植版本。
     <message>
         <location filename="../src/widgets/track-info-panel.cpp" line="231"/>
         <source>Nothing selected</source>
-        <translation type="unfinished"></translation>
+        <translation>未选择</translation>
     </message>
     <message>
         <location filename="../src/widgets/track-info-panel.cpp" line="390"/>
@@ -2217,7 +2217,7 @@ Gnome Music Player Client 的 Qt 移植版本。
     <message>
         <location filename="../src/widgets/track-info-panel.cpp" line="465"/>
         <source>Composer</source>
-        <translation type="unfinished"></translation>
+        <translation>作曲</translation>
     </message>
     <message>
         <location filename="../src/widgets/track-info-panel.cpp" line="466"/>
@@ -2380,7 +2380,7 @@ Gnome Music Player Client 的 Qt 移植版本。
     <message>
         <location filename="../src/gui/track-info-window.cpp" line="17"/>
         <source>Track Info</source>
-        <translation type="unfinished"></translation>
+        <translation>曲目信息</translation>
     </message>
 </context>
 <context>

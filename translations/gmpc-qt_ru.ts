@@ -218,7 +218,7 @@
     <message>
         <location filename="../src/browsers/current-playlist.cpp" line="514"/>
         <source>Info</source>
-        <translation type="unfinished">Инфо</translation>
+        <translation>Информация</translation>
     </message>
     <message>
         <location filename="../src/browsers/current-playlist.cpp" line="518"/>
@@ -266,23 +266,23 @@
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="113"/>
         <source>Browse by:</source>
-        <translation type="unfinished"></translation>
+        <translation>Обзор по:</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="120"/>
         <source>Filter artists and albums…</source>
-        <translation type="unfinished"></translation>
+        <translation>Фильтр исполнителей и альбомов…</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="227"/>
         <source>Filter tracks…</source>
-        <translation type="unfinished"></translation>
+        <translation>Фильтр трэков…</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="269"/>
         <location filename="../src/browsers/database-browser.cpp" line="422"/>
         <source>Select an artist or album</source>
-        <translation type="unfinished"></translation>
+        <translation>Выберите исполнителя или альбом</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="279"/>
@@ -313,7 +313,7 @@
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="388"/>
         <source>Group</source>
-        <translation type="unfinished"></translation>
+        <translation>Группа</translation>
     </message>
     <message numerus="yes">
         <location filename="../src/browsers/database-browser.cpp" line="429"/>
@@ -336,7 +336,7 @@
     <message>
         <location filename="../src/browsers/database-browser.cpp" line="513"/>
         <source>Edit Columns…</source>
-        <translation type="unfinished"></translation>
+        <translation>Редактировать колонки…</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-browser.h" line="70"/>
@@ -349,7 +349,7 @@
     <message>
         <location filename="../src/browsers/database-track-model.cpp" line="107"/>
         <source>#</source>
-        <translation type="unfinished"></translation>
+        <translation>#</translation>
     </message>
     <message>
         <location filename="../src/browsers/database-track-model.cpp" line="108"/>
@@ -769,7 +769,7 @@ Based on the original gmpc (C) Qball Cow 2003-2011</source>
     <message>
         <location filename="../src/browsers/music-database-model.cpp" line="64"/>
         <source>(Unknown)</source>
-        <translation type="unfinished"></translation>
+        <translation>(неизвестно)</translation>
     </message>
     <message numerus="yes">
         <location filename="../src/browsers/music-database-model.cpp" line="266"/>
@@ -785,17 +785,17 @@ Based on the original gmpc (C) Qball Cow 2003-2011</source>
     <message>
         <location filename="../src/browsers/music-database-model.cpp" line="267"/>
         <source>%1 · %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 · %2</translation>
     </message>
     <message>
         <location filename="../src/browsers/music-database-model.cpp" line="306"/>
         <source>Group</source>
-        <translation type="unfinished"></translation>
+        <translation>Группа</translation>
     </message>
     <message>
         <location filename="../src/browsers/music-database-model.cpp" line="308"/>
         <source>Tracks · Time</source>
-        <translation type="unfinished"></translation>
+        <translation>Трэки · Время</translation>
     </message>
 </context>
 <context>
@@ -1336,12 +1336,12 @@ Based on the original gmpc (C) Qball Cow 2003-2011</source>
     <message>
         <location filename="../src/gui/preferences-dialog.cpp" line="128"/>
         <source>System default (auto)</source>
-        <translation type="unfinished"></translation>
+        <translation>Системная (авто)</translation>
     </message>
     <message>
         <location filename="../src/gui/preferences-dialog.cpp" line="132"/>
         <source>Language:</source>
-        <translation type="unfinished"></translation>
+        <translation>Язык:</translation>
     </message>
     <message>
         <location filename="../src/gui/preferences-dialog.cpp" line="137"/>
@@ -2164,7 +2164,7 @@ Based on the original gmpc (C) Qball Cow 2003-2011</source>
     <message>
         <location filename="../src/widgets/track-info-panel.cpp" line="231"/>
         <source>Nothing selected</source>
-        <translation type="unfinished"></translation>
+        <translation>Ничего не выбрано</translation>
     </message>
     <message>
         <location filename="../src/widgets/track-info-panel.cpp" line="390"/>
@@ -2392,7 +2392,7 @@ Based on the original gmpc (C) Qball Cow 2003-2011</source>
     <message>
         <location filename="../src/gui/track-info-window.cpp" line="17"/>
         <source>Track Info</source>
-        <translation type="unfinished"></translation>
+        <translation>Информация о трэке</translation>
     </message>
 </context>
 <context>
