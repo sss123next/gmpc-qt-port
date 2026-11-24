@@ -182,7 +182,8 @@
 <context>
     <name>CoverWidget</name>
     <message>
-        <location filename="../src/widgets/cover-widget.cpp" line="91"/>
+        <location filename="../src/widgets/cover-widget.cpp" line="82"/>
+        <location filename="../src/widgets/cover-widget.cpp" line="107"/>
         <source>No cover</source>
         <translation>无封面</translation>
     </message>
@@ -190,58 +191,63 @@
 <context>
     <name>CurrentPlaylist</name>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="95"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="101"/>
         <source>Search playlist…</source>
         <translation>搜索播放列表…</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="431"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="486"/>
         <source>Play</source>
         <translation>播放</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="433"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="488"/>
         <source>Remove from queue</source>
         <translation>从队列移除</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="436"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="491"/>
         <source>Move up</source>
         <translation>上移</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="437"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="492"/>
         <source>Move down</source>
         <translation>下移</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="459"/>
-        <location filename="../src/browsers/current-playlist.cpp" line="505"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="514"/>
+        <source>Info</source>
+        <translation type="unfinished">信息</translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/current-playlist.cpp" line="518"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="568"/>
         <source>Clear queue</source>
         <translation>清空队列</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="461"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="520"/>
         <source>Save queue as…</source>
         <translation>另存队列为…</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="466"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="525"/>
         <source>Edit columns…</source>
         <translation>编辑列…</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="496"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="559"/>
         <source>Save queue as</source>
         <translation>另存队列为</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="497"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="560"/>
         <source>Playlist name:</source>
         <translation>播放列表名称：</translation>
     </message>
     <message>
-        <location filename="../src/browsers/current-playlist.cpp" line="506"/>
+        <location filename="../src/browsers/current-playlist.cpp" line="569"/>
         <source>Remove all %1 song(s) from the queue?</source>
         <translation>从队列中移除全部 %1 首歌曲？</translation>
     </message>
@@ -254,34 +260,117 @@
 <context>
     <name>DatabaseBrowser</name>
     <message>
-        <location filename="../src/browsers/database-browser.cpp" line="42"/>
         <source>Group by:</source>
-        <translation>分组依据：</translation>
+        <translation type="vanished">分组依据：</translation>
     </message>
     <message>
-        <location filename="../src/browsers/database-browser.cpp" line="43"/>
+        <location filename="../src/browsers/database-browser.cpp" line="113"/>
+        <source>Browse by:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-browser.cpp" line="120"/>
+        <source>Filter artists and albums…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-browser.cpp" line="227"/>
+        <source>Filter tracks…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-browser.cpp" line="269"/>
+        <location filename="../src/browsers/database-browser.cpp" line="422"/>
+        <source>Select an artist or album</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-browser.cpp" line="279"/>
+        <location filename="../src/browsers/database-browser.cpp" line="293"/>
         <source>Artist</source>
         <translation>艺术家</translation>
     </message>
     <message>
-        <location filename="../src/browsers/database-browser.cpp" line="44"/>
+        <location filename="../src/browsers/database-browser.cpp" line="280"/>
+        <source>Album artist</source>
+        <translation type="unfinished">专辑艺术家</translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-browser.cpp" line="281"/>
         <source>Genre</source>
         <translation>流派</translation>
     </message>
     <message>
-        <location filename="../src/browsers/database-browser.cpp" line="45"/>
+        <location filename="../src/browsers/database-browser.cpp" line="282"/>
         <source>Year</source>
         <translation>年份</translation>
     </message>
     <message>
-        <location filename="../src/browsers/database-browser.cpp" line="46"/>
+        <location filename="../src/browsers/database-browser.cpp" line="283"/>
         <source>Composer</source>
         <translation>作曲家</translation>
     </message>
     <message>
-        <location filename="../src/browsers/database-browser.h" line="27"/>
+        <location filename="../src/browsers/database-browser.cpp" line="388"/>
+        <source>Group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/browsers/database-browser.cpp" line="429"/>
+        <source>%n track(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/browsers/database-browser.cpp" line="430"/>
+        <source>%n track(s) · %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-browser.cpp" line="513"/>
+        <source>Edit Columns…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-browser.h" line="70"/>
         <source>Database</source>
         <translation>音乐数据库</translation>
+    </message>
+</context>
+<context>
+    <name>DatabaseTrackModel</name>
+    <message>
+        <location filename="../src/browsers/database-track-model.cpp" line="107"/>
+        <source>#</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-track-model.cpp" line="108"/>
+        <source>Title</source>
+        <translation type="unfinished">标题</translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-track-model.cpp" line="109"/>
+        <source>Time</source>
+        <translation type="unfinished">时间</translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-track-model.cpp" line="110"/>
+        <source>Artist</source>
+        <translation type="unfinished">艺术家</translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-track-model.cpp" line="111"/>
+        <source>Album</source>
+        <translation type="unfinished">专辑</translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/database-track-model.cpp" line="112"/>
+        <source>Disc</source>
+        <translation type="unfinished">光盘</translation>
     </message>
 </context>
 <context>
@@ -323,40 +412,50 @@
 <context>
     <name>FileBrowser</name>
     <message>
-        <location filename="../src/browsers/file-browser.h" line="27"/>
+        <location filename="../src/browsers/file-browser.h" line="75"/>
         <source>Files</source>
         <translation>文件浏览</translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/file-browser.cpp" line="134"/>
+        <source>Filter directories…</source>
+        <translation>过滤目录…</translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/file-browser.cpp" line="167"/>
+        <source>Filter files…</source>
+        <translation>过滤文件…</translation>
     </message>
 </context>
 <context>
     <name>FileSystemModel</name>
     <message>
-        <location filename="../src/browsers/file-system-model.cpp" line="94"/>
+        <location filename="../src/browsers/file-system-model.cpp" line="99"/>
         <source>Directory</source>
         <translation>目录</translation>
     </message>
     <message>
-        <location filename="../src/browsers/file-system-model.cpp" line="95"/>
+        <location filename="../src/browsers/file-system-model.cpp" line="100"/>
         <source>Song</source>
         <translation>歌曲</translation>
     </message>
     <message>
-        <location filename="../src/browsers/file-system-model.cpp" line="96"/>
+        <location filename="../src/browsers/file-system-model.cpp" line="101"/>
         <source>Playlist</source>
         <translation>播放列表</translation>
     </message>
     <message>
-        <location filename="../src/browsers/file-system-model.cpp" line="128"/>
+        <location filename="../src/browsers/file-system-model.cpp" line="133"/>
         <source>Name</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location filename="../src/browsers/file-system-model.cpp" line="129"/>
+        <location filename="../src/browsers/file-system-model.cpp" line="134"/>
         <source>Type</source>
         <translation>类型</translation>
     </message>
     <message>
-        <location filename="../src/browsers/file-system-model.cpp" line="130"/>
+        <location filename="../src/browsers/file-system-model.cpp" line="135"/>
         <source>Duration</source>
         <translation>时长</translation>
     </message>
@@ -421,165 +520,165 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="196"/>
-        <location filename="../src/gui/mainwindow.cpp" line="913"/>
+        <location filename="../src/gui/mainwindow.cpp" line="248"/>
+        <location filename="../src/gui/mainwindow.cpp" line="987"/>
         <source>gmpc-qt</source>
         <translation>gmpc-qt</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="314"/>
+        <location filename="../src/gui/mainwindow.cpp" line="371"/>
         <source>&amp;File</source>
         <translation>文件(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="321"/>
+        <location filename="../src/gui/mainwindow.cpp" line="378"/>
         <source>Add &amp;URL...</source>
         <translation>添加 URL(&amp;U)...</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="323"/>
+        <location filename="../src/gui/mainwindow.cpp" line="380"/>
         <source>Save Queue as &amp;Playlist...</source>
         <translation>将队列另存为播放列表(&amp;P)...</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="325"/>
+        <location filename="../src/gui/mainwindow.cpp" line="382"/>
         <source>Clear &amp;Queue</source>
         <translation>清空队列(&amp;Q)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="342"/>
+        <location filename="../src/gui/mainwindow.cpp" line="399"/>
         <source>&amp;Preferences...</source>
         <translation>偏好设置(&amp;P)...</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="348"/>
+        <location filename="../src/gui/mainwindow.cpp" line="405"/>
         <source>Connection</source>
         <translation>连接</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="388"/>
+        <location filename="../src/gui/mainwindow.cpp" line="445"/>
         <source>&amp;Quit</source>
         <translation>退出(&amp;Q)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="390"/>
+        <location filename="../src/gui/mainwindow.cpp" line="447"/>
         <source>&amp;View</source>
         <translation>视图(&amp;V)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="391"/>
+        <location filename="../src/gui/mainwindow.cpp" line="448"/>
         <source>&amp;Mini Player</source>
         <translation>迷你播放器(&amp;M)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="412"/>
+        <location filename="../src/gui/mainwindow.cpp" line="469"/>
         <source>&amp;Server</source>
         <translation>服务器(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="414"/>
+        <location filename="../src/gui/mainwindow.cpp" line="471"/>
         <source>Update Database</source>
         <translation>更新数据库</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="418"/>
+        <location filename="../src/gui/mainwindow.cpp" line="475"/>
         <source>Update failed — not connected?</source>
         <translation>更新失败——未连接？</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="420"/>
+        <location filename="../src/gui/mainwindow.cpp" line="477"/>
         <source>Database update started (job %1)</source>
         <translation>数据库更新已启动（任务 %1）</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="423"/>
+        <location filename="../src/gui/mainwindow.cpp" line="480"/>
         <source>Rescan Database</source>
         <translation>重新扫描数据库</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="427"/>
+        <location filename="../src/gui/mainwindow.cpp" line="484"/>
         <source>Rescan failed — not connected?</source>
         <translation>重新扫描失败——未连接？</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="429"/>
+        <location filename="../src/gui/mainwindow.cpp" line="486"/>
         <source>Database rescan started (job %1)</source>
         <translation>数据库重新扫描已启动（任务 %1）</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="434"/>
+        <location filename="../src/gui/mainwindow.cpp" line="491"/>
         <source>&amp;Connect</source>
         <translation>连接(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="443"/>
+        <location filename="../src/gui/mainwindow.cpp" line="500"/>
         <source>&amp;Disconnect</source>
         <translation>断开(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="471"/>
+        <location filename="../src/gui/mainwindow.cpp" line="528"/>
         <source>Server &amp;Information...</source>
         <translation>服务器信息(&amp;I)...</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="473"/>
+        <location filename="../src/gui/mainwindow.cpp" line="530"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="474"/>
+        <location filename="../src/gui/mainwindow.cpp" line="531"/>
         <source>&amp;About</source>
         <translation>关于(&amp;A)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="562"/>
-        <location filename="../src/gui/mainwindow.cpp" line="807"/>
+        <location filename="../src/gui/mainwindow.cpp" line="634"/>
+        <location filename="../src/gui/mainwindow.cpp" line="881"/>
         <source>Now Playing</source>
         <translation>正在播放</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="563"/>
+        <location filename="../src/gui/mainwindow.cpp" line="635"/>
         <source>Current</source>
         <translation>当前播放</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="564"/>
+        <location filename="../src/gui/mainwindow.cpp" line="636"/>
         <source>Database</source>
         <translation>音乐数据库</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="565"/>
+        <location filename="../src/gui/mainwindow.cpp" line="637"/>
         <source>Files</source>
         <translation>文件浏览</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="566"/>
+        <location filename="../src/gui/mainwindow.cpp" line="638"/>
         <source>Search</source>
         <translation>搜索</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="567"/>
+        <location filename="../src/gui/mainwindow.cpp" line="639"/>
         <source>Playlist Editor</source>
         <translation>播放列表编辑</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="590"/>
-        <location filename="../src/gui/mainwindow.cpp" line="595"/>
+        <location filename="../src/gui/mainwindow.cpp" line="662"/>
+        <location filename="../src/gui/mainwindow.cpp" line="667"/>
         <source>MPD: %1</source>
         <translation>MPD：%1</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="671"/>
+        <location filename="../src/gui/mainwindow.cpp" line="743"/>
         <source>Queue: %1</source>
         <translation>队列：%1</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="871"/>
+        <location filename="../src/gui/mainwindow.cpp" line="945"/>
         <source>About gmpc-qt</source>
         <translation>关于 gmpc-qt</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="872"/>
+        <location filename="../src/gui/mainwindow.cpp" line="946"/>
         <source>gmpc-qt — Modern MPD client
 Port of the Gnome Music Player Client to Qt.
 
@@ -590,47 +689,47 @@ Gnome Music Player Client 的 Qt 移植版本。
 基于原始 gmpc (C) Qball Cow 2003-2011</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="913"/>
+        <location filename="../src/gui/mainwindow.cpp" line="987"/>
         <source>Playing...</source>
         <translation>正在播放…</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="1099"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1173"/>
         <source>Play</source>
         <translation>播放</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="1101"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1175"/>
         <source>Add</source>
         <translation>添加</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="1103"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1177"/>
         <source>Replace</source>
         <translation>替换</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="1111"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1185"/>
         <source>Info</source>
         <translation>信息</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="1133"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1207"/>
         <source>Add to Playlist</source>
         <translation>添加到播放列表</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="1139"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1213"/>
         <source>(no playlists)</source>
         <translation>（无播放列表）</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="1153"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1227"/>
         <source>Added to playlist &quot;%1&quot;</source>
         <translation>已添加到播放列表“%1”</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="1175"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1249"/>
         <source>Path copied to clipboard</source>
         <translation>路径已复制到剪贴板</translation>
     </message>
@@ -656,14 +755,41 @@ Gnome Music Player Client 的 Qt 移植版本。
 <context>
     <name>MusicDatabaseModel</name>
     <message>
-        <location filename="../src/browsers/music-database-model.cpp" line="332"/>
         <source>Artist / Album</source>
-        <translation>艺术家 / 专辑</translation>
+        <translation type="vanished">艺术家 / 专辑</translation>
     </message>
     <message>
-        <location filename="../src/browsers/music-database-model.cpp" line="333"/>
         <source>Year</source>
-        <translation>年份</translation>
+        <translation type="vanished">年份</translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/music-database-model.cpp" line="64"/>
+        <source>(Unknown)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/browsers/music-database-model.cpp" line="266"/>
+        <location filename="../src/browsers/music-database-model.cpp" line="272"/>
+        <location filename="../src/browsers/music-database-model.cpp" line="284"/>
+        <source>%n track(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/music-database-model.cpp" line="267"/>
+        <source>%1 · %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/music-database-model.cpp" line="306"/>
+        <source>Group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/browsers/music-database-model.cpp" line="308"/>
+        <source>Tracks · Time</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -679,237 +805,238 @@ Gnome Music Player Client 的 Qt 移植版本。
         <translation>刷新歌词</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="254"/>
+        <location filename="../src/browsers/now-playing.cpp" line="286"/>
         <source>Low Memory Mode — data freed</source>
         <translation>低内存模式——已释放数据</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="267"/>
+        <location filename="../src/browsers/now-playing.cpp" line="212"/>
+        <location filename="../src/browsers/now-playing.cpp" line="298"/>
         <source>No lyrics</source>
         <translation>无歌词</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="270"/>
+        <location filename="../src/browsers/now-playing.cpp" line="301"/>
         <source>Loading lyrics…</source>
         <translation>正在加载歌词…</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="291"/>
+        <location filename="../src/browsers/now-playing.cpp" line="322"/>
         <source>Details</source>
         <translation>详细信息</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="292"/>
+        <location filename="../src/browsers/now-playing.cpp" line="323"/>
         <source>Track</source>
         <translation>音轨</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="293"/>
+        <location filename="../src/browsers/now-playing.cpp" line="324"/>
         <source>Disc</source>
         <translation>光盘</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="294"/>
+        <location filename="../src/browsers/now-playing.cpp" line="325"/>
         <source>Year</source>
         <translation>年份</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="295"/>
+        <location filename="../src/browsers/now-playing.cpp" line="326"/>
         <source>Original date</source>
         <translation>原始日期</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="296"/>
+        <location filename="../src/browsers/now-playing.cpp" line="327"/>
         <source>Genre</source>
         <translation>流派</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="297"/>
+        <location filename="../src/browsers/now-playing.cpp" line="328"/>
         <source>Album artist</source>
         <translation>专辑艺术家</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="298"/>
+        <location filename="../src/browsers/now-playing.cpp" line="329"/>
         <source>Duration</source>
         <translation>时长</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="303"/>
+        <location filename="../src/browsers/now-playing.cpp" line="334"/>
         <source>Credits</source>
         <translation>创作人员</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="304"/>
+        <location filename="../src/browsers/now-playing.cpp" line="335"/>
         <source>Composer</source>
         <translation>作曲</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="305"/>
+        <location filename="../src/browsers/now-playing.cpp" line="336"/>
         <source>Performer</source>
         <translation>演奏者</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="306"/>
+        <location filename="../src/browsers/now-playing.cpp" line="337"/>
         <source>Conductor</source>
         <translation>指挥</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="307"/>
+        <location filename="../src/browsers/now-playing.cpp" line="338"/>
         <source>Ensemble</source>
         <translation>乐团</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="308"/>
+        <location filename="../src/browsers/now-playing.cpp" line="339"/>
         <source>Grouping</source>
         <translation>分组</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="309"/>
+        <location filename="../src/browsers/now-playing.cpp" line="340"/>
         <source>Mood</source>
         <translation>情绪</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="310"/>
+        <location filename="../src/browsers/now-playing.cpp" line="341"/>
         <source>Location</source>
         <translation>位置</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="311"/>
+        <location filename="../src/browsers/now-playing.cpp" line="342"/>
         <source>Label</source>
         <translation>厂牌</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="312"/>
+        <location filename="../src/browsers/now-playing.cpp" line="343"/>
         <source>Work</source>
         <translation>作品</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="313"/>
+        <location filename="../src/browsers/now-playing.cpp" line="344"/>
         <source>Movement</source>
         <translation>乐章</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="314"/>
+        <location filename="../src/browsers/now-playing.cpp" line="345"/>
         <source>Movement No.</source>
         <translation>乐章编号</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="319"/>
+        <location filename="../src/browsers/now-playing.cpp" line="350"/>
         <source>IDs &amp; Sort</source>
         <translation>ID 与排序</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="320"/>
+        <location filename="../src/browsers/now-playing.cpp" line="351"/>
         <source>Title sort</source>
         <translation>标题排序键</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="321"/>
+        <location filename="../src/browsers/now-playing.cpp" line="352"/>
         <source>Artist sort</source>
         <translation>艺术家排序键</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="322"/>
+        <location filename="../src/browsers/now-playing.cpp" line="353"/>
         <source>Album sort</source>
         <translation>专辑排序键</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="323"/>
+        <location filename="../src/browsers/now-playing.cpp" line="354"/>
         <source>Album artist sort</source>
         <translation>专辑艺术家排序键</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="324"/>
+        <location filename="../src/browsers/now-playing.cpp" line="355"/>
         <source>Composer sort</source>
         <translation>作曲排序键</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="325"/>
+        <location filename="../src/browsers/now-playing.cpp" line="356"/>
         <source>Comment</source>
         <translation>注释</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="326"/>
+        <location filename="../src/browsers/now-playing.cpp" line="357"/>
         <source>MB Artist ID</source>
         <translation>MusicBrainz 艺术家 ID</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="327"/>
+        <location filename="../src/browsers/now-playing.cpp" line="358"/>
         <source>MB Album ID</source>
         <translation>MusicBrainz 专辑 ID</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="328"/>
+        <location filename="../src/browsers/now-playing.cpp" line="359"/>
         <source>MB Album Artist ID</source>
         <translation>MusicBrainz 专辑艺术家 ID</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="329"/>
+        <location filename="../src/browsers/now-playing.cpp" line="360"/>
         <source>MB Track ID</source>
         <translation>MusicBrainz 音轨 ID</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="330"/>
+        <location filename="../src/browsers/now-playing.cpp" line="361"/>
         <source>MB Work ID</source>
         <translation>MusicBrainz 作品 ID</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="331"/>
+        <location filename="../src/browsers/now-playing.cpp" line="362"/>
         <source>MB Release Track ID</source>
         <translation>MusicBrainz 发布音轨 ID</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="332"/>
+        <location filename="../src/browsers/now-playing.cpp" line="363"/>
         <source>MB Release Group ID</source>
         <translation>MusicBrainz 发布组 ID</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="337"/>
+        <location filename="../src/browsers/now-playing.cpp" line="368"/>
         <source>Technical</source>
         <translation>技术信息</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="338"/>
+        <location filename="../src/browsers/now-playing.cpp" line="369"/>
         <source>Sample rate</source>
         <translation>采样率</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="339"/>
+        <location filename="../src/browsers/now-playing.cpp" line="370"/>
         <source>Bit depth</source>
         <translation>位深度</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="340"/>
+        <location filename="../src/browsers/now-playing.cpp" line="371"/>
         <source>Channels</source>
         <translation>声道</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="341"/>
+        <location filename="../src/browsers/now-playing.cpp" line="372"/>
         <source>Bitrate</source>
         <translation>比特率</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="342"/>
+        <location filename="../src/browsers/now-playing.cpp" line="373"/>
         <source>Format</source>
         <translation>格式</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="343"/>
+        <location filename="../src/browsers/now-playing.cpp" line="374"/>
         <source>File</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="519"/>
+        <location filename="../src/browsers/now-playing.cpp" line="554"/>
         <source>No lyrics found</source>
         <translation>未找到歌词</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="538"/>
+        <location filename="../src/browsers/now-playing.cpp" line="573"/>
         <source>Refreshing lyrics…</source>
         <translation>正在刷新歌词…</translation>
     </message>
     <message>
-        <location filename="../src/browsers/now-playing.cpp" line="593"/>
+        <location filename="../src/browsers/now-playing.cpp" line="628"/>
         <source>Nothing is playing</source>
         <translation>没有正在播放的项目</translation>
     </message>
@@ -1056,62 +1183,62 @@ Gnome Music Player Client 的 Qt 移植版本。
 <context>
     <name>PlaylistModel</name>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="245"/>
+        <location filename="../src/core/playlist-model.cpp" line="250"/>
         <source>Title</source>
         <translation>标题</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="246"/>
+        <location filename="../src/core/playlist-model.cpp" line="251"/>
         <source>Artist</source>
         <translation>艺术家</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="247"/>
+        <location filename="../src/core/playlist-model.cpp" line="252"/>
         <source>Album</source>
         <translation>专辑</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="248"/>
+        <location filename="../src/core/playlist-model.cpp" line="253"/>
         <source>Time</source>
         <translation>时间</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="250"/>
+        <location filename="../src/core/playlist-model.cpp" line="255"/>
         <source>Track</source>
         <translation>音轨</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="251"/>
+        <location filename="../src/core/playlist-model.cpp" line="256"/>
         <source>Disc</source>
         <translation>光盘</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="252"/>
+        <location filename="../src/core/playlist-model.cpp" line="257"/>
         <source>Date</source>
         <translation>日期</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="253"/>
+        <location filename="../src/core/playlist-model.cpp" line="258"/>
         <source>Genre</source>
         <translation>流派</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="254"/>
+        <location filename="../src/core/playlist-model.cpp" line="259"/>
         <source>Composer</source>
         <translation>作曲</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="255"/>
+        <location filename="../src/core/playlist-model.cpp" line="260"/>
         <source>Performer</source>
         <translation>演奏者</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="256"/>
+        <location filename="../src/core/playlist-model.cpp" line="261"/>
         <source>Label</source>
         <translation>厂牌</translation>
     </message>
     <message>
-        <location filename="../src/core/playlist-model.cpp" line="257"/>
+        <location filename="../src/core/playlist-model.cpp" line="262"/>
         <source>Comment</source>
         <translation>注释</translation>
     </message>
@@ -1145,13 +1272,13 @@ Gnome Music Player Client 的 Qt 移植版本。
     </message>
     <message>
         <location filename="../src/gui/preferences-dialog.cpp" line="85"/>
-        <location filename="../src/gui/preferences-dialog.cpp" line="143"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="151"/>
         <source>Host:</source>
         <translation>主机：</translation>
     </message>
     <message>
         <location filename="../src/gui/preferences-dialog.cpp" line="86"/>
-        <location filename="../src/gui/preferences-dialog.cpp" line="144"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="152"/>
         <source>Port:</source>
         <translation>端口：</translation>
     </message>
@@ -1201,442 +1328,452 @@ Gnome Music Player Client 的 Qt 移植版本。
         <translation>启动时最小化到任务栏</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="129"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="128"/>
+        <source>System default (auto)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gui/preferences-dialog.cpp" line="132"/>
+        <source>Language:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/gui/preferences-dialog.cpp" line="137"/>
         <source>Proxy</source>
         <translation>代理</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="132"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="140"/>
         <source>Enable HTTP proxy</source>
         <translation>启用 HTTP 代理</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="139"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="147"/>
         <source>proxy.example.com</source>
         <translation>proxy.example.com</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="154"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="162"/>
         <source>Server</source>
         <translation>服务器</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="158"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="166"/>
         <source>/path/to/music (optional)</source>
         <translation>/path/to/music（可选）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="159"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="167"/>
         <source>Music directory:</source>
         <translation>音乐目录：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="163"/>
-        <location filename="../src/gui/preferences-dialog.cpp" line="169"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="171"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="177"/>
         <source> ms</source>
         <translation> 毫秒</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="165"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="173"/>
         <source>Reconnect delay:</source>
         <translation>重连延迟：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="171"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="179"/>
         <source>Connection timeout:</source>
         <translation>连接超时：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="179"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="187"/>
         <source>Fading &amp; Outputs (server)</source>
         <translation>淡入淡出与输出（服务器）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="187"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="195"/>
         <source>Cross-fading</source>
         <translation>交叉淡入淡出</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="192"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="200"/>
         <source>Fade between tracks (server-side)</source>
         <translation>歌曲之间淡入淡出（服务器端）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="195"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="203"/>
         <source> s</source>
         <translation> 秒</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="196"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="204"/>
         <source>Fade time:</source>
         <translation>淡入淡出时间：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="201"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="209"/>
         <source>Off</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="201"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="209"/>
         <source>Track</source>
         <translation>音轨</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="201"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="209"/>
         <source>Album</source>
         <translation>专辑</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="201"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="209"/>
         <source>Auto</source>
         <translation>自动</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="202"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="210"/>
         <source>Replay Gain:</source>
         <translation>回放增益：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="213"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="221"/>
         <source>Outputs:</source>
         <translation>输出：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="239"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="247"/>
         <source>Tray Icon</source>
         <translation>系统托盘图标</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="241"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="249"/>
         <source>Enable system tray icon</source>
         <translation>启用系统托盘图标</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="243"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="251"/>
         <source>Close to tray instead of quitting</source>
         <translation>关闭到托盘而非退出</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="245"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="253"/>
         <source>Notify on track change (system balloon)</source>
         <translation>切换歌曲时通知（系统气泡）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="250"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="258"/>
         <source>Mini Player</source>
         <translation>迷你播放器</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="254"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="262"/>
         <source>Enable Mini Player</source>
         <translation>启用迷你播放器</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="260"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="268"/>
         <source>Center</source>
         <translation>居中</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="261"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="269"/>
         <source>Top‑left</source>
         <translation>左上</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="262"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="270"/>
         <source>Top‑right</source>
         <translation>右上</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="263"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="271"/>
         <source>Bottom‑left</source>
         <translation>左下</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="264"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="272"/>
         <source>Bottom‑right</source>
         <translation>右下</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="265"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="273"/>
         <source>Custom (drag)</source>
         <translation>自定义（拖拽）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="266"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="274"/>
         <source>Position:</source>
         <translation>位置：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="270"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="278"/>
         <source>Primary</source>
         <translation>主屏幕</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="274"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="282"/>
         <source>Screen %1</source>
         <translation>屏幕 %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="275"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="283"/>
         <source>Screen:</source>
         <translation>屏幕：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="281"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="289"/>
         <source>X: </source>
         <translation>X：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="282"/>
-        <location filename="../src/gui/preferences-dialog.cpp" line="287"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="290"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="295"/>
         <source> px</source>
         <translation> 像素</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="286"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="294"/>
         <source>Y: </source>
         <translation>Y：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="290"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="298"/>
         <source>Margin:</source>
         <translation>边距：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="295"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="303"/>
         <source> sec</source>
         <translation> 秒</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="297"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="305"/>
         <source>Timeout:</source>
         <translation>超时：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="301"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="309"/>
         <source>Dark</source>
         <translation>深色</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="302"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="310"/>
         <source>Light</source>
         <translation>浅色</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="303"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="311"/>
         <source>Style:</source>
         <translation>样式：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="306"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="314"/>
         <source>Show album cover</source>
         <translation>显示专辑封面</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="308"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="316"/>
         <source>Show transport buttons</source>
         <translation>显示播放控制按钮</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="311"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="319"/>
         <source>Draggable (reposition with mouse)</source>
         <translation>可拖拽（用鼠标调整位置）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="314"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="322"/>
         <source>Hide on click</source>
         <translation>点击隐藏</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="320"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="328"/>
         <source>%</source>
         <translation>%</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="322"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="330"/>
         <source>Opacity:</source>
         <translation>不透明度：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="327"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="335"/>
         <source>Playlist</source>
         <translation>播放列表</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="331"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="339"/>
         <source>e.g. $artist — $album ($year)</source>
         <translation>例如 $artist — $album（$year）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="332"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="340"/>
         <source>Header markup:</source>
         <translation>标题标记：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="337"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="345"/>
         <source>Click to choose highlight colour</source>
         <translation>点击选择高亮颜色</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="348"/>
-        <location filename="../src/gui/preferences-dialog.cpp" line="394"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="356"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="402"/>
         <source>×</source>
         <translation>×</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="349"/>
-        <location filename="../src/gui/preferences-dialog.cpp" line="395"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="357"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="403"/>
         <source>Reset to default</source>
         <translation>重置为默认值</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="357"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="365"/>
         <source>Highlight colour:</source>
         <translation>高亮颜色：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="360"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="368"/>
         <source>Search as you type (live filter)</source>
         <translation>边输入边搜索（实时过滤）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="366"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="374"/>
         <source>Performance</source>
         <translation>性能</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="369"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="377"/>
         <source>Low Memory Mode: unload hidden tabs, defer queue/database loading</source>
         <translation>低内存模式：卸载隐藏标签页，延迟队列/数据库加载</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="374"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="382"/>
         <source>Metadata</source>
         <translation>元数据</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="378"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="386"/>
         <source>Font:</source>
         <translation>字体：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="383"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="391"/>
         <source>Click to choose colour</source>
         <translation>点击选择颜色</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="403"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="411"/>
         <source>Colour:</source>
         <translation>颜色：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="406"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="414"/>
         <source>Discogs Personal Access Token</source>
         <translation>Discogs 个人访问令牌</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="407"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="415"/>
         <source>Discogs token:</source>
         <translation>Discogs 令牌：</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="410"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="418"/>
         <source>Enable metadata loading</source>
         <translation>启用元数据加载</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="414"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="422"/>
         <source>Local metadata (embedded tags, local cover files)</source>
         <translation>本地元数据（内嵌标签，本地封面文件）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="418"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="426"/>
         <source>Online metadata services (MusicBrainz, Last.FM, Deezer, lyrics)</source>
         <translation>在线元数据服务（MusicBrainz、Last.FM、Deezer、歌词）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="425"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="433"/>
         <source>Multimedia Keys</source>
         <translation>多媒体键</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="430"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="438"/>
         <source>Enable global media-key hotkeys</source>
         <translation>启用全局多媒体键热键</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="451"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="459"/>
         <source>None</source>
         <translation>无</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="452"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="460"/>
         <source>Play</source>
         <translation>播放</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="453"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="461"/>
         <source>Pause</source>
         <translation>暂停</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="454"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="462"/>
         <source>Play/Pause</source>
         <translation>播放/暂停</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="455"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="463"/>
         <source>Stop</source>
         <translation>停止</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="456"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="464"/>
         <source>Next</source>
         <translation>下一首</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="457"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="465"/>
         <source>Previous</source>
         <translation>上一首</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="458"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="466"/>
         <source>Rewind</source>
         <translation>快退</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="459"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="467"/>
         <source>Forward</source>
         <translation>快进</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="474"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="482"/>
         <source>Connection Profiles</source>
         <translation>连接配置</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="482"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="490"/>
         <source>Add</source>
         <translation>添加</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="483"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="491"/>
         <source>Remove</source>
         <translation>移除</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="500"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="508"/>
         <source>(new profile)</source>
         <translation>（新配置）</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="557"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="565"/>
         <source>Not connected</source>
         <translation>未连接</translation>
     </message>
     <message>
-        <location filename="../src/gui/preferences-dialog.cpp" line="586"/>
-        <location filename="../src/gui/preferences-dialog.cpp" line="689"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="594"/>
+        <location filename="../src/gui/preferences-dialog.cpp" line="703"/>
         <source>(unnamed)</source>
         <translation>（未命名）</translation>
     </message>
@@ -1667,7 +1804,7 @@ Gnome Music Player Client 的 Qt 移植版本。
         <translation>MPD 错误 %1：%2</translation>
     </message>
     <message>
-        <location filename="../src/core/queue-sync.cpp" line="262"/>
+        <location filename="../src/core/queue-sync.cpp" line="260"/>
         <source>очередь меняется быстрее, чем успевает перечитаться</source>
         <translation>队列变化速度超过重读速度</translation>
     </message>
@@ -1963,35 +2100,287 @@ Gnome Music Player Client 的 Qt 移植版本。
 <context>
     <name>StatusBar</name>
     <message>
-        <location filename="../src/gui/statusbar.cpp" line="13"/>
-        <location filename="../src/gui/statusbar.cpp" line="95"/>
+        <location filename="../src/gui/statusbar.cpp" line="23"/>
+        <location filename="../src/gui/statusbar.cpp" line="111"/>
         <source>Disconnected</source>
         <translation>已断开</translation>
     </message>
     <message>
-        <location filename="../src/gui/statusbar.cpp" line="72"/>
+        <location filename="../src/gui/statusbar.cpp" line="84"/>
         <source>Playing</source>
         <translation>正在播放</translation>
     </message>
     <message>
-        <location filename="../src/gui/statusbar.cpp" line="74"/>
+        <location filename="../src/gui/statusbar.cpp" line="86"/>
         <source>Playing — %1</source>
         <translation>正在播放 —— %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/statusbar.cpp" line="76"/>
+        <location filename="../src/gui/statusbar.cpp" line="88"/>
         <source>Paused</source>
         <translation>已暂停</translation>
     </message>
     <message>
-        <location filename="../src/gui/statusbar.cpp" line="78"/>
+        <location filename="../src/gui/statusbar.cpp" line="90"/>
         <source>Stopped</source>
         <translation>已停止</translation>
     </message>
     <message>
-        <location filename="../src/gui/statusbar.cpp" line="89"/>
+        <location filename="../src/gui/statusbar.cpp" line="105"/>
         <source>Connected</source>
         <translation>已连接</translation>
+    </message>
+</context>
+<context>
+    <name>TrackInfoPanel</name>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="85"/>
+        <source>Refresh cover</source>
+        <translation type="unfinished">刷新封面</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="133"/>
+        <source>Refresh lyrics</source>
+        <translation type="unfinished">刷新歌词</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="205"/>
+        <location filename="../src/widgets/track-info-panel.cpp" line="387"/>
+        <source>No lyrics</source>
+        <translation type="unfinished">无歌词</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="231"/>
+        <source>Nothing selected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="390"/>
+        <source>Loading lyrics…</source>
+        <translation type="unfinished">正在加载歌词…</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="413"/>
+        <source>No lyrics found</source>
+        <translation type="unfinished">未找到歌词</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="431"/>
+        <source>Refreshing lyrics…</source>
+        <translation type="unfinished">正在刷新歌词…</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="452"/>
+        <source>Details</source>
+        <translation type="unfinished">详细信息</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="453"/>
+        <source>Track</source>
+        <translation type="unfinished">音轨</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="454"/>
+        <source>Disc</source>
+        <translation type="unfinished">光盘</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="455"/>
+        <source>Year</source>
+        <translation type="unfinished">年份</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="456"/>
+        <source>Original date</source>
+        <translation type="unfinished">原始日期</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="457"/>
+        <source>Genre</source>
+        <translation type="unfinished">流派</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="458"/>
+        <source>Album artist</source>
+        <translation type="unfinished">专辑艺术家</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="459"/>
+        <source>Duration</source>
+        <translation type="unfinished">时长</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="464"/>
+        <source>Credits</source>
+        <translation type="unfinished">创作人员</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="465"/>
+        <source>Composer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="466"/>
+        <source>Performer</source>
+        <translation type="unfinished">演奏者</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="467"/>
+        <source>Conductor</source>
+        <translation type="unfinished">指挥</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="468"/>
+        <source>Ensemble</source>
+        <translation type="unfinished">乐团</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="469"/>
+        <source>Grouping</source>
+        <translation type="unfinished">分组</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="470"/>
+        <source>Mood</source>
+        <translation type="unfinished">情绪</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="471"/>
+        <source>Location</source>
+        <translation type="unfinished">位置</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="472"/>
+        <source>Label</source>
+        <translation type="unfinished">厂牌</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="473"/>
+        <source>Work</source>
+        <translation type="unfinished">作品</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="474"/>
+        <source>Movement</source>
+        <translation type="unfinished">乐章</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="475"/>
+        <source>Movement No.</source>
+        <translation type="unfinished">乐章编号</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="480"/>
+        <source>IDs &amp; Sort</source>
+        <translation type="unfinished">ID 与排序</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="481"/>
+        <source>Title sort</source>
+        <translation type="unfinished">标题排序键</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="482"/>
+        <source>Artist sort</source>
+        <translation type="unfinished">艺术家排序键</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="483"/>
+        <source>Album sort</source>
+        <translation type="unfinished">专辑排序键</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="484"/>
+        <source>Album artist sort</source>
+        <translation type="unfinished">专辑艺术家排序键</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="485"/>
+        <source>Composer sort</source>
+        <translation type="unfinished">作曲排序键</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="486"/>
+        <source>Comment</source>
+        <translation type="unfinished">注释</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="487"/>
+        <source>MB Artist ID</source>
+        <translation type="unfinished">MusicBrainz 艺术家 ID</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="488"/>
+        <source>MB Album ID</source>
+        <translation type="unfinished">MusicBrainz 专辑 ID</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="489"/>
+        <source>MB Album Artist ID</source>
+        <translation type="unfinished">MusicBrainz 专辑艺术家 ID</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="490"/>
+        <source>MB Track ID</source>
+        <translation type="unfinished">MusicBrainz 音轨 ID</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="491"/>
+        <source>MB Work ID</source>
+        <translation type="unfinished">MusicBrainz 作品 ID</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="492"/>
+        <source>MB Release Track ID</source>
+        <translation type="unfinished">MusicBrainz 发布音轨 ID</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="493"/>
+        <source>MB Release Group ID</source>
+        <translation type="unfinished">MusicBrainz 发布组 ID</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="498"/>
+        <source>Technical</source>
+        <translation type="unfinished">技术信息</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="499"/>
+        <source>Sample rate</source>
+        <translation type="unfinished">采样率</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="500"/>
+        <source>Bit depth</source>
+        <translation type="unfinished">位深度</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="501"/>
+        <source>Channels</source>
+        <translation type="unfinished">声道</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="502"/>
+        <source>Bitrate</source>
+        <translation type="unfinished">比特率</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="503"/>
+        <source>Format</source>
+        <translation type="unfinished">格式</translation>
+    </message>
+    <message>
+        <location filename="../src/widgets/track-info-panel.cpp" line="504"/>
+        <source>File</source>
+        <translation type="unfinished">文件</translation>
+    </message>
+</context>
+<context>
+    <name>TrackInfoWindow</name>
+    <message>
+        <location filename="../src/gui/track-info-window.cpp" line="17"/>
+        <source>Track Info</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
