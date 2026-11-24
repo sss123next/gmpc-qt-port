@@ -30,6 +30,7 @@
 #include "gui/server-info-dialog.h"
 #include "gui/song-info-dialog.h"
 
+#include "browsers/database-track-model.h"
 #include "browsers/music-database-model.h"
 #include "browsers/file-system-model.h"
 
@@ -535,7 +536,9 @@ void MainWindow::setupCentralArea()
     browserStack_ = new BrowserStack(centralStack_, this);
 
     currentPlaylist_ = new CurrentPlaylist(conn_, cmds_, playlistModel_, this);
-    databaseBrowser_ = new DatabaseBrowser(conn_, this);
+    // Браузер базы получает команды: дерево и правая таблица читают сервер.
+    databaseBrowser_ = new DatabaseBrowser(conn_, cmds_, this);
+    databaseBrowser_->setMetadataManager(metadataMgr_);
     fileBrowser_     = new FileBrowser(conn_, this);
     // Команды нужны поиску для Enter/Insert: результат кладётся в очередь, а Ctrl+Insert
     // ею же её заменяет.
@@ -565,6 +568,9 @@ void MainWindow::setupCentralArea()
     // ── Контекстные меню: намерения отдаёт сам браузер, состав пунктов — menuActionsFor
     setupBrowserContextMenu(databaseBrowser_->treeView(),
                             [this] { return databaseBrowser_->selectedIntents(); });
+    // Правая таблица — те же действия, что у любого списка песен.
+    setupBrowserContextMenu(databaseBrowser_->trackView(),
+                            [this] { return databaseBrowser_->trackIntents(); });
     setupBrowserContextMenu(fileBrowser_->contentView(),
                             [this] { return fileBrowser_->contentIntents(); });
     setupBrowserContextMenu(fileBrowser_->treeView(),
@@ -602,10 +608,16 @@ void MainWindow::setupCentralArea()
         }
     });
 
+    // Дерево базы: группа/альбом — собрать в очередь; правая таблица — играть трэк.
     setupBrowserActivation(databaseBrowser_->treeView(), [this](const QModelIndex &idx) {
-        const MusicDbActivation act = databaseBrowser_->activationFor(idx);
-        if (!act.uri.isEmpty()) cmds_->activateUri(act.uri);
-        else if (!act.constraints.isEmpty()) cmds_->findAddSongs(act.constraints);
+        const auto constraints = databaseBrowser_->activationFor(idx);
+        if (!constraints.isEmpty())
+            cmds_->findAddSongs(constraints);
+    });
+    setupBrowserActivation(databaseBrowser_->trackView(), [this](const QModelIndex &idx) {
+        const QString uri = idx.data(DatabaseTrackModel::UriRole).toString();
+        if (!uri.isEmpty())
+            cmds_->activateUri(uri);
     });
 }
 

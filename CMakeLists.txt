@@ -87,6 +87,8 @@ set(BROWSER_SOURCES
     src/browsers/database-browser.h
     src/browsers/music-database-model.cpp
     src/browsers/music-database-model.h
+    src/browsers/database-track-model.cpp
+    src/browsers/database-track-model.h
     src/browsers/file-system-model.cpp
     src/browsers/file-system-model.h
     src/browsers/search-browser.cpp

@@ -205,6 +205,11 @@ void NowPlaying::setSong(const SongEntry *song)
     curAlbum_  = song->album;
     curUri_    = song->uri;
 
+    // Чужой текст не должен пережить смену трэка, даже если страница скрыта:
+    // при возврате он выглядел бы лирикой нового.
+    lyricsView_->clear();
+    hintLabel_->setText(tr("No lyrics"));
+
     // Free full-screen cover if viewer was hidden (saves ~8 MB per track).
     if (coverViewer_ && !coverViewer_->isVisible())
         coverViewer_->clear();

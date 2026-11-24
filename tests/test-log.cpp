@@ -54,7 +54,7 @@ static std::string captureStderr(const auto &fn)
 TEST_CASE("LOG_INFO writes level, file, line, function, and message")
 {
     auto out = captureStderr([] {
-        LOG_INFO("hello %d", 42);
+        LOG_INFO("hello {}", 42);
     });
 
     CHECK(out.find("INFO") != std::string::npos);
@@ -79,7 +79,7 @@ TEST_CASE("LOG_WARN and LOG_ERROR write expected prefixes")
     CHECK(warn.find("WARN") != std::string::npos);
     CHECK(warn.find("something fishy") != std::string::npos);
 
-    auto err = captureStderr([] { LOG_ERROR("epic fail %d", 1); });
+    auto err = captureStderr([] { LOG_ERROR("epic fail {}", 1); });
     CHECK(err.find("ERROR") != std::string::npos);
     CHECK(err.find("epic fail 1") != std::string::npos);
 }

@@ -66,6 +66,13 @@ void CoverWidget::clear()
     update();
 }
 
+QString CoverWidget::text() const
+{
+    // Заглушка рисуется тем же текстом, что отдаётся наружу: тест не должен
+    // знать про paintEvent.
+    return currentPixmap_.isNull() ? tr("No cover") : QString();
+}
+
 void CoverWidget::paintEvent(QPaintEvent *event)
 {
     QPainter p(this);

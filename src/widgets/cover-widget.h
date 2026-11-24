@@ -42,6 +42,11 @@ public:
     /// Clear the displayed cover.
     void clear();
 
+    /** @brief Подпись-заглушка («No cover») либо пусто при наличии обложки. */
+    [[nodiscard]] QString text() const;
+    /// Текущая отрисованная обложка (null — заглушка).
+    [[nodiscard]] QPixmap pixmap() const { return currentPixmap_; }
+
     /** @brief Original raw cover data (maximum available resolution).
      *  Empty if no cover loaded. Used by CoverViewer for full-screen display. */
     const QByteArray &coverData() const { return lastCoverData_; }

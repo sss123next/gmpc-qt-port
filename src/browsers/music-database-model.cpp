@@ -1,21 +1,19 @@
 /**
  * @file music-database-model.cpp
- * @brief Tree model for MPD music database — populates on demand.
+ * @brief Дерево базы MPD: группы → альбомы, объёмы серверным `count … group`.
  *
- * Три уровня: группа верхнего уровня (артист/жанр/год/композитор) → альбом → трэк.
- * Группы грузит DatabaseBrowser, альбомы и трэки — canFetchMore()/fetchMore(), то
- * есть в момент раскрытия узла.
+ * Группы грузит DatabaseBrowser одним запросом на весь уровень; альбомы —
+ * canFetchMore()/fetchMore() в момент раскрытия. Трэки живут в правой панели,
+ * поэтому третьего уровня здесь нет.
  */
 
 #include "music-database-model.h"
 #include "core/connection.h"
+#include "tools/log.h"
 
-#include <mpd/search.h>
-#include <mpd/tag.h>
-#include <mpd/song.h>
-#include <mpd/entity.h>
+#include <QCoreApplication>
 
-// ── Активация строки ────────────────────────────────────────────────────────
+// ── Подписи и ограничения ─────────────────────────────────────────────────
 
 QVector<MpdTagConstraint> musicDbConstraints(enum mpd_tag_type rootTag,
                                              MusicDbItem::Type type,
@@ -25,9 +23,10 @@ QVector<MpdTagConstraint> musicDbConstraints(enum mpd_tag_type rootTag,
     QVector<MpdTagConstraint> constraints;
 
     switch (type) {
-    case MusicDbItem::Artist:   // группа верхнего уровня: артист/жанр/год/композитор
-        if (!name.isEmpty())
-            constraints.append({rootTag, name});
+    case MusicDbItem::Group:
+        // Ограничение ставится всегда: пустое имя — легальная группа «без тега»,
+        // а не отсутствие фильтра (иначе findadd залил бы всю базу).
+        constraints.append({rootTag, name});
         break;
     case MusicDbItem::Album:
         // Только альбом по имени собрал бы одноимённые альбомы всех исполнителей.
@@ -36,20 +35,44 @@ QVector<MpdTagConstraint> musicDbConstraints(enum mpd_tag_type rootTag,
         if (!name.isEmpty())
             constraints.append({MPD_TAG_ALBUM, name});
         break;
-    case MusicDbItem::Track:
-        // У трэка есть URI — его играет MpdCommands::activateUri.
-        break;
     }
 
     return constraints;
 }
 
-// ── Construction ────────────────────────────────────────────────────────────
+QString compactSpan(quint64 seconds)
+{
+    if (seconds == 0)
+        return {};
 
-MusicDatabaseModel::MusicDatabaseModel(Connection *conn, QObject *parent)
+    const quint64 hours = seconds / 3600;
+    const quint64 minutes = (seconds % 3600) / 60;
+
+    // Округление вверх: «1 s» вместо «0 m» у короткого трэка.
+    if (hours > 0)
+        return QStringLiteral("%1 h %2 m").arg(hours).arg(minutes);
+    if (minutes > 0 || seconds >= 60)
+        return QStringLiteral("%1 m").arg((seconds + 59) / 60);
+    return QStringLiteral("%1 s").arg(seconds);
+}
+
+QString musicDbDisplayName(const QString &raw)
+{
+    // Пустое значение тега — не ошибка сервера, а файлы без него: подпись нужна,
+    // иначе строка выглядит пустой и её невозможно выбрать осмысленно.
+    return raw.isEmpty()
+        ? QCoreApplication::translate("MusicDatabaseModel", "(Unknown)")
+        : raw;
+}
+
+// ── Construction ───────────────────────────────────────────────────────────
+
+MusicDatabaseModel::MusicDatabaseModel(Connection *conn, MpdCommands *cmds,
+                                       QObject *parent)
     : QAbstractItemModel(parent)
     , conn_(conn)
-    , root_(new MusicDbItem{MusicDbItem::Artist, "root", {}, nullptr})
+    , cmds_(cmds)
+    , root_(new MusicDbItem{MusicDbItem::Group, "root", -1, 0, {}, nullptr})
 {
 }
 
@@ -58,38 +81,26 @@ MusicDatabaseModel::~MusicDatabaseModel()
     delete root_;
 }
 
-// ── Public population API ───────────────────────────────────────────────────
+// ── Наполнение ─────────────────────────────────────────────────────────────
 
-void MusicDatabaseModel::loadByTag(enum mpd_tag_type tag)
+void MusicDatabaseModel::loadGroups(enum mpd_tag_type tag)
 {
-    if (!conn_ || !conn_->isConnected() || !conn_->hasHandle())
+    if (!conn_ || !cmds_ || !conn_->isConnected())
         return;
 
-    QVector<QString> names;
-    {
-        Connection::ResponseScope scope(*conn_, "listtags");
+    // Ответ забирается целиком до сброса модели: временная ошибка сервера не
+    // должна оставлять пользователя перед пустым экраном.
+    const QVector<TagGroupStat> groups = cmds_->groupedCount(tag, {});
 
-        if (!mpd_search_db_tags(conn_->raw(), tag))
-            return;
-
-        if (!mpd_search_commit(conn_->raw()))
-            return;
-
-        while (auto *pair = mpd_recv_pair_tag(conn_->raw(), tag)) {
-            names.append(QString::fromUtf8(pair->value));
-            mpd_return_pair(conn_->raw(), pair);
-        }
-    }
-
-    // Ответ забран целиком — и только теперь меняется дерево. Раньше модель
-    // очищалась до запроса, поэтому временная ошибка сервера оставляла пользователя
-    // с пустым экраном вместо прежнего списка.
     beginResetModel();
     qDeleteAll(root_->children);
     root_->children.clear();
     rootTag_ = tag;
-    for (const auto &name : names)
-        root_->children.append(new MusicDbItem{MusicDbItem::Artist, name, {}, root_});
+    for (const TagGroupStat &g : groups) {
+        auto *item = new MusicDbItem{MusicDbItem::Group, g.value,
+                                     g.songs, g.playTimeSec, {}, root_};
+        root_->children.append(item);
+    }
     endResetModel();
 }
 
@@ -103,146 +114,81 @@ void MusicDatabaseModel::clear()
 
 void MusicDatabaseModel::loadAlbums(const QModelIndex &idx)
 {
-    if (!idx.isValid())
+    if (!idx.isValid() || !conn_ || !cmds_ || !conn_->isConnected())
         return;
 
     auto *group = static_cast<MusicDbItem *>(idx.internalPointer());
-    if (group->type != MusicDbItem::Artist || group->loaded)
+    if (group->type != MusicDbItem::Group || group->loaded)
         return;
 
-    if (!conn_ || !conn_->isConnected() || !conn_->hasHandle())
-        return;
+    // Ограничение по фактическому тегу группировки: при «Genre» или «Year»
+    // запрос по ARTIST не вернул бы ничего.
+    const QVector<TagGroupStat> albums =
+        cmds_->groupedCount(MPD_TAG_ALBUM, {{rootTag_, group->name}});
+    LOG_DEBUG("database: альбомов у группы «{}» — {}", group->name,
+              albums.size());
 
-    QVector<QString> albums;
-    {
-        Connection::ResponseScope scope(*conn_, "listalbums");
-
-        const QByteArray groupName = group->name.toUtf8();
-
-        // Ограничение по фактическому тегу группировки: при «Genre» или «Year» на
-        // верхнем уровне запрос по ARTIST не вернул бы ничего.
-        if (!mpd_search_db_tags(conn_->raw(), MPD_TAG_ALBUM))
-            return;
-
-        bool ok = mpd_search_add_tag_constraint(
-            conn_->raw(), MPD_OPERATOR_DEFAULT, rootTag_, groupName.constData());
-        ok = ok && mpd_search_commit(conn_->raw());
-
-        if (!ok) {
-            mpd_search_cancel(conn_->raw());
-            return;
-        }
-
-        while (auto *pair = mpd_recv_pair_tag(conn_->raw(), MPD_TAG_ALBUM)) {
-            albums.append(QString::fromUtf8(pair->value));
-            mpd_return_pair(conn_->raw(), pair);
-        }
-    }
-
-    // Пустой ответ — тоже ответ: без этого флага узел запрашивали бы при каждом
-    // раскрытии, а «детей нет» выглядело бы как «ещё не грузили».
+    // Пустой ответ — тоже ответ: иначе узел запрашивали бы при каждом раскрытии,
+    // а «детей нет» выглядело бы как «ещё не грузили».
     group->loaded = true;
 
     if (albums.isEmpty())
         return;
 
     beginInsertRows(idx, 0, albums.size() - 1);
-    for (const auto &name : albums)
-        group->children.append(new MusicDbItem{MusicDbItem::Album, name, {}, group});
-    endInsertRows();
-}
-
-void MusicDatabaseModel::loadTracks(const QModelIndex &idx)
-{
-    if (!idx.isValid())
-        return;
-
-    auto *album = static_cast<MusicDbItem *>(idx.internalPointer());
-    if (album->type != MusicDbItem::Album || album->loaded)
-        return;
-
-    auto *group = album->parent;
-    if (!group || group->type != MusicDbItem::Artist)
-        return;
-
-    if (!conn_ || !conn_->isConnected() || !conn_->hasHandle())
-        return;
-
-    struct TrackEntry { QString title; QString uri; };
-    QVector<TrackEntry> tracks;
-    {
-        Connection::ResponseScope scope(*conn_, "searchalbum");
-
-        const QByteArray groupName = group->name.toUtf8();
-        const QByteArray albumName = album->name.toUtf8();
-
-        // Точное совпадение: подстрока притянула бы в альбом чужие трэки.
-        if (!mpd_search_db_songs(conn_->raw(), true))
-            return;
-
-        bool ok = mpd_search_add_tag_constraint(
-            conn_->raw(), MPD_OPERATOR_DEFAULT, rootTag_, groupName.constData());
-        ok = ok && mpd_search_add_tag_constraint(
-            conn_->raw(), MPD_OPERATOR_DEFAULT, MPD_TAG_ALBUM, albumName.constData());
-        ok = ok && mpd_search_commit(conn_->raw());
-
-        if (!ok) {
-            mpd_search_cancel(conn_->raw());
-            return;
-        }
-
-        while (auto *song = mpd_recv_song(conn_->raw())) {
-            TrackEntry e;
-            e.title = QString::fromUtf8(mpd_song_get_tag(song, MPD_TAG_TITLE, 0));
-            e.uri = QString::fromUtf8(mpd_song_get_uri(song));
-            tracks.append(e);
-            mpd_song_free(song);
-        }
-    }
-
-    album->loaded = true;
-
-    if (tracks.isEmpty())
-        return;
-
-    beginInsertRows(idx, 0, tracks.size() - 1);
-    for (const auto &t : tracks) {
-        auto *node = new MusicDbItem{MusicDbItem::Track, t.title, {}, album};
-        node->uri = t.uri;
-        album->children.append(node);
+    for (const TagGroupStat &a : albums) {
+        auto *item = new MusicDbItem{MusicDbItem::Album, a.value,
+                                     a.songs, a.playTimeSec, {}, group};
+        group->children.append(item);
     }
     endInsertRows();
 }
 
-MusicDbActivation MusicDatabaseModel::activationFor(const QModelIndex &index) const
+QVector<MpdTagConstraint> MusicDatabaseModel::activationFor(
+    const QModelIndex &index) const
 {
-    MusicDbActivation activation;
     if (!index.isValid())
-        return activation;
+        return {};
 
     auto *item = static_cast<MusicDbItem *>(index.internalPointer());
-    if (item->type == MusicDbItem::Track) {
-        activation.uri = item->uri;
-        return activation;
-    }
-
     const QString groupName = (item->parent && item->parent != root_)
         ? item->parent->name : QString();
-    activation.constraints = musicDbConstraints(rootTag_, item->type,
-                                                item->name, groupName);
-    return activation;
+    return musicDbConstraints(rootTag_, item->type, item->name, groupName);
 }
 
-// ── Ленивая загрузка альбомов и трэков ──────────────────────────────────────
+MusicDbRef MusicDatabaseModel::refFor(const QModelIndex &index) const
+{
+    if (!index.isValid())
+        return {};
+
+    auto *item = static_cast<MusicDbItem *>(index.internalPointer());
+    MusicDbRef ref;
+    ref.valid       = true;
+    ref.type        = item->type;
+    ref.name        = item->name;
+    ref.songs       = item->songs;
+    ref.playTimeSec = item->playTimeSec;
+    if (item->parent && item->parent != root_)
+        ref.groupName = item->parent->name;
+    return ref;
+}
+
+// ── Ленивая загрузка альбомов ─────────────────────────────────────────────
+
+bool MusicDatabaseModel::hasChildren(const QModelIndex &parent) const
+{
+    if (canFetchMore(parent))
+        return true;
+    return QAbstractItemModel::hasChildren(parent);
+}
 
 bool MusicDatabaseModel::canFetchMore(const QModelIndex &parent) const
 {
-    if (!parent.isValid() || !conn_ || !conn_->isConnected()
-        || !conn_->hasHandle())
+    if (!parent.isValid() || !conn_ || !cmds_ || !conn_->isConnected())
         return false;   // группы грузит DatabaseBrowser::onActivate()
 
     auto *item = static_cast<MusicDbItem *>(parent.internalPointer());
-    return item->type != MusicDbItem::Track && !item->loaded;
+    return item->type == MusicDbItem::Group && !item->loaded;
 }
 
 void MusicDatabaseModel::fetchMore(const QModelIndex &parent)
@@ -250,14 +196,10 @@ void MusicDatabaseModel::fetchMore(const QModelIndex &parent)
     if (!canFetchMore(parent))
         return;
 
-    auto *item = static_cast<MusicDbItem *>(parent.internalPointer());
-    if (item->type == MusicDbItem::Artist)
-        loadAlbums(parent);
-    else
-        loadTracks(parent);
+    loadAlbums(parent);
 }
 
-// ── QAbstractItemModel interface ────────────────────────────────────────────
+// ── QAbstractItemModel interface ───────────────────────────────────────────
 
 QModelIndex MusicDatabaseModel::index(int row, int column,
                                       const QModelIndex &parent) const
@@ -303,7 +245,7 @@ int MusicDatabaseModel::rowCount(const QModelIndex &parent) const
 
 int MusicDatabaseModel::columnCount(const QModelIndex &) const
 {
-    return 2; // name, year
+    return 2; // имя, объём
 }
 
 QVariant MusicDatabaseModel::data(const QModelIndex &index, int role) const
@@ -312,12 +254,35 @@ QVariant MusicDatabaseModel::data(const QModelIndex &index, int role) const
         return {};
 
     auto *item = static_cast<MusicDbItem *>(index.internalPointer());
+    const QString name = musicDbDisplayName(item->name);
+    const QString span = compactSpan(item->playTimeSec);
 
-    if (role == MusicDbRoles::UriRole && item->type == MusicDbItem::Track)
-        return item->uri;
-
-    if (index.column() == 0 && role == Qt::DisplayRole)
-        return item->name;
+    switch (role) {
+    case Qt::DisplayRole:
+        if (index.column() == 0)
+            return name;
+        // Вторая колонка — объём: число трэков и время, пока сервер их знает.
+        if (index.column() == 1 && item->songs >= 0) {
+            const QString count = tr("%n track(s)", "", item->songs);
+            return span.isEmpty() ? count : tr("%1 · %2").arg(count, span);
+        }
+        break;
+    case MusicDbRoles::StatsRole:
+        if (item->songs >= 0)
+            return tr("%n track(s)", "", item->songs) + QLatin1Char(' ') + span;
+        break;
+    case Qt::ToolTipRole: {
+        QString tip = name;
+        if (item->songs >= 0)
+            tip += QLatin1String("\n")
+                 + tr("%n track(s)", "", item->songs);
+        if (!span.isEmpty())
+            tip += QLatin1Char(' ') + span;
+        return tip.trimmed();
+    }
+    default:
+        break;
+    }
 
     return {};
 }
@@ -329,8 +294,12 @@ QVariant MusicDatabaseModel::headerData(int section, Qt::Orientation orient,
         return {};
 
     switch (section) {
-    case 0: return tr("Artist / Album");
-    case 1: return tr("Year");
+    case 0: {
+        // Заголовок следует способу группировки, а не всегда «Artist».
+        const char *tagName = mpd_tag_name(rootTag_);
+        return tagName ? QString::fromUtf8(tagName) : tr("Group");
+    }
+    case 1: return tr("Tracks · Time");
     default: return {};
     }
 }

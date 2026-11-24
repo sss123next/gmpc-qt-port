@@ -135,6 +135,22 @@ QStringList Config::playlistColumnsOrder() const
 void Config::setPlaylistColumnsOrder(const QStringList &keys)
     { s_.setValue("playlist/columnOrder", keys.join(QLatin1Char(','))); }
 
+bool Config::databaseColumnVisible(const QString &key) const
+    { return s_.value("database/columns/" + key, true).toBool(); }
+void Config::setDatabaseColumnVisible(const QString &key, bool visible)
+    { s_.setValue("database/columns/" + key, visible); }
+bool Config::hasDatabaseColumnSetting(const QString &key) const
+    { return s_.contains("database/columns/" + key); }
+
+QStringList Config::databaseColumnsOrder() const
+{
+    // Пустая строка и «нет ключа» — одно: исходный порядок колонок модели.
+    const QString raw = s_.value("database/columnOrder", "").toString();
+    return raw.isEmpty() ? QStringList{} : raw.split(QLatin1Char(','), Qt::SkipEmptyParts);
+}
+void Config::setDatabaseColumnsOrder(const QStringList &keys)
+    { s_.setValue("database/columnOrder", keys.join(QLatin1Char(','))); }
+
 // ── Metadata ─────────────────────────────────────────────────────────────
 QString Config::discogsToken() const
     { return s_.value("metadata/discogsToken", "").toString(); }

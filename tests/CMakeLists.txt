@@ -63,8 +63,22 @@ target_include_directories(test-playlist-model PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 add_executable(test-db-browser test-db-browser.cpp
     ${CMAKE_SOURCE_DIR}/src/browsers/database-browser.cpp
+    ${CMAKE_SOURCE_DIR}/src/browsers/database-track-model.cpp
+    ${CMAKE_SOURCE_DIR}/src/gui/column-chooser-dialog.cpp
+    # Шапка держит CoverWidget: без менеджера метаданных он не линкуется.
+    ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
+    ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
 )
-target_link_libraries(test-db-browser PRIVATE testcore Qt6::Widgets doctest::doctest trompeloeil::trompeloeil)
+target_link_libraries(test-db-browser PRIVATE testcore Qt6::Widgets Qt6::Network
+    PkgConfig::SQLITE3 PkgConfig::TAGLIB
+    doctest::doctest trompeloeil::trompeloeil)
 target_include_directories(test-db-browser PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # ── Register with CTest ───────────────────────────────────────────────────────
@@ -165,6 +179,7 @@ add_test(NAME test-cache-sqlite COMMAND test-cache-sqlite)
 # ── Cover widget test ─────────────────────────────────────────────────────────
 
 add_executable(test-cover-widget test-cover-widget.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/config.cpp
     ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
@@ -183,6 +198,7 @@ add_test(NAME test-cover-widget COMMAND test-cover-widget)
 # ── DeezerProvider test (contract tests, seam-based) ─────────────────────────
 
 add_executable(test-deezer-provider test-deezer-provider.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/config.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
@@ -222,6 +238,7 @@ add_test(NAME test-discogs-provider COMMAND test-discogs-provider)
 # Собирает ВСЕ provider-файлы, чтобы сигналы шли в настоящую реализацию.
 
 add_executable(test-provider-parsers test-provider-parsers.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/config.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
@@ -408,6 +425,7 @@ add_test(NAME test-ipc COMMAND test-ipc)
 # Run under ASan detect_leaks=1.
 
 add_executable(test-cover-load-leak test-cover-load-leak.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/config.cpp
     ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
@@ -428,6 +446,7 @@ add_test(NAME test-cover-load-leak COMMAND test-cover-load-leak)
 # Run under ASan (detect_leaks=1) to verify zero per-cycle growth.
 
 add_executable(test-metadata-leak test-metadata-leak.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/config.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp

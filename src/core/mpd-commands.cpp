@@ -12,6 +12,9 @@
 #include "mpd-commands.h"
 #include "tools/log.h"
 
+#include <algorithm>
+#include <climits>
+
 MpdCommands::MpdCommands(Connection *conn, QObject *parent)
     : QObject(parent), conn_(conn)
 {}
@@ -538,6 +541,167 @@ std::optional<TagPlaytime> MpdCommands::tagPlaytime(enum mpd_tag_type tag,
     out.value       = value;
     out.playTimeSec = mpd_stats_get_play_time(raw);
     out.songs       = static_cast<int>(mpd_stats_get_number_of_songs(raw));
+    return out;   // ResponseScope завершит ответ и снимет error-state
+}
+
+namespace {
+
+/** @brief Значение пары без кавычек MPD.
+ *
+ *  Сервер заключает в кавычки пустую строку (и значения со спецсимволами) и
+ *  экранирует внутри `\`/`"`. Кавычки — часть протокола, а не тега: без разбора
+ *  артист «» стал бы отдельной группой с именем из двух кавычек.
+ */
+QString unquoteMpdValue(const char *raw)
+{
+    if (!raw)
+        return {};
+    const QByteArray v(raw);
+    if (v.size() < 2 || !v.startsWith('"') || !v.endsWith('"'))
+        return QString::fromUtf8(v);
+
+    QByteArray out;
+    for (int i = 1; i + 1 < v.size(); ++i) {
+        const char c = v.at(i);
+        if (c == '\\' && i + 2 < v.size())
+            out.append(v.at(++i));
+        else
+            out.append(c);
+    }
+    return QString::fromUtf8(out);
+}
+
+/// Первое целое в строке («3/12» → 3); нечисловое — большое число, чтобы уйти в конец.
+int leadingNumber(const QString &text)
+{
+    int value = 0;
+    bool any = false;
+    for (const QChar c : text) {
+        if (!c.isDigit())
+            break;
+        any = true;
+        value = value * 10 + c.digitValue();
+    }
+    return any ? value : INT_MAX;
+}
+
+} // namespace
+
+QVector<TagGroupStat> MpdCommands::groupedCount(
+    enum mpd_tag_type groupTag, const QVector<MpdTagConstraint> &constraints) const
+{
+    QVector<TagGroupStat> out;
+    if (!conn_->isConnected())
+        return out;
+
+    Connection::ResponseScope scope(*conn_, "count");
+    // `group` — единственный способ получить объёмы всех значений одним ответом.
+    if (!mpd_count_db_songs(MPD))
+        return out;
+
+    for (const MpdTagConstraint &c : constraints) {
+        const QByteArray value = c.value.toUtf8();
+        if (!mpd_search_add_tag_constraint(MPD, MPD_OPERATOR_DEFAULT,
+                                           c.tag, value.constData())) {
+            mpd_search_cancel(MPD);
+            return out;
+        }
+    }
+
+    if (!mpd_search_add_group_tag(MPD, groupTag) || !mpd_search_commit(MPD)) {
+        mpd_search_cancel(MPD);
+        return out;
+    }
+
+    // Имя групповой пары — имя тега (libmpdclient отрезает двоеточие); остальные
+    // поля относятся к последней встреченной группе и приходят после неё.
+    const QByteArray groupName(mpd_tag_name(groupTag));
+    TagGroupStat current;
+    bool pending = false;
+
+    while (struct mpd_pair *pair = mpd_recv_pair(MPD)) {
+        const QByteArray name(pair->name ? pair->name : "");
+        if (name == groupName) {
+            if (pending)
+                out.append(current);
+            current = TagGroupStat{};
+            current.value = unquoteMpdValue(pair->value);
+            pending = true;
+        } else if (pending && name == "songs") {
+            current.songs = pair->value ? QByteArray(pair->value).toInt() : 0;
+        } else if (pending && name == "playtime") {
+            current.playTimeSec =
+                pair->value ? static_cast<quint64>(QByteArray(pair->value).toULongLong()) : 0;
+        }
+        mpd_return_pair(MPD, pair);
+    }
+
+    if (pending)
+        out.append(current);
+    return out;   // ResponseScope завершит ответ и снимет error-state
+}
+
+QVector<DbSong> MpdCommands::songsForConstraints(
+    const QVector<MpdTagConstraint> &constraints, int limit) const
+{
+    QVector<DbSong> out;
+    if (!conn_->isConnected())
+        return out;
+
+    Connection::ResponseScope scope(*conn_, "find");
+    // Точное совпадение: подстрока притянула бы в альбом чужие трэки.
+    if (!mpd_search_db_songs(MPD, true))
+        return out;
+
+    for (const MpdTagConstraint &c : constraints) {
+        const QByteArray value = c.value.toUtf8();
+        if (!mpd_search_add_tag_constraint(MPD, MPD_OPERATOR_DEFAULT,
+                                           c.tag, value.constData())) {
+            mpd_search_cancel(MPD);
+            return out;
+        }
+    }
+
+    const int window = std::clamp(limit, 1, kDatabaseTrackWindow * 4);
+    if (!mpd_search_add_window(MPD, 0, static_cast<unsigned>(window))
+        || !mpd_search_commit(MPD)) {
+        mpd_search_cancel(MPD);
+        return out;
+    }
+
+    while (struct mpd_song *song = mpd_recv_song(MPD)) {
+        DbSong row;
+        if (const char *uri = mpd_song_get_uri(song))
+            row.uri = QString::fromUtf8(uri);
+        const auto tagValue = [song](enum mpd_tag_type t) -> QString {
+            const char *v = mpd_song_get_tag(song, t, 0);
+            return v ? QString::fromUtf8(v) : QString();
+        };
+        row.title    = tagValue(MPD_TAG_TITLE);
+        row.artist   = tagValue(MPD_TAG_ARTIST);
+        row.album    = tagValue(MPD_TAG_ALBUM);
+        row.disc     = tagValue(MPD_TAG_DISC);
+        row.track    = tagValue(MPD_TAG_TRACK);
+        row.duration = static_cast<int>(mpd_song_get_duration(song));
+        out.append(row);
+        mpd_song_free(song);
+    }
+
+    // Порядок сервера не определён без sort: раскладываем по альбому, диску,
+    // номеру и названию сами — одним запросом дешевле, чем тремя сортировками.
+    std::stable_sort(out.begin(), out.end(), [](const DbSong &a, const DbSong &b) {
+        const int album = QString::compare(a.album, b.album, Qt::CaseInsensitive);
+        if (album != 0)
+            return album < 0;
+        const int discA = leadingNumber(a.disc), discB = leadingNumber(b.disc);
+        if (discA != discB)
+            return discA < discB;
+        const int trackA = leadingNumber(a.track), trackB = leadingNumber(b.track);
+        if (trackA != trackB)
+            return trackA < trackB;
+        return QString::compare(a.title, b.title, Qt::CaseInsensitive) < 0;
+    });
+
     return out;   // ResponseScope завершит ответ и снимет error-state
 }
 

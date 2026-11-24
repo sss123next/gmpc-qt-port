@@ -24,6 +24,11 @@ struct MpdTagConstraint {
     QString value;
 };
 
+/** @brief Предел окна выборки трэков правой панели Database.
+ *  В базе из 65 тыс. позиций самая большая группа — меньше тысячи; потолок
+ *  страхует чужие библиотеки, где «Various Artists» может быть больше. */
+inline constexpr int kDatabaseTrackWindow = 1500;
+
 /** @brief Снимок ответа сервера на команду `stats` — содержимое окна «Server Information».
  *
  *  Всё, кроме version и urlHandlers, приходит одним ответом: сервер сам считает аптайм
@@ -53,6 +58,28 @@ struct TagPlaytime {
     QString value;             ///< значение, как его отдал сервер
     quint64 playTimeSec = 0;
     int songs = 0;
+};
+
+/** @brief Строка `count … group <тег>`: одно значение и его объём.
+ *
+ *  Пустое значение — легальная группа (файлы без тега); отображает её вызывающий,
+ *  а в ограничениях оно остаётся пустой строкой.
+ */
+struct TagGroupStat {
+    QString value;
+    int songs = 0;
+    quint64 playTimeSec = 0;
+};
+
+/** @brief Трэк базы для правой панели Database (без songid: очередь не при чём). */
+struct DbSong {
+    QString uri;        ///< путь относительно music_directory
+    QString title;
+    QString artist;
+    QString album;
+    QString disc;
+    QString track;
+    int duration = 0;   ///< секунды
 };
 
 /** @brief Секунды в компактную подпись («2 m 5 s», «1 d 1 h»).
@@ -299,6 +326,28 @@ public slots:
      */
     virtual std::optional<TagPlaytime> tagPlaytime(enum mpd_tag_type tag,
                                                   const QString &value) const;
+
+    /** @brief Значения тега с числом песен и временем одним ответом (`count … group`).
+     *
+     *  Один запрос на весь уровень: `list <tag>` не отдаёт объёмов, а по одному
+     *  `count` на значение база в тысячи артистов стоила бы тысячи round-trip.
+     *  @param groupTag    тег группировки (Artist/Genre/Date…)
+     *  @param constraints точные ограничения родительского уровня
+     */
+    [[nodiscard]] virtual QVector<TagGroupStat> groupedCount(
+        enum mpd_tag_type groupTag,
+        const QVector<MpdTagConstraint> &constraints) const;
+
+    /** @brief Трэки базы под ограничениями — содержимое правой панели Database.
+     *
+     *  Окно обязательно: группа «Various Artists» бывает в сотни строк, а ответ
+     *  читается целиком. Сортировка — на стороне вызывающего (MPD умеет только
+     *  одну колонку за запрос). Пустой список ограничений сервер отвергает
+     *  («Incorrect number of filter arguments») — это no-op, как и пустой findadd.
+     */
+    [[nodiscard]] virtual QVector<DbSong> songsForConstraints(
+        const QVector<MpdTagConstraint> &constraints,
+        int limit = kDatabaseTrackWindow) const;
 
     // -- серверные настройки: fading, выходы, ReplayGain ---------------------
     /** @brief Выходные устройства сервера (`outputs`); пусто вне соединения. */

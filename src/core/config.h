@@ -136,6 +136,18 @@ public:
     QStringList playlistColumnsOrder() const;
     void setPlaylistColumnsOrder(const QStringList &keys);
 
+    // ── Database track columns ─────────────────────────────────────
+    /// Видимость колонки таблицы трэков базы (ключи `DatabaseTrackModel::columnKey`).
+    bool databaseColumnVisible(const QString &key) const;
+    void setDatabaseColumnVisible(const QString &key, bool visible);
+    /// Было ли значение когда-либо записано — отличие «явно скрыто» от дефолта.
+    bool hasDatabaseColumnSetting(const QString &key) const;
+
+    /** @brief Порядок колонок таблицы трэков базы (ключи).
+     *  Пустой список — исходный порядок. */
+    QStringList databaseColumnsOrder() const;
+    void setDatabaseColumnsOrder(const QStringList &keys);
+
     // ── Metadata ────────────────────────────────────────────────────
     QString discogsToken() const;
     void setDiscogsToken(const QString &t);

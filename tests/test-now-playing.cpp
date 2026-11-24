@@ -20,7 +20,9 @@
 static int argc = 1;
 static char arg0[] = "gmpc-qt-test";
 static char *argv = arg0;
-static QApplication app(argc, &argv);
+// На куче и без delete: статический QApplication в Qt 6.12 падает в
+// qt_cleanup_icon_cache при выходе.
+static QApplication *app = new QApplication(argc, &argv);
 
 namespace {
 
