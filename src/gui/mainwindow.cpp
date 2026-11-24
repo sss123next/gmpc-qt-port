@@ -581,6 +581,8 @@ void MainWindow::setupCentralArea()
 
     // CurrentPlaylist needs no add-to-queue menu: its rows are already in the
     // queue.  It builds its own context menu (play/remove/move/clear/save).
+    connect(currentPlaylist_, &CurrentPlaylist::infoRequested,
+            this, &MainWindow::showSongInfo);
 
     // ── Двойной клик (row-activated оригинала) ────────────────────────
     setupBrowserActivation(searchBrowser_->treeView(), [this](const QModelIndex &idx) {

@@ -454,6 +454,10 @@ void CurrentPlaylist::showContextMenu(const QPoint &pos)
     menu.addSeparator();
     const BrowserPathMenuItems paths = addPathMenuItems(menu, intents, musicDir);
 
+    QAction *infoAct = nullptr;
+    if (!intents.isEmpty())
+        infoAct = menu.addAction(tr("Info"));
+
     menu.addSeparator();
     const bool hasQueue = connected && model_->rowCount({}) > 0;
     QAction *clearAct = menu.addAction(tr("Clear queue"));
@@ -481,6 +485,10 @@ void CurrentPlaylist::showContextMenu(const QPoint &pos)
         QDesktopServices::openUrl(QUrl::fromLocalFile(paths.folder));
     } else if (paths.copyPath && chosen == paths.copyPath) {
         QApplication::clipboard()->setText(copyTextFor(intents, musicDir));
+    } else if (infoAct && chosen == infoAct) {
+        // Первая выделенная песня: окно одно, показывать Info толпой бессмысленно.
+        if (!intents.isEmpty())
+            emit infoRequested(intents.first().uri);
     } else if (chosen == clearAct) {
         clearQueueWithConfirm();
     } else if (chosen == saveAct) {

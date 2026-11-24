@@ -65,6 +65,10 @@ public:
     void onActivate() override;
     void onDeactivate() override;
 
+signals:
+    /// Пользователь запросил «Info» для трэка по URI.
+    void infoRequested(const QString &uri);
+
 protected:
     /** @brief Разбирает событие дропа: Qt умеет рисовать индикатор и собирать
      *  mimeData, но команду перестановки очереди знает только этот виджет. */
