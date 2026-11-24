@@ -18,12 +18,15 @@
 bool DirectoryFilterProxy::filterAcceptsRow(int sourceRow,
                                             const QModelIndex &sourceParent) const
 {
+    // Сначала текстовый фильтр (по DisplayRole колонки 0).
+    if (!QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent))
+        return false;
+
+    // Потом — только директории.
     const QModelIndex idx = sourceModel()->index(sourceRow, 0, sourceParent);
     if (!idx.isValid())
         return false;
-    const int type = idx.data(FileSystemModel::TypeRole).toInt();
-    // Root (тип не задан) и Directory показываем; Song и Playlist скрываем.
-    return type == FileNode::Directory;
+    return idx.data(FileSystemModel::TypeRole).toInt() == FileNode::Directory;
 }
 
 // ── FileBrowser ─────────────────────────────────────────────────────────────
@@ -82,17 +85,11 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
     , searchProxy_(new QSortFilterProxyModel(this))
     , leftView_(new QTreeView(this))
     , rightView_(new QTreeView(this))
-    , filterEdit_(new QLineEdit(this))
+    , treeFilterEdit_(new QLineEdit(this))
+    , contentFilterEdit_(new QLineEdit(this))
 {
     auto *lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
-
-    // ── Search field ──────────────────────────────────────────────────
-    filterEdit_->setPlaceholderText(tr("Search files…"));
-    filterEdit_->setClearButtonEnabled(true);
-    connect(filterEdit_, &QLineEdit::textChanged,
-            this, &FileBrowser::onFilterChanged);
-    lay->addWidget(filterEdit_);
 
     // ── Proxies ───────────────────────────────────────────────────────
     dirProxy_->setSourceModel(model_);
@@ -103,52 +100,85 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);
 
-    // Left pane: directory tree — только директории, только колонка имени.
-    leftView_->setModel(dirProxy_);
-    leftView_->setExpandsOnDoubleClick(true);
-    leftView_->setSelectionMode(QAbstractItemView::SingleSelection);
-    leftView_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    // ── Left pane: directory tree ─────────────────────────────────────
     {
-        auto *lh = leftView_->header();
-        lh->setStretchLastSection(false);
-        lh->setSectionResizeMode(0, QHeaderView::Interactive);
-        lh->hideSection(1);  // Type
-        lh->hideSection(2);  // Duration
-        const int w = Config::instance().fileBrowserColumnWidth(QLatin1String("tree_name"), -1);
-        if (w > 0)
-            lh->resizeSection(0, w);
-        connect(lh, &QHeaderView::sectionResized, this, [](int idx, int, int w) {
-            if (idx == 0)
-                Config::instance().setFileBrowserColumnWidth(QLatin1String("tree_name"), w);
+        auto *leftLay = new QVBoxLayout;
+        leftLay->setContentsMargins(0, 0, 0, 0);
+        leftLay->setSpacing(0);
+
+        treeFilterEdit_->setPlaceholderText(tr("Filter directories…"));
+        treeFilterEdit_->setClearButtonEnabled(true);
+        connect(treeFilterEdit_, &QLineEdit::textChanged,
+                this, &FileBrowser::onTreeFilterChanged);
+        leftLay->addWidget(treeFilterEdit_);
+
+        leftView_->setModel(dirProxy_);
+        leftView_->setExpandsOnDoubleClick(true);
+        leftView_->setSelectionMode(QAbstractItemView::SingleSelection);
+        leftView_->setSelectionBehavior(QAbstractItemView::SelectRows);
+        {
+            auto *lh = leftView_->header();
+            lh->setStretchLastSection(false);
+            lh->setSectionResizeMode(0, QHeaderView::Interactive);
+            lh->hideSection(1);  // Type
+            lh->hideSection(2);  // Duration
+            const int w = Config::instance().fileBrowserColumnWidth(QLatin1String("tree_name"), -1);
+            if (w > 0)
+                lh->resizeSection(0, w);
+            connect(lh, &QHeaderView::sectionResized, this, [](int idx, int, int w) {
+                if (idx == 0)
+                    Config::instance().setFileBrowserColumnWidth(QLatin1String("tree_name"), w);
+            });
+        }
+        leftLay->addWidget(leftView_, 1);
+
+        // Обёртка для splitter: layout не может быть прямым child'ом splitter'a,
+        // поэтому создаём QWidget-контейнер.
+        auto *leftPane = new QWidget(this);
+        leftPane->setLayout(leftLay);
+        splitter->addWidget(leftPane);
+    }
+
+    // ── Right pane: content of selected directory ─────────────────────
+    {
+        auto *rightLay = new QVBoxLayout;
+        rightLay->setContentsMargins(0, 0, 0, 0);
+        rightLay->setSpacing(0);
+
+        contentFilterEdit_->setPlaceholderText(tr("Filter files…"));
+        contentFilterEdit_->setClearButtonEnabled(true);
+        connect(contentFilterEdit_, &QLineEdit::textChanged,
+                this, &FileBrowser::onContentFilterChanged);
+        rightLay->addWidget(contentFilterEdit_);
+
+        rightView_->setModel(searchProxy_);
+        rightView_->setRootIsDecorated(false);
+        rightView_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+        rightView_->setSelectionBehavior(QAbstractItemView::SelectRows);
+        rightView_->setSortingEnabled(true);
+        // Ширины колонок восстанавливаются из Config и сохраняются при изменении.
+        auto *rh = rightView_->header();
+        rh->setStretchLastSection(false);
+        for (int c = 0; c < 3; ++c)
+            rh->setSectionResizeMode(c, QHeaderView::Interactive);
+        auto &cfg = Config::instance();
+        for (int c = 0; c < 3; ++c) {
+            const int w = cfg.fileBrowserColumnWidth(QLatin1String(colKeys[c]), -1);
+            if (w > 0)
+                rh->resizeSection(c, w);
+        }
+        connect(rh, &QHeaderView::sectionResized, this, [this](int idx, int, int w) {
+            if (idx >= 0 && idx < 3)
+                Config::instance().setFileBrowserColumnWidth(QLatin1String(colKeys[idx]), w);
         });
+
+        rightLay->addWidget(rightView_, 1);
+
+        auto *rightPane = new QWidget(this);
+        rightPane->setLayout(rightLay);
+        splitter->addWidget(rightPane);
     }
 
-    // Right pane: content of selected directory (через searchProxy).
-    rightView_->setModel(searchProxy_);
-    rightView_->setRootIsDecorated(false);
-    rightView_->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    rightView_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    rightView_->setSortingEnabled(true);
-    // Ширины колонок восстанавливаются из Config и сохраняются при изменении.
-    auto *rh = rightView_->header();
-    rh->setStretchLastSection(false);
-    // По-умолчанию все колонки Interactive: пользователь может менять ширину.
-    for (int c = 0; c < 3; ++c)
-        rh->setSectionResizeMode(c, QHeaderView::Interactive);
-    // Восстановить сохранённые ширины.
-    auto &cfg = Config::instance();
-    for (int c = 0; c < 3; ++c) {
-        const int w = cfg.fileBrowserColumnWidth(QLatin1String(colKeys[c]), -1);
-        if (w > 0)
-            rh->resizeSection(c, w);
-    }
-    connect(rh, &QHeaderView::sectionResized, this, [this](int idx, int, int w) {
-        if (idx >= 0 && idx < 3)
-            Config::instance().setFileBrowserColumnWidth(QLatin1String(colKeys[idx]), w);
-    });
-
-    splitter->addWidget(leftView_);
-    splitter->addWidget(rightView_);
     splitter->setStretchFactor(0, 1);
     splitter->setStretchFactor(1, 2);
     splitter->setSizes({250, 400});
@@ -191,7 +221,12 @@ void FileBrowser::onLeftSelectionChanged()
         leftView_->resizeColumnToContents(0);
 }
 
-void FileBrowser::onFilterChanged(const QString &text)
+void FileBrowser::onTreeFilterChanged(const QString &text)
+{
+    dirProxy_->setFilterFixedString(text);
+}
+
+void FileBrowser::onContentFilterChanged(const QString &text)
 {
     searchProxy_->setFilterFixedString(text);
 }

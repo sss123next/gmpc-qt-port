@@ -20,12 +20,15 @@ class FileSystemModel;
 class QTreeView;
 class QLineEdit;
 
-/// Прокси для левого дерева: показывает только директории (скрывает файлы и плейлисты).
+/// Прокси для левого дерева: только директории + фильтр по имени.
 class DirectoryFilterProxy : public QSortFilterProxyModel {
     Q_OBJECT
 public:
     explicit DirectoryFilterProxy(QObject *parent = nullptr)
-        : QSortFilterProxyModel(parent) {}
+        : QSortFilterProxyModel(parent) {
+        setFilterCaseSensitivity(Qt::CaseInsensitive);
+        setFilterKeyColumn(0);
+    }
 protected:
     bool filterAcceptsRow(int sourceRow,
                           const QModelIndex &sourceParent) const override;
@@ -68,7 +71,8 @@ public:
 
 private slots:
     void onLeftSelectionChanged();
-    void onFilterChanged(const QString &text);
+    void onTreeFilterChanged(const QString &text);
+    void onContentFilterChanged(const QString &text);
 
 private:
     Connection *conn_;
@@ -77,6 +81,7 @@ private:
     QSortFilterProxyModel *searchProxy_;///< поиск по имени в правой панели
     QTreeView *leftView_;               ///< directory tree
     QTreeView *rightView_;              ///< song list for selected directory
-    QLineEdit *filterEdit_;
+    QLineEdit *treeFilterEdit_;         ///< фильтр левого дерева
+    QLineEdit *contentFilterEdit_;      ///< фильтр правой панели
 };
 
