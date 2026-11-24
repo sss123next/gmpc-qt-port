@@ -83,13 +83,13 @@ DatabaseBrowser::DatabaseBrowser(Connection *conn, MpdCommands *cmds,
     , cmds_(cmds)
     , model_(new MusicDatabaseModel(conn, cmds, this))
     , treeProxy_(new DatabaseTreeProxy(this))
-    , tree_(new QTreeView(this))
+    , tree_(new TreeView(this))
     , tagCombo_(new QComboBox(this))
     , filterEdit_(new QLineEdit(this))
     , filterTimer_(new QTimer(this))
     , trackModel_(new DatabaseTrackModel(this))
     , trackProxy_(new QSortFilterProxyModel(this))
-    , trackTable_(new QTableView(this))
+    , trackTable_(new TableView(this))
     , trackFilter_(new QLineEdit(this))
 {
     setupUi();
@@ -104,6 +104,9 @@ void DatabaseBrowser::setupUi()
 {
     auto *lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
+
+    // Ширина скролл-бара на этой теме — для резерва от оверлей-скроллов.
+    const int sbw = style()->pixelMetric(QStyle::PM_ScrollBarExtent);
 
     // ── Верхняя строка: способ группировки и фильтр дерева ───────────────
     auto *topBar = new QHBoxLayout;
@@ -135,6 +138,11 @@ void DatabaseBrowser::setupUi()
     // скролл-бара последняя колонка оказывается под ним и не ресайзится.
     tree_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     tree_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // На системах с оверлей-скроллами (GTK) даже AlwaysOn рисуется поверх
+    // viewport. Резервируем место справа, чтобы последняя колонка оставалась
+    // доступной для ресайза.
+    if (style()->styleHint(QStyle::SH_ScrollBar_Transient))
+        tree_->setScrollbarMargin(sbw);
     // Двойной клик занят добавлением в очередь; раскрывают стрелку и Right/Left.
     tree_->setExpandsOnDoubleClick(false);
     tree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -211,6 +219,8 @@ void DatabaseBrowser::setupUi()
     trackTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
     trackTable_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     trackTable_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    if (style()->styleHint(QStyle::SH_ScrollBar_Transient))
+        trackTable_->setScrollbarMargin(sbw); // резерв под оверлей
     trackTable_->setSortingEnabled(true);
     trackTable_->sortByColumn(DatabaseTrackModel::TitleColumn,
                               Qt::AscendingOrder);

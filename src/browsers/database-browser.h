@@ -11,6 +11,8 @@
  */
 
 #include <QSortFilterProxyModel>
+#include <QTableView>
+#include <QTreeView>
 #include <QVector>
 
 #include "browser-widget.h"
@@ -28,9 +30,7 @@ class QLabel;
 class QLineEdit;
 class QSortFilterProxyModel;
 class QSplitter;
-class QTableView;
 class QTimer;
-class QTreeView;
 
 /// Фильтр дерева по именам групп и альбомов (родитель остаётся видимым).
 class DatabaseTreeProxy : public QSortFilterProxyModel {
@@ -44,6 +44,19 @@ public:
 
 protected:
     bool filterAcceptsRow(int row, const QModelIndex &parent) const override;
+};
+
+/// Thin wrapper that exposes setViewportMargins from QAbstractScrollArea
+/// (protected in the base). Needed to reserve space for overlay scrollbars.
+class TreeView : public QTreeView {
+public:
+    using QTreeView::QTreeView;
+    void setScrollbarMargin(int w) { setViewportMargins(0, 0, w, 0); }
+};
+class TableView : public QTableView {
+public:
+    using QTableView::QTableView;
+    void setScrollbarMargin(int w) { setViewportMargins(0, 0, w, 0); }
 };
 
 /// Просмотр базы MPD: группы → альбомы слева, трэки выбранного узла справа.
@@ -107,14 +120,14 @@ private:
 
     MusicDatabaseModel *model_;          ///< дерево групп и альбомов
     DatabaseTreeProxy *treeProxy_;       ///< фильтр по именам
-    QTreeView *tree_;
+    TreeView *tree_;
     QComboBox *tagCombo_;
     QLineEdit *filterEdit_;
     QTimer *filterTimer_;
 
     DatabaseTrackModel *trackModel_;
     QSortFilterProxyModel *trackProxy_;  ///< текстовый фильтр правой панели
-    QTableView *trackTable_;
+    TableView *trackTable_;
     QLineEdit *trackFilter_;
 
     CoverWidget *cover_;
