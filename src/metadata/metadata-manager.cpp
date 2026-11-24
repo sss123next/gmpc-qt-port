@@ -7,6 +7,33 @@
 #include "core/config.h"
 
 #include <QFileInfo>
+#include <QRegularExpression>
+
+// ── Static helpers ───────────────────────────────────────────────────────────
+
+/// Heuristic: text starts with '<' followed by an ASCII letter → XML.
+static bool looksLikeXml(const QString &text)
+{
+    return text.trimmed().startsWith('<') && text.size() > 1
+        && text.trimmed().at(1).isLetter();
+}
+
+/// Quick-and-dirty XML tag stripper for backward-compat cache entries.
+static QString stripXmlTags(const QString &xml)
+{
+    QString out = xml;
+    out.remove(QRegularExpression("<\\?xml[^>]*\\?>"));
+    out.replace(QRegularExpression("<br\\s*/?>"), "\n");
+    out.remove(QRegularExpression("<[^>]*>"));
+    out.replace("&amp;", "&");
+    out.replace("&lt;", "<");
+    out.replace("&gt;", ">");
+    out.replace("&quot;", "\"");
+    out.replace("&apos;", "'");
+    out = out.trimmed();
+    out.replace(QRegularExpression("\\n{3,}"), "\n\n");
+    return out;
+}
 
 MetadataManager::MetadataManager(const QString &cachePath,
                                  const QString &lastFmApiKey,
@@ -49,7 +76,9 @@ MetadataManager::MetadataManager(const QString &cachePath,
     // Forward lyrics signals
     connect(lyricsProvider_, &LrcLibProvider::lyricsFound, this,
             [this](const QString &plain, const QString &synced) {
-                QString text = synced.isEmpty() ? plain : synced;
+                // Prefer plain text over synced — synced may be raw TTML/XML
+                // (lrc.red, Unison) that is unreadable in a plain-text viewer.
+                QString text = plain.isEmpty() ? synced : plain;
                 if (!pendingArtistLyrics_.isEmpty()) {
                     // Cache lyrics
                     cachePut(QString("lyrics:%1:%2")
@@ -83,7 +112,7 @@ MetadataManager::MetadataManager(const QString &cachePath,
     // ── lrc.red ────────────────────────────────────────────────────
     connect(lrcRedProvider_, &LrcRedProvider::lyricsFound, this,
             [this](const QString &plain, const QString &synced) {
-                QString text = synced.isEmpty() ? plain : synced;
+                QString text = plain.isEmpty() ? synced : plain;
                 if (!pendingArtistLyrics_.isEmpty()) {
                     cachePut(QString("lyrics:%1:%2")
                              .arg(pendingArtistLyrics_, pendingTitleLyrics_),
@@ -115,7 +144,7 @@ MetadataManager::MetadataManager(const QString &cachePath,
     // ── Lrcmux ─────────────────────────────────────────────────────
     connect(lrcmuxProvider_, &LrcmuxProvider::lyricsFound, this,
             [this](const QString &plain, const QString &synced) {
-                QString text = synced.isEmpty() ? plain : synced;
+                QString text = plain.isEmpty() ? synced : plain;
                 if (!pendingArtistLyrics_.isEmpty()) {
                     cachePut(QString("lyrics:%1:%2")
                              .arg(pendingArtistLyrics_, pendingTitleLyrics_),
@@ -147,7 +176,7 @@ MetadataManager::MetadataManager(const QString &cachePath,
     // ── Unison ─────────────────────────────────────────────────────
     connect(unisonProvider_, &UnisonProvider::lyricsFound, this,
             [this](const QString &plain, const QString &synced) {
-                QString text = synced.isEmpty() ? plain : synced;
+                QString text = plain.isEmpty() ? synced : plain;
                 if (!pendingArtistLyrics_.isEmpty()) {
                     cachePut(QString("lyrics:%1:%2")
                              .arg(pendingArtistLyrics_, pendingTitleLyrics_),
@@ -255,7 +284,12 @@ void MetadataManager::requestLyrics(const QString &artist, const QString &title,
     QString key = QString("lyrics:%1:%2").arg(artist, title);
     QByteArray cached = cache_->get(key);
     if (!cached.isEmpty()) {
-        emit lyricsReady(artist, title, QString::fromUtf8(cached));
+        // Backward compat: old cache may contain raw TTML/XML from synced
+        // lyrics.  Strip tags so the user doesn't see <tt><span>… in UI.
+        QString text = QString::fromUtf8(cached);
+        if (looksLikeXml(text))
+            text = stripXmlTags(text);
+        emit lyricsReady(artist, title, text);
         return;
     }
 
