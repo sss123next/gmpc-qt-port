@@ -147,8 +147,8 @@ void DatabaseBrowser::setupUi()
     tree_->setExpandsOnDoubleClick(false);
     tree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     tree_->header()->setStretchLastSection(false);
-    // Обе колонки Interactive — пользователь может менять ширину.
-    tree_->header()->setSectionResizeMode(0, QHeaderView::Interactive);
+    // Первая колонка растягивается, заполняя ширину дерева.
+    tree_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     tree_->header()->setSectionResizeMode(1, QHeaderView::Interactive);
     tree_->header()->resizeSection(1, 120);
     // Третья колонка — распорка, отодвигающая правую границу колонки
