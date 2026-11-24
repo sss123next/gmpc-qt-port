@@ -156,6 +156,12 @@ int Config::databaseColumnWidth(const QString &key, int defaultWidth) const
 void Config::setDatabaseColumnWidth(const QString &key, int width)
     { s_.setValue("database/columnWidths/" + key, width); }
 
+// ── File browser columns ─────────────────────────────────────────────────
+int Config::fileBrowserColumnWidth(const QString &key, int defaultWidth) const
+    { return s_.value("fileBrowser/columnWidths/" + key, defaultWidth).toInt(); }
+void Config::setFileBrowserColumnWidth(const QString &key, int width)
+    { s_.setValue("fileBrowser/columnWidths/" + key, width); }
+
 // ── Metadata ─────────────────────────────────────────────────────────────
 QString Config::discogsToken() const
     { return s_.value("metadata/discogsToken", "").toString(); }

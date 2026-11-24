@@ -152,6 +152,11 @@ public:
     int databaseColumnWidth(const QString &key, int defaultWidth = -1) const;
     void setDatabaseColumnWidth(const QString &key, int width);
 
+    // ── File browser columns ────────────────────────────────────────
+    /// Ширина колонки правой панели файлового браузера.
+    int fileBrowserColumnWidth(const QString &key, int defaultWidth = -1) const;
+    void setFileBrowserColumnWidth(const QString &key, int width);
+
     // ── Metadata ────────────────────────────────────────────────────
     QString discogsToken() const;
     void setDiscogsToken(const QString &t);

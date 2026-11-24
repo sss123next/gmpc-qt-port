@@ -16,6 +16,9 @@
 
 namespace {
 
+/// Ключи колонок правой панели для Config::fileBrowserColumnWidth.
+const char *colKeys[] = {"name", "type", "duration"};
+
 /** @brief Намерение строки файловой модели.
  *  @returns false, если активировать строку нечем (Root — сам корень дерева).
  */
@@ -83,8 +86,23 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
     rightView_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     rightView_->setSelectionBehavior(QAbstractItemView::SelectRows);
     rightView_->setSortingEnabled(true);
-    rightView_->header()->setStretchLastSection(true);
-    rightView_->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    // Ширины колонок восстанавливаются из Config и сохраняются при изменении.
+    auto *rh = rightView_->header();
+    rh->setStretchLastSection(false);
+    // По-умолчанию все колонки Interactive: пользователь может менять ширину.
+    for (int c = 0; c < 3; ++c)
+        rh->setSectionResizeMode(c, QHeaderView::Interactive);
+    // Восстановить сохранённые ширины.
+    auto &cfg = Config::instance();
+    for (int c = 0; c < 3; ++c) {
+        const int w = cfg.fileBrowserColumnWidth(QLatin1String(colKeys[c]), -1);
+        if (w > 0)
+            rh->resizeSection(c, w);
+    }
+    connect(rh, &QHeaderView::sectionResized, this, [this](int idx, int, int w) {
+        if (idx >= 0 && idx < 3)
+            Config::instance().setFileBrowserColumnWidth(QLatin1String(colKeys[idx]), w);
+    });
 
     splitter->addWidget(leftView_);
     splitter->addWidget(rightView_);
