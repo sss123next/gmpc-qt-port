@@ -335,6 +335,38 @@ TEST_CASE("DatabaseBrowser filter narrows groups and keeps matches")
     CHECK_EQ(tree->model()->rowCount(), 2);
 }
 
+TEST_CASE("DatabaseBrowser tree sorts by stats column")
+{
+    MockConnection conn;
+    ALLOW_CALL(conn, isConnected()).RETURN(true);
+    FakeCmds cmds(&conn);
+    cmds.groups = {{"Tool", 2, 400}, {"Radiohead", 9, 2000}};
+
+    DatabaseBrowser browser(&conn, &cmds);
+    browser.onConnectionChanged(true);
+
+    auto *tree = browser.findChild<QTreeView *>("databaseTree");
+    REQUIRE(tree != nullptr);
+
+    // По умолчанию — сортировка по имени по возрастанию: «Radiohead» < «Tool».
+    CHECK_EQ(tree->model()->index(0, 0).data().toString(), "Radiohead");
+
+    // Переключаем на счётчики по убыванию: Radiohead (9) впереди Tool (2).
+    tree->sortByColumn(1, Qt::DescendingOrder);
+    QCoreApplication::processEvents();
+    CHECK_EQ(tree->model()->index(0, 0).data().toString(), "Radiohead");
+
+    // По счётчикам по возрастанию: Tool (2) впереди.
+    tree->sortByColumn(1, Qt::AscendingOrder);
+    QCoreApplication::processEvents();
+    CHECK_EQ(tree->model()->index(0, 0).data().toString(), "Tool");
+
+    // Возврат к сортировке по имени.
+    tree->sortByColumn(0, Qt::AscendingOrder);
+    QCoreApplication::processEvents();
+    CHECK_EQ(tree->model()->index(0, 0).data().toString(), "Radiohead");
+}
+
 TEST_CASE("DatabaseBrowser activation maps through the tree proxy")
 {
     MockConnection conn;

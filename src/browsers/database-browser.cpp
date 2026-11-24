@@ -131,14 +131,12 @@ void DatabaseBrowser::setupUi()
     tree_->setExpandsOnDoubleClick(false);
     tree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     tree_->header()->setStretchLastSection(false);
-    // Счётчики — фиксированной ширины по своей подписи: иначе заголовок
-    // обрезается, а «ResizeToContents» дёргает раскладку на каждой загрузке.
-    const int statsWidth =
-        tree_->fontMetrics().horizontalAdvance(
-            model_->headerData(1, Qt::Horizontal).toString()) + 24;
     tree_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
-    tree_->header()->setSectionResizeMode(1, QHeaderView::Fixed);
-    tree_->header()->resizeSection(1, statsWidth);
+    tree_->header()->setSectionResizeMode(1, QHeaderView::Interactive);
+    tree_->header()->resizeSection(1, 120);
+    tree_->setSortingEnabled(true);
+    tree_->sortByColumn(0, Qt::AscendingOrder);
+    treeProxy_->setSortRole(MusicDbRoles::SortRole);
 
     // Раскрытие грузит альбомы явно: вид не всегда успевает спросить
     // canFetchMore до отрисовки, и узел оставался пустым.

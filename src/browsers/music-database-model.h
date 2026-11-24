@@ -22,6 +22,8 @@
 namespace MusicDbRoles {
     /// Полная подпись объёма («12 · 48 m») — колонка статистики.
     constexpr int StatsRole = Qt::UserRole + 1;
+    /// Числовой ключ сортировки колонки счётчиков (`int songs`).
+    constexpr int SortRole = Qt::UserRole + 2;
 }
 
 /// Узел дерева базы: группа верхнего уровня либо альбом внутри неё.

@@ -271,6 +271,12 @@ QVariant MusicDatabaseModel::data(const QModelIndex &index, int role) const
         if (item->songs >= 0)
             return tr("%n track(s)", "", item->songs) + QLatin1Char(' ') + span;
         break;
+    case MusicDbRoles::SortRole:
+        if (index.column() == 0)
+            return name;
+        if (index.column() == 1)
+            return item->songs >= 0 ? item->songs : 0;
+        break;
     case Qt::ToolTipRole: {
         QString tip = name;
         if (item->songs >= 0)
