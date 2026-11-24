@@ -73,6 +73,8 @@ set(GUI_SOURCES
     src/gui/server-info-dialog.h
     src/gui/song-info-dialog.cpp
     src/gui/song-info-dialog.h
+    src/gui/track-info-window.cpp
+    src/gui/track-info-window.h
 )
 
 set(BROWSER_SOURCES
@@ -134,6 +136,8 @@ set(WIDGET_SOURCES
     src/widgets/cover-widget.h
     src/widgets/cover-viewer.cpp
     src/widgets/cover-viewer.h
+    src/widgets/track-info-panel.cpp
+    src/widgets/track-info-panel.h
 )
 
 set(TOOL_SOURCES

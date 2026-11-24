@@ -29,6 +29,7 @@
 #include "gui/add-url-dialog.h"
 #include "gui/server-info-dialog.h"
 #include "gui/song-info-dialog.h"
+#include "gui/track-info-window.h"
 
 #include "browsers/database-track-model.h"
 #include "browsers/music-database-model.h"
@@ -1255,8 +1256,7 @@ void MainWindow::showSongInfo(const QString &uri)
     else
         song.uri = uri;
 
-    auto *dlg = new SongInfoDialog(song, metadataMgr_, this);
-    // Окон можно открыть несколько подряд — пусть закрываются сами.
+    auto *dlg = new TrackInfoWindow(song, conn_, metadataMgr_, this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->show();
 }
