@@ -19,15 +19,19 @@ void CoverWidget::setMetadataManager(MetadataManager *mgr)
         connect(mgr_, &MetadataManager::coverReady, this,
                 [this](const QString &artist, const QString &album,
                        const QByteArray &data) {
-                    Q_UNUSED(artist);
-                    Q_UNUSED(album);
+                    // Сигнал приходит всем CoverWidget-ам, подключённым к тому же
+                    // MetadataManager. Игнорируем ответы, адресованные не нам.
+                    if (artist != pendingArtist_ || album != pendingAlbum_)
+                        return;
                     lastCoverData_ = data;
                     QPixmap pm;
                     if (pm.loadFromData(data))
                         setCover(pm);
                 });
         connect(mgr_, &MetadataManager::coverNotFound, this,
-                [this](const QString &, const QString &) {
+                [this](const QString &artist, const QString &album) {
+                    if (artist != pendingArtist_ || album != pendingAlbum_)
+                        return;
                     clear();
                 });
     }
@@ -47,6 +51,9 @@ void CoverWidget::fetchCover(const QString &artist, const QString &album,
     // Сразу сбрасываем старую обложку, чтобы не висела до ответа сети/кеша.
     clear();
 
+    pendingArtist_ = artist;
+    pendingAlbum_  = album;
+
     if (mgr_)
         mgr_->requestCover(artist, album, uri);
 }
@@ -63,6 +70,8 @@ void CoverWidget::clear()
 {
     currentPixmap_ = QPixmap();
     lastCoverData_.clear();
+    pendingArtist_.clear();
+    pendingAlbum_.clear();
     update();
 }
 

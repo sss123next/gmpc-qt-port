@@ -65,5 +65,7 @@ private:
     int coverPx_ = 128;   ///< сторона квадрата отрисовки, px
     QPixmap currentPixmap_;      ///< текущая обложка (null, если нет)
     QByteArray lastCoverData_;   ///< оригинальные данные для полноэкранного просмотра
+    QString pendingArtist_;      ///< artist последнего fetchCover (фильтр coverReady)
+    QString pendingAlbum_;       ///< album последнего fetchCover
 };
 
