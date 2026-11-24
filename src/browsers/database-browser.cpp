@@ -134,21 +134,16 @@ void DatabaseBrowser::setupUi()
     treeProxy_->setSourceModel(model_);
     tree_->setModel(treeProxy_);
     tree_->setUniformRowHeights(true);
-    // Вертикальный скролл — всегда навырост: иначе на стилях с наложением
-    // скролл-бара последняя колонка оказывается под ним и не ресайзится.
+    // Вертикальный скролл — всегда навырост.
     tree_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     tree_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    // Когда скролл-бар активен (есть что крутить), на оверлей-темах он рисуется
-    // поверх viewport и скрывает правую границу последней колонки. Отслеживаем
-    // диапазон: если >0, сдвигаем содержимое на ширину скролла.
-    const int sbw = std::max(style()->pixelMetric(QStyle::PM_ScrollBarExtent), 12);
-    auto updateTreeMargin = [this, sbw]() {
-        const bool scrolling = tree_->verticalScrollBar()->maximum() > 0;
-        tree_->setScrollbarMargin(scrolling ? sbw : 0);
-    };
-    connect(tree_->verticalScrollBar(), &QScrollBar::rangeChanged,
-            this, updateTreeMargin);
-    QTimer::singleShot(0, this, updateTreeMargin);
+    // На темах с оверлей-скроллами (GTK, KDE) даже AlwaysOn рисуется поверх
+    // viewport — последняя колонка уходит под ползунок. Стиль-шит на скроллбаре
+    // переключает Qt на QStyleSheetStyle, который не поддерживает оверлей:
+    // скроллбар гарантированно занимает место в раскладке.
+    tree_->verticalScrollBar()->setStyleSheet(
+        QStringLiteral("QScrollBar:vertical { width: 12px; }"));
+    // Двойной клик занят добавлением в очередь; раскрывают стрелку и Right/Left.
     // Двойной клик занят добавлением в очередь; раскрывают стрелку и Right/Left.
     tree_->setExpandsOnDoubleClick(false);
     tree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -225,15 +220,8 @@ void DatabaseBrowser::setupUi()
     trackTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
     trackTable_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     trackTable_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
-    {
-        auto updateMargin = [this, sbw]() {
-            const bool scrolling = trackTable_->verticalScrollBar()->maximum() > 0;
-            trackTable_->setScrollbarMargin(scrolling ? sbw : 0);
-        };
-        connect(trackTable_->verticalScrollBar(), &QScrollBar::rangeChanged,
-                this, updateMargin);
-        QTimer::singleShot(0, this, updateMargin);
-    }
+    trackTable_->verticalScrollBar()->setStyleSheet(
+        QStringLiteral("QScrollBar:vertical { width: 12px; }"));
     trackTable_->setSortingEnabled(true);
     trackTable_->sortByColumn(DatabaseTrackModel::TitleColumn,
                               Qt::AscendingOrder);
