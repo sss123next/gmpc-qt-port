@@ -220,17 +220,18 @@ void CurrentPlaylist::applyColumnConfig()
         header->setSectionHidden(column, !visible);
     }
 
-    // Resize modes for the core columns — extras default to Interactive.
-    // Последняя визуальная секция растягивается (вместо Stretch на Title),
-    // чтобы не блокировать перетаскивание колонок перед Title.
-    header->setStretchLastSection(true);
-    header->setSectionResizeMode(PlaylistModel::ArtistColumn, QHeaderView::Interactive);
-    header->setSectionResizeMode(PlaylistModel::AlbumColumn, QHeaderView::Interactive);
-    header->setSectionResizeMode(PlaylistModel::TimeColumn, QHeaderView::ResizeToContents);
-    header->setSectionResizeMode(PlaylistModel::PosColumn, QHeaderView::Interactive);
+    // Resize modes — все колонки Interactive, никакого Stretch.
+    // Stretch на любой секции блокирует перемещение колонок перед ней,
+    // поэтому все колонки равноправно перемещаемы.
+    for (int c = 0; c < PlaylistModel::ColumnCount; ++c)
+        header->setSectionResizeMode(c, QHeaderView::Interactive);
     header->resizeSection(PlaylistModel::ArtistColumn, 180);
     header->resizeSection(PlaylistModel::AlbumColumn, 180);
     header->resizeSection(PlaylistModel::PosColumn, 36);
+    // Time — ResizeToContents при первом появлении, но пользователь может
+    // изменить ширину вручную (Interactive).
+    header->resizeSection(PlaylistModel::TimeColumn,
+                          header->defaultSectionSize());
 
     // Порядок: каждый сохранённый ключ встаёт на следующее место подряд.
     // Если порядка нет — ставим колонку # первой, затем Title/Artist/Album/Time
