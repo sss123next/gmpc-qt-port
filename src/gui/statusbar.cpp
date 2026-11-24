@@ -3,6 +3,16 @@
 #include <QHBoxLayout>
 #include <QStringList>
 
+// Внешняя видимость для числа: знакомая каждому значение 2¹⁶-1.
+// MPD queue — uint32; если понадобится, переключим на %1.
+static QString fmtQueuePos(int pos, int len)
+{
+    // pos == -1 при остановленном — не показываем ничего.
+    if (pos < 0 || len <= 0)
+        return {};
+    return QStringLiteral("%1 / %2").arg(pos + 1).arg(len);
+}
+
 StatusBar::StatusBar(QWidget *parent)
     : QWidget(parent)
     , msgTimer_(new QTimer(this))
@@ -34,7 +44,9 @@ void StatusBar::updateStatus(const Connection::Status &s)
     if (showingMessage_)
         return;
 
-    QString text;
+    const QString qp = fmtQueuePos(s.songPos, s.queueLength);
+
+    QString stateText;
     if (s.state == MPD_STATE_PLAY) {
         // Format sample rate: 44100 → "44.1kHz", 48000 → "48kHz".
         QString sr;
@@ -69,14 +81,18 @@ void StatusBar::updateStatus(const Connection::Status &s)
         const QString fmt = parts.join(QLatin1Char(' '));
 
         if (fmt.isEmpty())
-            text = tr("Playing");
+            stateText = tr("Playing");
         else
-            text = tr("Playing — %1").arg(fmt);
+            stateText = tr("Playing — %1").arg(fmt);
     } else if (s.state == MPD_STATE_PAUSE)
-        text = tr("Paused");
+        stateText = tr("Paused");
     else
-        text = tr("Stopped");
-    infoLabel_->setText(text);
+        stateText = tr("Stopped");
+
+    if (qp.isEmpty())
+        infoLabel_->setText(stateText);
+    else
+        infoLabel_->setText(QStringLiteral("%1  %2").arg(qp, stateText));
 }
 
 void StatusBar::setFormat(const QString &fmt)
