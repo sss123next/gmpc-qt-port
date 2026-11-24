@@ -8,9 +8,23 @@
 #include "core/connection.h"
 #include "core/config.h"
 #include <QHeaderView>
+#include <QLineEdit>
 #include <QSplitter>
 #include <QTreeView>
 #include <QVBoxLayout>
+
+// ── DirectoryFilterProxy ───────────────────────────────────────────────────
+
+bool DirectoryFilterProxy::filterAcceptsRow(int sourceRow,
+                                            const QModelIndex &sourceParent) const
+{
+    const QModelIndex idx = sourceModel()->index(sourceRow, 0, sourceParent);
+    if (!idx.isValid())
+        return false;
+    const int type = idx.data(FileSystemModel::TypeRole).toInt();
+    // Root (тип не задан) и Directory показываем; Song и Playlist скрываем.
+    return type == FileNode::Directory;
+}
 
 // ── FileBrowser ─────────────────────────────────────────────────────────────
 
@@ -64,16 +78,33 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
     : BrowserWidget(parent)
     , conn_(conn)
     , model_(new FileSystemModel(conn, this))
+    , dirProxy_(new DirectoryFilterProxy(this))
+    , searchProxy_(new QSortFilterProxyModel(this))
     , leftView_(new QTreeView(this))
     , rightView_(new QTreeView(this))
+    , filterEdit_(new QLineEdit(this))
 {
     auto *lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
 
+    // ── Search field ──────────────────────────────────────────────────
+    filterEdit_->setPlaceholderText(tr("Search files…"));
+    filterEdit_->setClearButtonEnabled(true);
+    connect(filterEdit_, &QLineEdit::textChanged,
+            this, &FileBrowser::onFilterChanged);
+    lay->addWidget(filterEdit_);
+
+    // ── Proxies ───────────────────────────────────────────────────────
+    dirProxy_->setSourceModel(model_);
+
+    searchProxy_->setSourceModel(model_);
+    searchProxy_->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    searchProxy_->setFilterKeyColumn(0);   // ищем по имени
+
     auto *splitter = new QSplitter(Qt::Horizontal, this);
 
-    // Left pane: directory tree — только колонка имени, остальные скрыты.
-    leftView_->setModel(model_);
+    // Left pane: directory tree — только директории, только колонка имени.
+    leftView_->setModel(dirProxy_);
     leftView_->setExpandsOnDoubleClick(true);
     leftView_->setSelectionMode(QAbstractItemView::SingleSelection);
     leftView_->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -92,8 +123,8 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
         });
     }
 
-    // Right pane: content of selected directory (same model, flat subtree)
-    rightView_->setModel(model_);
+    // Right pane: content of selected directory (через searchProxy).
+    rightView_->setModel(searchProxy_);
     rightView_->setRootIsDecorated(false);
     rightView_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     rightView_->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -124,6 +155,7 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
 
     lay->addWidget(splitter);
 
+    // Смена выбора в левом дереве обновляет содержимое правой панели.
     connect(leftView_->selectionModel(),
             &QItemSelectionModel::currentChanged,
             this, &FileBrowser::onLeftSelectionChanged);
@@ -133,10 +165,14 @@ FileBrowser::~FileBrowser() = default;
 
 void FileBrowser::onLeftSelectionChanged()
 {
-    QModelIndex idx = leftView_->currentIndex();
-    rightView_->setRootIndex(idx);
+    // Индекс в dirProxy_ → source model → searchProxy_.
+    const QModelIndex srcIdx = dirProxy_->mapToSource(leftView_->currentIndex());
+    const QModelIndex proxyIdx = srcIdx.isValid()
+        ? searchProxy_->mapFromSource(srcIdx)
+        : QModelIndex();
+    rightView_->setRootIndex(proxyIdx);
 
-    if (!idx.isValid())
+    if (!srcIdx.isValid())
         return;
 
     auto &cfg = Config::instance();
@@ -155,15 +191,21 @@ void FileBrowser::onLeftSelectionChanged()
         leftView_->resizeColumnToContents(0);
 }
 
+void FileBrowser::onFilterChanged(const QString &text)
+{
+    searchProxy_->setFilterFixedString(text);
+}
+
 void FileBrowser::enterDirectory(const QModelIndex &contentIndex)
 {
     if (!contentIndex.isValid())
         return;
 
-    // Правая панель показывает данные той же модели, что и левая: индекс можно
-    // передавать напрямую. Смена текущей строки в левом дереве сама дёргает
-    // onLeftSelectionChanged, то есть меняет корень правой панели.
-    leftView_->setCurrentIndex(contentIndex);
+    // contentIndex — прокси-индекс из searchProxy_. Маппим в source,
+    // затем в dirProxy_, чтобы передать левому дереву.
+    const QModelIndex srcIdx = searchProxy_->mapToSource(contentIndex);
+    const QModelIndex dirIdx = dirProxy_->mapFromSource(srcIdx);
+    leftView_->setCurrentIndex(dirIdx);
 }
 
 QVector<BrowserIntent> FileBrowser::contentIntents() const

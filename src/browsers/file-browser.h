@@ -4,7 +4,8 @@
  * @file file-browser.h
  * @brief MPD file-system browser (2-pane: tree + song list).
  *
- * Left pane: directory tree. Right pane: songs in selected directory.
+ * Left pane: directory tree (only folders, filtered via proxy).
+ * Right pane: songs/searchable content of selected directory.
  * Uses FileSystemModel with lazy loading (canFetchMore/fetchMore).
  */
 
@@ -12,10 +13,23 @@
 #include "browser-intent.h"
 
 #include <QSet>
+#include <QSortFilterProxyModel>
 
 class Connection;
 class FileSystemModel;
 class QTreeView;
+class QLineEdit;
+
+/// Прокси для левого дерева: показывает только директории (скрывает файлы и плейлисты).
+class DirectoryFilterProxy : public QSortFilterProxyModel {
+    Q_OBJECT
+public:
+    explicit DirectoryFilterProxy(QObject *parent = nullptr)
+        : QSortFilterProxyModel(parent) {}
+protected:
+    bool filterAcceptsRow(int sourceRow,
+                          const QModelIndex &sourceParent) const override;
+};
 
 /// Browse MPD's virtual filesystem.
 class FileBrowser : public BrowserWidget {
@@ -54,11 +68,15 @@ public:
 
 private slots:
     void onLeftSelectionChanged();
+    void onFilterChanged(const QString &text);
 
 private:
     Connection *conn_;
     FileSystemModel *model_;
-    QTreeView *leftView_;   ///< directory tree
-    QTreeView *rightView_;  ///< song list for selected directory
+    DirectoryFilterProxy *dirProxy_;    ///< фильтр: только директории
+    QSortFilterProxyModel *searchProxy_;///< поиск по имени в правой панели
+    QTreeView *leftView_;               ///< directory tree
+    QTreeView *rightView_;              ///< song list for selected directory
+    QLineEdit *filterEdit_;
 };
 
