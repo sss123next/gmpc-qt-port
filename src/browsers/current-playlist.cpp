@@ -36,13 +36,19 @@
 
 namespace {
 
-/** @brief Дерево очереди, открывающее позицию индикатора дропа.
+/** @brief Таблица очереди, открывающая позицию индикатора дропа.
  *  Индикатор Qt рисует сам, а спросить, где именно он нарисован, может только
  *  потомок: и dropIndicatorPosition(), и сам enum DropIndicatorPosition объявлены
- *  protected, поэтому наружу отдаём уже готовый ответ, а не значение енума. */
-class QueueTreeView : public QTreeView {
+ *  protected, поэтому наружу отдаём уже готовый ответ, а не значение енума.
+ *
+ * QTableView вместо QTreeView: в очереди нет иерархии, а QTreeView по умолчанию
+ * блокирует перемещение первой колонки. */
+class QueueTableView : public QTableView {
 public:
-    using QTreeView::QTreeView;
+    using QTableView::QTableView;
+
+    /// Expose horizontalHeader publicly (QTableView::header() is protected).
+    QHeaderView *header() const { return horizontalHeader(); }
 
     /// Индикатор под строкой — значит, блок встанет после неё (иначе — перед).
     bool dropIndicatorBelowItem() const
@@ -96,15 +102,15 @@ void CurrentPlaylist::setupUi()
     filterEdit_->setClearButtonEnabled(true);
     lay->addWidget(filterEdit_);
 
-    view_ = new QueueTreeView(this);
+    view_ = new QueueTableView(this);
     view_->setModel(proxy_);
     view_->setAlternatingRowColors(true);
-    view_->setRootIsDecorated(false);
+    view_->setShowGrid(false);
     view_->setSortingEnabled(true);
     view_->setSelectionBehavior(QAbstractItemView::SelectRows);
     view_->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
-    auto *header = view_->header();
+    auto *header = view_->horizontalHeader();
     header->setStretchLastSection(false);
     header->setContextMenuPolicy(Qt::CustomContextMenu);
     header->setSectionsMovable(true);
@@ -132,12 +138,12 @@ void CurrentPlaylist::setupUi()
     lay->addWidget(view_, 1);
 
     // Двойной клик и Enter — как row-activated в оригинальном gmpc.
-    connect(view_, &QTreeView::activated, this, [this](const QModelIndex &index) {
+    connect(view_, &QTableView::activated, this, [this](const QModelIndex &index) {
         playRow(sourceRowOf(index));
     });
 
     view_->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(view_, &QTreeView::customContextMenuRequested,
+    connect(view_, &QTableView::customContextMenuRequested,
             this, &CurrentPlaylist::showContextMenu);
 
     // Delete/Backspace удаляют выделенное, но только когда фокус внутри дерева:
@@ -156,7 +162,7 @@ void CurrentPlaylist::setupUi()
 void CurrentPlaylist::showHeaderMenu(const QPoint &pos)
 {
     auto &cfg = Config::instance();
-    QHeaderView *header = view_->header();
+    QHeaderView *header = view_->horizontalHeader();
 
     QMenu menu(this);
 
@@ -171,7 +177,7 @@ void CurrentPlaylist::showHeaderMenu(const QPoint &pos)
         act->setData(key);
 
         connect(act, &QAction::toggled, this, [this, &cfg, col, key](bool on) {
-            QHeaderView *h = view_->header();
+            QHeaderView *h = view_->horizontalHeader();
             h->setSectionHidden(col, !on);
             cfg.setPlaylistColumnVisible(key, on);
         });
@@ -186,7 +192,7 @@ void CurrentPlaylist::saveColumnOrder()
         return;
 
     auto &cfg = Config::instance();
-    QHeaderView *header = view_->header();
+    QHeaderView *header = view_->horizontalHeader();
 
     // Read visual order: iterate logical columns, sort by visual index.
     QVector<QPair<int, int>> byVisual; // (visual, logical)
@@ -204,7 +210,7 @@ void CurrentPlaylist::saveColumnOrder()
 void CurrentPlaylist::applyColumnConfig()
 {
     auto &cfg = Config::instance();
-    QHeaderView *header = view_->header();
+    QHeaderView *header = view_->horizontalHeader();
 
     for (int column = 0; column < PlaylistModel::ColumnCount; ++column) {
         const QString key = playlistColumnKey(column);
@@ -220,18 +226,19 @@ void CurrentPlaylist::applyColumnConfig()
         header->setSectionHidden(column, !visible);
     }
 
-    // Resize modes — все колонки Interactive, никакого Stretch.
-    // Stretch на любой секции блокирует перемещение колонок перед ней,
-    // поэтому все колонки равноправно перемещаемы.
-    for (int c = 0; c < PlaylistModel::ColumnCount; ++c)
-        header->setSectionResizeMode(c, QHeaderView::Interactive);
+    // Resize modes.
+    // TitleColumn — Stretch (заполняет ширину). Остальные — Interactive,
+    // свободно перемещаются. QTableView не блокирует первую колонку.
+    header->setStretchLastSection(false);
+    for (int c = 0; c < PlaylistModel::ColumnCount; ++c) {
+        if (c == PlaylistModel::TitleColumn)
+            header->setSectionResizeMode(c, QHeaderView::Stretch);
+        else
+            header->setSectionResizeMode(c, QHeaderView::Interactive);
+    }
     header->resizeSection(PlaylistModel::ArtistColumn, 180);
     header->resizeSection(PlaylistModel::AlbumColumn, 180);
     header->resizeSection(PlaylistModel::PosColumn, 36);
-    // Time — ResizeToContents при первом появлении, но пользователь может
-    // изменить ширину вручную (Interactive).
-    header->resizeSection(PlaylistModel::TimeColumn,
-                          header->defaultSectionSize());
 
     // Порядок: каждый сохранённый ключ встаёт на следующее место подряд.
     // Если порядка нет — ставим колонку # первой, затем Title/Artist/Album/Time
@@ -265,7 +272,7 @@ void CurrentPlaylist::applyColumnConfig()
 
 void CurrentPlaylist::editColumns()
 {
-    QHeaderView *header = view_->header();
+    QHeaderView *header = view_->horizontalHeader();
 
     // Текущий порядок берём с экрана, а не из Config: пользователь мог тасовать
     // столбцы мышью за заголовок, и окно обязано показать то, что он видит.
@@ -426,7 +433,7 @@ bool CurrentPlaylist::eventFilter(QObject *watched, QEvent *event)
                 // «На строку» означает «перед ней» — так же Qt вставляет элемент в списке.
                 // Наследник нужен лишь затем, чтобы прочитать позицию индикатора;
                 // дерево создаётся здесь же, в setupUi(), поэтому приведение безопасно.
-                destRow = static_cast<QueueTreeView *>(view_)->dropIndicatorBelowItem()
+                destRow = static_cast<QueueTableView *>(view_)->dropIndicatorBelowItem()
                     ? row + 1 : row;
             }
 

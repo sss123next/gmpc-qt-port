@@ -4,16 +4,16 @@
  * @file current-playlist.h
  * @brief Current (now-playing) playlist browser.
  *
- * Displays the MPD queue in a QTreeView bound to a PlaylistModel and offers the
- * queue manipulation the original gmpc had: play by double-click, remove, move,
- * clear, save as, and reordering by drag&drop.
+ * Displays the MPD queue in a QTableView bound to a PlaylistModel and offers
+ * the queue manipulation the original gmpc had: play by double-click, remove,
+ * move, clear, save as, and reordering by drag&drop.
  */
 
 #include "browser-widget.h"
 #include "gui/column-chooser-dialog.h"
 
 #include <QVector>
-#include <QTreeView>
+#include <QTableView>
 #include <QLineEdit>
 #include <QList>
 #include <QSortFilterProxyModel>
@@ -38,8 +38,8 @@ public:
     QString title() const override { return tr("Current"); }
     QString iconName() const override { return QStringLiteral("media-playback-start"); }
 
-    /// The embedded tree view (for context menu setup).
-    QTreeView *treeView() const { return view_; }
+    /// The embedded table view (for context menu setup).
+    QTableView *treeView() const { return view_; }
 
     /** @brief Записать выбор колонок в Config и применить его к виду.
      *
@@ -120,7 +120,7 @@ private:
     MpdCommands *cmds_;
     PlaylistModel *model_;
     QueueSync *queueSync_ = nullptr;
-    QTreeView *view_;
+    QTableView *view_;
     QLineEdit *filterEdit_;
     QSortFilterProxyModel *proxy_;
     QMetaObject::Connection textChangedConn_;  ///< tracking for setSearchAsType
