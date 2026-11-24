@@ -57,6 +57,30 @@ void AsyncDownload::startRequest(const QNetworkRequest &req)
     startConnTimer();
 }
 
+void AsyncDownload::getMeta(const QNetworkRequest &req, CallbackWithMeta cb)
+{
+    cancel();
+    QNetworkReply *reply = mgr_->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, cb]() {
+        connTimer_.stop();
+        xferTimer_.stop();
+        const bool ok = reply->error() == QNetworkReply::NoError;
+        const QByteArray data = reply->readAll();
+        const int status = reply->attribute(
+            QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray etag = reply->rawHeader("ETag");
+        if (cb)
+            cb(ok, data, status, etag);
+        reply->deleteLater();
+        // NB: don't touch current_ — getMeta() bypasses the standard
+        // onFinished path and the cancel/replace-on-fetch pattern.
+        // The caller must not mix get/getMeta for the same download.
+    });
+    connect(reply, &QNetworkReply::metaDataChanged,
+            this, &AsyncDownload::startXferTimer);
+    startConnTimer();
+}
+
 void AsyncDownload::cancel()
 {
     cb_ = {};

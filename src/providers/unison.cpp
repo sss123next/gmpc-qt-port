@@ -4,6 +4,7 @@
  *
  * Single GET request to /lyrics?song=...&artist=... returns best matching
  * lyrics in TTML, LRC, or plain format.  Responses include ETag for caching.
+ * Conditional requests via If-None-Match avoid re-downloading unchanged data.
  */
 
 #include "unison.h"
@@ -14,12 +15,13 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QRegularExpression>
+#include <QNetworkRequest>
 #include <QDebug>
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
 static const char *kApiBase   = "https://unison.betterlyrics.org";
-static const char *kUserAgent = "gmpc-qt/0.3 (https://github.com/ssss/gmpc-qt; sss@dark-alexandr.net)";
+static const char *kUserAgent = "gmpc-qt/0.4 (https://github.com/ssss/gmpc-qt; sss@dark-alexandr.net)";
 
 // ── Constructor ─────────────────────────────────────────────────────────────
 
@@ -49,15 +51,70 @@ void UnisonProvider::fetchLyrics(const QString &artist, const QString &track,
         q.addQueryItem("duration", QString::number(durationSec));
     url.setQuery(q);
 
-    dl_->get(url, [this](bool ok, const QByteArray &data) {
-        onReply(ok, data);
+    QNetworkRequest req(url);
+    req.setRawHeader("User-Agent", QByteArray(kUserAgent));
+
+    // If we already have an ETag for this track, send conditional request.
+    const QString key = etagKey(artist, track);
+    const QString cachedEtag = etagCache_.value(key);
+    if (!cachedEtag.isEmpty()) {
+        req.setRawHeader("If-None-Match", cachedEtag.toUtf8());
+        qDebug() << "Unison: conditional request (ETag:" << cachedEtag << ")";
+    }
+
+    dl_->getMeta(req, [this](bool ok, const QByteArray &data,
+                              int httpStatus, const QByteArray &etag) {
+        onMetaReply(ok, data, httpStatus, etag);
     });
 }
 
-// ── Response handler ───────────────────────────────────────────────────────
+// ── ETag cache key ────────────────────────────────────────────────────────
 
-void UnisonProvider::onReply(bool ok, const QByteArray &data)
+QString UnisonProvider::etagKey(const QString &artist, const QString &track)
 {
+    return artist + QLatin1Char('\0') + track;
+}
+
+// ── Metadata-aware reply handler ──────────────────────────────────────────
+
+void UnisonProvider::onMetaReply(bool ok, const QByteArray &data,
+                                 int httpStatus, const QByteArray &etag)
+{
+    const QString key = etagKey(searchedArtist_, searchedTrack_);
+
+    // 304 Not Modified — data unchanged, already cached in MetadataManager.
+    // Silently return without emitting notFound/error.
+    if (ok && httpStatus == 304) {
+        qDebug() << "Unison: 304 Not Modified for" << searchedArtist_
+                 << searchedTrack_;
+        return;
+    }
+
+    // Save ETag on successful data-bearing response.
+    if (ok && !data.isEmpty() && !etag.isEmpty()) {
+        etagCache_.insert(key, QString::fromUtf8(etag));
+        qDebug() << "Unison: cached ETag" << etag << "for" << searchedArtist_
+                 << searchedTrack_;
+    }
+
+    // If we got a successful but empty response (and not 304, handled above),
+    // treat as not-found.
+    if (ok && data.isEmpty()) {
+        emit notFound();
+        return;
+    }
+
+    onReply(ok, data, httpStatus, etag);
+}
+
+// ── Legacy reply handler (used by test seam & fallback) ────────────────────
+
+void UnisonProvider::onReply(bool ok, const QByteArray &data,
+                             int httpStatus, const QByteArray &etag)
+{
+    Q_UNUSED(httpStatus);
+    Q_UNUSED(etag);
+
     if (!ok) { emit error(tr("Unison: network error")); return; }
 
     QJsonDocument doc = QJsonDocument::fromJson(data);
@@ -80,15 +137,11 @@ void UnisonProvider::onReply(bool ok, const QByteArray &data)
     QString lyricsText = dataObj.value("lyrics").toString();
     QString format     = dataObj.value("format").toString();  // ttml, lrc, plain
     QString syncType   = dataObj.value("syncType").toString(); // richsync, linesync, plain
-    // QString confidence = dataObj.value("confidence").toString();
-    // QString language   = dataObj.value("language").toString(); // available for display
 
     // Emit attribution for found lyrics (required by Unison terms).
-    // API returns submitter object with displayName; avatarUrl as fallback for submitterUrl.
     QJsonObject submitter = dataObj.value("submitter").toObject();
     QString submitterName = submitter.value("displayName").toString();
     QString submitterUrl  = submitter.value("avatarUrl").toString();
-    // Construct a rough Unison page URL from song/artist if no direct url field.
     QString unisonUrl;
     QJsonValue urlVal = dataObj.value("url");
     if (urlVal.isString())
@@ -102,16 +155,13 @@ void UnisonProvider::onReply(bool ok, const QByteArray &data)
     QString synced;
 
     if (format == "ttml") {
-        // TTML — extract plain text, keep TTML as synced
         plain = extractPlain(lyricsText, "ttml");
-        synced = lyricsText;  // keep raw TTML as synced format
+        synced = lyricsText;
     } else if (format == "lrc") {
-        // LRC — strip timestamps for plain, keep raw as synced
         static QRegularExpression lre(R"(\[\d{2}:\d{2}\.\d{2}\]|\[\d{2}:\d{2}\])");
         plain = QString(lyricsText).remove(lre).trimmed();
         synced = lyricsText;
     } else {
-        // Plain text
         plain = lyricsText;
         synced = QString();
     }

@@ -21,6 +21,11 @@ public:
     /// Invoked when the download completes (or fails).
     using Callback = std::function<void(bool ok, const QByteArray &data)>;
 
+    /// Extended callback that also provides HTTP status code and raw headers.
+    using CallbackWithMeta = std::function<void(bool ok, const QByteArray &data,
+                                                int httpStatusCode,
+                                                const QByteArray &etag)>;
+
     explicit AsyncDownload(QObject *parent = nullptr);
 
     /// Start an HTTP GET request (plain URL).
@@ -28,6 +33,9 @@ public:
 
     /// Start an HTTP GET request with a pre-configured QNetworkRequest.
     void get(const QNetworkRequest &req, Callback cb);
+
+    /// Start an HTTP GET with extended callback (status + ETag).
+    void getMeta(const QNetworkRequest &req, CallbackWithMeta cb);
 
     /// Abort a running request (safe to call even if none is running).
     void cancel();

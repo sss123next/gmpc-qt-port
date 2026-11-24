@@ -79,6 +79,11 @@ signals:
     /// Emitted on any provider error (for logging / UI).
     void error(const QString &message);
 
+    /// Emitted when Unison provides attribution info (must credit in UI).
+    void lyricsAttribution(const QString &unisonUrl,
+                           const QString &submitterName,
+                           const QString &submitterUrl);
+
 private:
     void onCoverData(const QString &artist, const QString &album,
                      const QByteArray &data);

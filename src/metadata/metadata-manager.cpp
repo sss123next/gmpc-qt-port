@@ -205,6 +205,10 @@ MetadataManager::MetadataManager(const QString &cachePath,
                 }
             });
 
+    // Forward Unison attribution info.
+    connect(unisonProvider_, &UnisonProvider::attributionInfo, this,
+            &MetadataManager::lyricsAttribution);
+
     // ── Lyrics.ovh fallback ─────────────────────────────────────────
     connect(lyricsFallback_, &LyricsOvhProvider::lyricsFound, this,
             [this](const QString &plain) {

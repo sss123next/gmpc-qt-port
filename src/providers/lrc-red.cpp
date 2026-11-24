@@ -19,7 +19,7 @@
 // ── Constants ──────────────────────────────────────────────────────────────
 
 static const char *kApiBase     = "https://lrc.red";
-static const char *kUserAgent   = "gmpc-qt/0.3 (https://github.com/ssss/gmpc-qt; sss@dark-alexandr.net)";
+static const char *kUserAgent   = "gmpc-qt/0.4 (https://github.com/ssss/gmpc-qt; sss@dark-alexandr.net)";
 static const int   kDurationTolerance = 3;  // seconds ±
 
 // ── Constructor ─────────────────────────────────────────────────────────────

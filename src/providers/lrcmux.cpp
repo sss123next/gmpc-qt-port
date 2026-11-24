@@ -18,7 +18,7 @@
 // ── Constants ──────────────────────────────────────────────────────────────
 
 static const char *kApiBase   = "https://api.lrcmux.dev/get";
-static const char *kUserAgent = "gmpc-qt/0.3 (https://github.com/ssss/gmpc-qt; sss@dark-alexandr.net)";
+static const char *kUserAgent = "gmpc-qt/0.4 (https://github.com/ssss/gmpc-qt; sss@dark-alexandr.net)";
 
 // ── Constructor ─────────────────────────────────────────────────────────────
 

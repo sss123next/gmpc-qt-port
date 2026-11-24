@@ -92,7 +92,7 @@ connect(lrcRedProvider_, &LrcRedProvider::error, ...);
 - Extract ISRC from search results.
 - Download TTML: `GET https://lrc.red/s/{ISRC}.ttml` (word/syllable sync).
 - Or download LRC: `GET https://lrc.red/s/{ISRC}.lrc` (line sync).
-- Send `User-Agent: gmpc-qt/0.3.x (https://github.com/ssss/gmpc-qt; email)`.
+- Send `User-Agent: gmpc-qt/0.4.x (https://github.com/ssss/gmpc-qt; email)`.
 - TTML parsing: extract text lines, strip XML. For synced, return LRC-like format.
 - Store synced lyrics in `syncedLyrics` field, plain text in `plainLyrics`.
 

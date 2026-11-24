@@ -16,6 +16,7 @@
 #include <QObject>
 #include <QString>
 #include <QByteArray>
+#include <QHash>
 #include "tools/async-download.h"
 
 /// Lyrics provider via Unison (free for open-source, no API key).
@@ -44,17 +45,25 @@ signals:
 
 public:   // ── Test seams (exposed for fuzz testing, no network) ──────────
     void testInjectReply(bool ok, const QByteArray &data)
-        { onReply(ok, data); }
+        { onReply(ok, data, 200, QByteArray()); }
 
 private:
-    void onReply(bool ok, const QByteArray &data);
+    void onReply(bool ok, const QByteArray &data, int httpStatus,
+                 const QByteArray &etag);
+    void onMetaReply(bool ok, const QByteArray &data, int httpStatus,
+                     const QByteArray &etag);
 
     /// Extract plain text from various lyrics formats.
     static QString extractPlain(const QString &lyrics, const QString &format);
+
+    /** @brief Build a cache key for ETag storage (artist + track). */
+    static QString etagKey(const QString &artist, const QString &track);
 
     AsyncDownload *dl_;
     QString searchedArtist_;
     QString searchedTrack_;
     QString searchedAlbum_;
     int searchedDuration_ = 0;
+    /// Per-track ETag cache: key = "artist\x00track", value = ETag string.
+    QHash<QString, QString> etagCache_;
 };
