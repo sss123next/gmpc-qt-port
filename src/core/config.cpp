@@ -135,6 +135,11 @@ QStringList Config::playlistColumnsOrder() const
 void Config::setPlaylistColumnsOrder(const QStringList &keys)
     { s_.setValue("playlist/columnOrder", keys.join(QLatin1Char(','))); }
 
+int Config::playlistColumnWidth(const QString &key, int defaultWidth) const
+    { return s_.value("playlist/columnWidths/" + key, defaultWidth).toInt(); }
+void Config::setPlaylistColumnWidth(const QString &key, int width)
+    { s_.setValue("playlist/columnWidths/" + key, width); }
+
 bool Config::databaseColumnVisible(const QString &key) const
     { return s_.value("database/columns/" + key, true).toBool(); }
 void Config::setDatabaseColumnVisible(const QString &key, bool visible)

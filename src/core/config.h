@@ -136,6 +136,10 @@ public:
     QStringList playlistColumnsOrder() const;
     void setPlaylistColumnsOrder(const QStringList &keys);
 
+    /// Ширина колонки очереди (-1 = не задана).
+    int playlistColumnWidth(const QString &key, int defaultWidth = -1) const;
+    void setPlaylistColumnWidth(const QString &key, int width);
+
     // ── Database track columns ─────────────────────────────────────
     /// Видимость колонки таблицы трэков базы (ключи `DatabaseTrackModel::columnKey`).
     bool databaseColumnVisible(const QString &key) const;

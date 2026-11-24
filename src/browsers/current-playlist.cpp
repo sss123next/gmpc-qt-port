@@ -118,6 +118,16 @@ void CurrentPlaylist::setupUi()
     // Сохранённый порядок и видимость колонок — поверх исходной раскладки.
     applyColumnConfig();
 
+    // Сохранять ширину колонок при ручном ресайзе (но не во время applyColumnConfig).
+    connect(header, &QHeaderView::sectionResized, this,
+            [this](int logicalIndex, int, int width) {
+        if (applyingColumns_)
+            return;
+        const QString key = playlistColumnKey(logicalIndex);
+        if (!key.isEmpty())
+            Config::instance().setPlaylistColumnWidth(key, width);
+    });
+
     // ————————————————————————————————————————————————————————————————————
     //  Контекстное меню заголовка: чекбоксы видимости колонок
     // ————————————————————————————————————————————————————————————————————
@@ -236,9 +246,25 @@ void CurrentPlaylist::applyColumnConfig()
         else
             header->setSectionResizeMode(c, QHeaderView::Interactive);
     }
-    header->resizeSection(PlaylistModel::ArtistColumn, 180);
-    header->resizeSection(PlaylistModel::AlbumColumn, 180);
-    header->resizeSection(PlaylistModel::PosColumn, 36);
+
+    // ── Ширины колонок ──────────────────────────────────────────────
+    // Восстановить из Config; если не сохранены — дефолтные.
+    // Guard: sectionResized в setupUi() сохраняет ширину, но во время
+    // программной установки сохранять не надо.
+    const bool wasApplying = applyingColumns_;
+    applyingColumns_ = true;
+    header->resizeSection(PlaylistModel::ArtistColumn,
+        cfg.playlistColumnWidth(QLatin1String("artist"), 180));
+    header->resizeSection(PlaylistModel::AlbumColumn,
+        cfg.playlistColumnWidth(QLatin1String("album"), 180));
+    header->resizeSection(PlaylistModel::PosColumn,
+        cfg.playlistColumnWidth(QLatin1String("pos"), 36));
+    // Time: ResizeToContents при первом появлении, но пользователь может
+    // изменить ширину вручную. Сохраняем как "time".
+    if (cfg.playlistColumnWidth(QLatin1String("time")) < 0)
+        header->resizeSection(PlaylistModel::TimeColumn,
+                              header->defaultSectionSize());
+    applyingColumns_ = wasApplying;
 
     // Порядок: каждый сохранённый ключ встаёт на следующее место подряд.
     // Если порядка нет — ставим колонку # первой, затем Title/Artist/Album/Time
