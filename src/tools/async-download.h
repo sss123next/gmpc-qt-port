@@ -32,14 +32,20 @@ public:
     /// Abort a running request (safe to call even if none is running).
     void cancel();
 
+    /** @brief Set overall transfer timeout (connect + read) for subsequent
+     *         requests.  0 = no timeout (Qt default). */
+    void setTimeout(int ms);
+
 private slots:
     void onFinished();
 
 private:
     /// Shared QNetworkAccessManager — one instance for all HTTP downloads.
     static QNetworkAccessManager *sharedManager();
+    void applyTimeout(QNetworkRequest &req);
     QNetworkAccessManager *mgr_;
     QNetworkReply *current_ = nullptr;
     Callback cb_;
+    int timeoutMs_ = 0;
 };
 

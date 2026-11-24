@@ -17,6 +17,7 @@ static const char *kApiBase = "https://lrclib.net/api";
 LrcLibProvider::LrcLibProvider(QObject *parent)
     : QObject(parent), dl_(new AsyncDownload(this))
 {
+    dl_->setTimeout(10000);  // 10s overall timeout for lyrics downloads
 }
 
 void LrcLibProvider::fetchLyrics(const QString &artist, const QString &track,

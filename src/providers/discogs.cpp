@@ -23,6 +23,7 @@ DiscogsProvider::DiscogsProvider(const QString &token, QObject *parent)
     , token_(token)
     , dl_(new AsyncDownload(this))
 {
+    dl_->setTimeout(30000);  // 30s overall timeout for cover downloads
     if (token_.isEmpty())
         qCWarning(discogsLog) << "Discogs: no token — rate limited to 25 req/min";
 }

@@ -21,6 +21,7 @@ void AsyncDownload::get(const QUrl &url, Callback cb)
     cancel();
     cb_ = std::move(cb);
     QNetworkRequest req(url);
+    applyTimeout(req);
     current_ = mgr_->get(req);
     connect(current_, &QNetworkReply::finished,
             this, &AsyncDownload::onFinished);
@@ -30,9 +31,22 @@ void AsyncDownload::get(const QNetworkRequest &req, Callback cb)
 {
     cancel();
     cb_ = std::move(cb);
-    current_ = mgr_->get(req);
+    QNetworkRequest copy(req);
+    applyTimeout(copy);
+    current_ = mgr_->get(copy);
     connect(current_, &QNetworkReply::finished,
             this, &AsyncDownload::onFinished);
+}
+
+void AsyncDownload::setTimeout(int ms)
+{
+    timeoutMs_ = ms;
+}
+
+void AsyncDownload::applyTimeout(QNetworkRequest &req)
+{
+    if (timeoutMs_ > 0)
+        req.setTransferTimeout(timeoutMs_);
 }
 
 void AsyncDownload::cancel()

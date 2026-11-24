@@ -27,6 +27,7 @@ static const int   kDurationTolerance = 3;  // seconds ±
 LrcRedProvider::LrcRedProvider(QObject *parent)
     : QObject(parent), dl_(new AsyncDownload(this))
 {
+    dl_->setTimeout(10000);  // 10s overall timeout for lyrics downloads
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
