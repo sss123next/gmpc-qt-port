@@ -209,7 +209,8 @@ void CurrentPlaylist::applyColumnConfig()
     for (int column = 0; column < PlaylistModel::ColumnCount; ++column) {
         const QString key = playlistColumnKey(column);
         const bool saved   = cfg.hasPlaylistColumnSetting(key);
-        const bool isCore  = column <= PlaylistModel::TimeColumn;
+        const bool isCore  = column <= PlaylistModel::TimeColumn
+                             || column == PlaylistModel::PosColumn;
 
         // Core columns visible by default; extra columns hidden until
         // the user explicitly enables them via the header menu.
@@ -224,15 +225,33 @@ void CurrentPlaylist::applyColumnConfig()
     header->setSectionResizeMode(PlaylistModel::ArtistColumn, QHeaderView::Interactive);
     header->setSectionResizeMode(PlaylistModel::AlbumColumn, QHeaderView::Interactive);
     header->setSectionResizeMode(PlaylistModel::TimeColumn, QHeaderView::ResizeToContents);
+    header->setSectionResizeMode(PlaylistModel::PosColumn, QHeaderView::Interactive);
     header->resizeSection(PlaylistModel::ArtistColumn, 180);
     header->resizeSection(PlaylistModel::AlbumColumn, 180);
+    header->resizeSection(PlaylistModel::PosColumn, 36);
 
     // Порядок: каждый сохранённый ключ встаёт на следующее место подряд.
+    // Если порядка нет — ставим колонку # первой, затем Title/Artist/Album/Time
+    // и скрытые extra-колонки.
     // Guard the programmatic moves: sectionMoved signal must not trigger
     // saveColumnOrder during initial layout.
     applyingColumns_ = true;
+
+    QStringList order = cfg.playlistColumnsOrder();
+    if (order.isEmpty()) {
+        order = {
+            QStringLiteral("pos"),
+            QStringLiteral("title"),
+            QStringLiteral("artist"),
+            QStringLiteral("album"),
+            QStringLiteral("time"),
+        };
+        for (int col = PlaylistModel::TrackColumn; col < PlaylistModel::ColumnCount; ++col)
+            order.append(playlistColumnKey(col));
+    }
+
     int target = 0;
-    for (const QString &key : cfg.playlistColumnsOrder()) {
+    for (const QString &key : order) {
         const int column = playlistColumnForKey(key);
         if (column < 0)
             continue;   // ключ из другой версии — нашего столбца за ним нет

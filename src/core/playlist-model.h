@@ -86,6 +86,10 @@ public:
         PerformerColumn,
         LabelColumn,
         CommentColumn,
+        /** @brief Порядковый номер в очереди (1-based, pos+1).
+         *  Технически это дубль номера строки, но пользователю удобнее видеть
+         *  столбец, чем считать строки. */
+        PosColumn,
         ColumnCount
     };
 

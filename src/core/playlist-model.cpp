@@ -81,6 +81,7 @@ QString playlistColumnKey(int column)
     case PlaylistModel::PerformerColumn: return QStringLiteral("performer");
     case PlaylistModel::LabelColumn:   return QStringLiteral("label");
     case PlaylistModel::CommentColumn: return QStringLiteral("comment");
+    case PlaylistModel::PosColumn:     return QStringLiteral("pos");
     }
     return {};
 }
@@ -203,11 +204,14 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const
         case PerformerColumn: return s.performer;
         case LabelColumn:    return s.label;
         case CommentColumn:  return s.comment;
+        case PosColumn:      return s.pos >= 0 ? s.pos + 1 : QVariant();
         }
         return {};
     case Qt::TextAlignmentRole:
         if (index.column() == TimeColumn)
             return int(Qt::AlignRight | Qt::AlignVCenter);
+        if (index.column() == PosColumn)
+            return int(Qt::AlignCenter);
         return {};
     case SortRole:
         // Сортировка по DisplayRole сравнивала бы «10:00» и «9:00» как текст, из-за
@@ -226,6 +230,7 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const
         case PerformerColumn: return s.performer;
         case LabelColumn:    return s.label;
         case CommentColumn:  return s.comment;
+        case PosColumn:      return s.pos;
         }
         return {};
     }
@@ -255,6 +260,7 @@ QVariant PlaylistModel::headerData(int section, Qt::Orientation orientation,
     case PerformerColumn: return tr("Performer");
     case LabelColumn:    return tr("Label");
     case CommentColumn:  return tr("Comment");
+    case PosColumn:      return QStringLiteral("#");
     }
     return {};
 }
