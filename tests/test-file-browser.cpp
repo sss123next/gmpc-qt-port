@@ -1,4 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 #include "trompeloeil-doctest.hpp"
 
@@ -18,10 +18,11 @@
 #include "browsers/file-browser.h"
 #include "browsers/file-system-model.h"
 
-static int argc = 1;
-static char arg0[] = "gmpc-qt-test";
-static char *argv = arg0;
-static QApplication app(argc, &argv);
+int main(int argc, char *argv[])
+{
+    QApplication app(argc, argv);
+    return doctest::Context(argc, argv).run();
+}
 
 // ── Mock Connection ──────────────────────────────────────────────────────────
 
