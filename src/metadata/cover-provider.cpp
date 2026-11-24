@@ -35,7 +35,7 @@ CoverProvider::CoverProvider(const QString &lastFmApiKey,
     , ownsDl_(true)
     , musicDir_(musicDir)
 {
-    dl_->setTimeout(30000);  // 30s overall timeout for cover downloads
+    dl_->setTimeout(5000, 30000);  // 5s connect, 30s overall for covers
 
     // Forward Apple Music signals — connected once, dispatch through seq_-aware methods.
     connect(appleMusic_, &AppleMusicProvider::coverFound, this, [this](const QByteArray &data) {
@@ -533,7 +533,7 @@ void CoverProvider::tryComplete(const QString &artist, const QString &album,
 DeezerProvider::DeezerProvider(QObject *parent)
     : QObject(parent), dl_(new AsyncDownload(this))
 {
-    dl_->setTimeout(30000);  // 30s overall timeout for cover downloads
+    dl_->setTimeout(5000, 30000);  // 5s connect, 30s overall for covers
 }
 
 DeezerProvider::~DeezerProvider()

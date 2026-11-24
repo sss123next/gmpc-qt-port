@@ -28,7 +28,7 @@ static const char *kItunesSearch = "https://itunes.apple.com/search";
 AppleMusicProvider::AppleMusicProvider(QObject *parent)
     : QObject(parent), dl_(new AsyncDownload(this))
 {
-    dl_->setTimeout(30000);  // 30s overall timeout for cover downloads
+    dl_->setTimeout(5000, 30000);  // 5s connect, 30s overall for covers
 }
 
 AppleMusicProvider::~AppleMusicProvider()

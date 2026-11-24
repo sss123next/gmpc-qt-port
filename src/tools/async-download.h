@@ -1,17 +1,17 @@
 #pragma once
 
-/**
- * @file async-download.h
+/** @file async-download.h
  * @brief Minimal async HTTP downloader using QNetworkAccessManager.
  *
- * Used internally by CoverProvider and metadata providers to fetch
- * album art, lyrics, and other remote resources.
+ * Supports separate connection and transfer timeouts via QTimer.
+ * Used internally by CoverProvider and metadata providers.
  */
 
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QByteArray>
+#include <QTimer>
 #include <functional>
 
 /// One-shot HTTP GET helper with callback on finish.
@@ -32,20 +32,30 @@ public:
     /// Abort a running request (safe to call even if none is running).
     void cancel();
 
-    /** @brief Set overall transfer timeout (connect + read) for subsequent
-     *         requests.  0 = no timeout (Qt default). */
-    void setTimeout(int ms);
+    /** @brief Set timeouts for subsequent requests.
+     *  @param connTimeoutMs  Max time to establish TCP + TLS (ms).  0 = default.
+     *  @param xferTimeoutMs  Max time after connection for full response (ms).  0 = default. */
+    void setTimeout(int connTimeoutMs, int xferTimeoutMs);
 
 private slots:
     void onFinished();
+    void onConnTimeout();
+    void onXferTimeout();
 
 private:
     /// Shared QNetworkAccessManager — one instance for all HTTP downloads.
     static QNetworkAccessManager *sharedManager();
-    void applyTimeout(QNetworkRequest &req);
+    void startRequest(const QNetworkRequest &req);
+    void startConnTimer();
+    void startXferTimer();
+    void abortWithError();
+
     QNetworkAccessManager *mgr_;
     QNetworkReply *current_ = nullptr;
     Callback cb_;
-    int timeoutMs_ = 0;
+    QTimer connTimer_;
+    QTimer xferTimer_;
+    int connTimeoutMs_ = 0;
+    int xferTimeoutMs_ = 0;
 };
 
