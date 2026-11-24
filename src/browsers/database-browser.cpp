@@ -131,6 +131,10 @@ void DatabaseBrowser::setupUi()
     treeProxy_->setSourceModel(model_);
     tree_->setModel(treeProxy_);
     tree_->setUniformRowHeights(true);
+    // Вертикальный скролл — всегда навырост: иначе на стилях с наложением
+    // скролл-бара последняя колонка оказывается под ним и не ресайзится.
+    tree_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    tree_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     // Двойной клик занят добавлением в очередь; раскрывают стрелку и Right/Left.
     tree_->setExpandsOnDoubleClick(false);
     tree_->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -206,6 +210,7 @@ void DatabaseBrowser::setupUi()
     trackTable_->setModel(trackProxy_);
     trackTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
     trackTable_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    trackTable_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     trackTable_->setSortingEnabled(true);
     trackTable_->sortByColumn(DatabaseTrackModel::TitleColumn,
                               Qt::AscendingOrder);
