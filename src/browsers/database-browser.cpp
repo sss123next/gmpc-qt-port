@@ -119,10 +119,7 @@ void DatabaseBrowser::setupUi()
     filterEdit_->setObjectName(QStringLiteral("databaseFilter"));
     filterEdit_->setPlaceholderText(tr("Filter artists and albums…"));
     filterEdit_->setClearButtonEnabled(true);
-    connect(filterEdit_, &QLineEdit::textChanged, this, [this] {
-        // Локальный фильтр дешёв, но пересобирать прокси на каждую букву незачем.
-        filterTimer_->start(kFilterDebounceMs);
-    });
+    connect(filterEdit_, &QLineEdit::returnPressed, this, &DatabaseBrowser::applyTreeFilter);
     topBar->addWidget(filterEdit_, 1);
     lay->addLayout(topBar);
 
@@ -229,11 +226,9 @@ void DatabaseBrowser::setupUi()
     trackFilter_->setObjectName(QStringLiteral("databaseTrackFilter"));
     trackFilter_->setPlaceholderText(tr("Filter tracks…"));
     trackFilter_->setClearButtonEnabled(true);
-    connect(trackFilter_, &QLineEdit::textChanged, this,
-            [this](const QString &text) {
-                // Правый фильтр — по уже загруженному списку: сервер не нужен.
-                trackProxy_->setFilterFixedString(text.trimmed());
-            });
+    connect(trackFilter_, &QLineEdit::returnPressed, this, [this] {
+        trackProxy_->setFilterFixedString(trackFilter_->text().trimmed());
+    });
     rl->addWidget(trackFilter_);
 
     trackTable_->setObjectName(QStringLiteral("databaseTracks"));
@@ -570,6 +565,21 @@ void DatabaseBrowser::applyTreeFilter()
     // Совпавшие группы раскрываем: иначе фильтр по альбому ничего не покажет.
     for (int row = 0; row < treeProxy_->rowCount(); ++row)
         tree_->expand(treeProxy_->index(row, 0));
+}
+
+void DatabaseBrowser::setSearchAsType(bool on)
+{
+    disconnect(filterTextChangedConn_);
+    disconnect(trackFilterTextChangedConn_);
+    if (on) {
+        filterTextChangedConn_ = connect(filterEdit_, &QLineEdit::textChanged, this, [this] {
+            filterTimer_->start(kFilterDebounceMs);
+        });
+        trackFilterTextChangedConn_ = connect(trackFilter_, &QLineEdit::textChanged, this,
+            [this](const QString &text) {
+                trackProxy_->setFilterFixedString(text.trimmed());
+            });
+    }
 }
 
 // ── Клик по обложке: полноэкранный просмотр ──────────────────────────────

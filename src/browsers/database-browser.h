@@ -83,6 +83,10 @@ public:
     /// Намерения выделенных трэков правой панели.
     [[nodiscard]] QVector<BrowserIntent> trackIntents() const;
 
+    /** @brief Toggle live filtering (textChanged) vs Enter-only search
+     *         для обеих панелей (дерево навигации и таблица трэков). */
+    void setSearchAsType(bool on);
+
     /// Обложки и метаданные шапки берутся из общего менеджера MainWindow.
     void setMetadataManager(MetadataManager *mgr);
 
@@ -129,6 +133,9 @@ private:
     QSortFilterProxyModel *trackProxy_;  ///< текстовый фильтр правой панели
     TableView *trackTable_;
     QLineEdit *trackFilter_;
+
+    QMetaObject::Connection filterTextChangedConn_;
+    QMetaObject::Connection trackFilterTextChangedConn_;
 
     CoverWidget *cover_;
     CoverViewer *coverViewer_ = nullptr;

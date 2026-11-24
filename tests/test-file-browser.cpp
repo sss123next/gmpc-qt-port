@@ -36,13 +36,19 @@ public:
 
 // ── Tests for FileSystemModel ─────────────────────────────────────────────────
 
-TEST_CASE("FileSystemModel is initially empty")
+TEST_CASE("FileSystemModel has root node \"/\"")
 {
     MockConnection conn;
     FileSystemModel model(&conn);
-    CHECK_EQ(model.rowCount({}), 0);
-    // Root has no children, canFetchMore returns true (not loaded yet)
-    CHECK_EQ(model.canFetchMore({}), true);
+    // Модель всегда содержит один корневой элемент «/».
+    CHECK_EQ(model.rowCount({}), 1);
+    const QModelIndex rootIdx = model.index(0, 0);
+    CHECK(rootIdx.isValid());
+    CHECK_EQ(model.data(rootIdx).toString(), QStringLiteral("/"));
+    // «/» ещё не загружен, canFetchMore для него вернёт true.
+    CHECK_EQ(model.canFetchMore(rootIdx), true);
+    // Сам корень модели загружен (содержит «/»), so canFetchMore({}) == false.
+    CHECK_EQ(model.canFetchMore({}), false);
 }
 
 TEST_CASE("FileSystemModel has three columns")
@@ -99,10 +105,12 @@ TEST_CASE("FileSystemModel default state is safe")
 {
     MockConnection conn;
     FileSystemModel model(&conn);
+    // Index(0,0) is the virtual root "/"
+    CHECK(model.index(0, 0).isValid());
     // Out-of-bounds access should be safe
-    CHECK_FALSE(model.index(0, 0).isValid());
+    CHECK_FALSE(model.index(1, 0).isValid());
     CHECK_FALSE(model.index(0, 0, model.index(0, 0)).isValid());
-    CHECK_FALSE(model.parent(model.index(0, 0)).isValid());
+    CHECK_FALSE(model.parent(model.index(1, 0)).isValid());
     // data on invalid index is quiet
     CHECK(model.data({}).isNull());
 }
@@ -167,7 +175,7 @@ TEST_CASE("FileBrowser exposes both panes and ignores invalid activation")
     CHECK(browser.treeView() != browser.contentView());
 
     browser.enterDirectory({});   // невалидная строка правой панели — no-op
-    CHECK_EQ(browser.contentView()->model()->rowCount({}), 0);
+    CHECK_EQ(browser.contentView()->model()->rowCount({}), 1);  // корневой «/»
 }
 
 // ── Живой MPD: дерево файлов (политика тестирования, пункт «интеграция») ───
@@ -196,14 +204,16 @@ TEST_CASE("живой MPD: корень дерева файлов непуст �
     }
 
     FileSystemModel model(&conn);
-    REQUIRE(model.canFetchMore({}));
-    model.fetchMore({});
+    const QModelIndex rootIdx = model.index(0, 0);
+    REQUIRE(rootIdx.isValid());
+    REQUIRE(model.canFetchMore(rootIdx));
+    model.fetchMore(rootIdx);
 
     // Запрет «пусто = зелёный»: каталог музыки сервера обязан что-то отдать.
-    const int rows = model.rowCount({});
+    const int rows = model.rowCount(rootIdx);
     CHECK_GT(rows, 0);
     for (int i = 0; i < rows && i < 20; ++i) {
-        const QModelIndex idx = model.index(i, 0);
+        const QModelIndex idx = model.index(i, 0, rootIdx);
         REQUIRE(idx.isValid());
         const QString path =
             model.data(idx, FileSystemModel::UriRole).toString();
@@ -222,18 +232,20 @@ TEST_CASE("живой MPD: спуск на уровень не выходит з
     }
 
     FileSystemModel model(&conn);
-    model.fetchMore({});
+    const QModelIndex rootIdx = model.index(0, 0);
+    REQUIRE(rootIdx.isValid());
+    model.fetchMore(rootIdx);
 
     int dirRow = -1;
-    const int rows = model.rowCount({});
+    const int rows = model.rowCount(rootIdx);
     for (int i = 0; i < rows && dirRow < 0; ++i) {
-        if (model.data(model.index(i, 0), FileSystemModel::TypeRole).toInt()
+        if (model.data(model.index(i, 0, rootIdx), FileSystemModel::TypeRole).toInt()
             == static_cast<int>(FileNode::Directory))
             dirRow = i;
     }
     REQUIRE_MESSAGE(dirRow >= 0, "в корне сервера нет ни одного каталога");
 
-    const QModelIndex parentIdx = model.index(dirRow, 0);
+    const QModelIndex parentIdx = model.index(dirRow, 0, rootIdx);
     REQUIRE(parentIdx.isValid());
     const QString parentPath =
         model.data(parentIdx, FileSystemModel::UriRole).toString();

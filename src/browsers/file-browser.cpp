@@ -18,15 +18,42 @@
 bool DirectoryFilterProxy::filterAcceptsRow(int sourceRow,
                                             const QModelIndex &sourceParent) const
 {
-    // Сначала текстовый фильтр (по DisplayRole колонки 0).
-    if (!QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent))
-        return false;
-
-    // Потом — только директории.
     const QModelIndex idx = sourceModel()->index(sourceRow, 0, sourceParent);
     if (!idx.isValid())
         return false;
-    return idx.data(FileSystemModel::TypeRole).toInt() == FileNode::Directory;
+
+    // Только директории (файлы и плейлисты не показываем в левом дереве).
+    if (idx.data(FileSystemModel::TypeRole).toInt() != FileNode::Directory)
+        return false;
+
+    // Базовый класс с recursiveFilteringEnabled проверит имя и потомков.
+    return QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent);
+}
+
+// ── ContentFilterProxy ─────────────────────────────────────────────────────
+
+bool ContentFilterProxy::filterAcceptsRow(int sourceRow,
+                                          const QModelIndex &sourceParent) const
+{
+    const QModelIndex idx = sourceModel()->index(sourceRow, 0, sourceParent);
+    if (!idx.isValid())
+        return false;
+
+    // Пропускаем корневой каталог и всех его предков — иначе фильтр сбросит
+    // корень правой панели, и view покажет верхний уровень дерева («/»).
+    if (rootSrc_.isValid()) {
+        if (idx == rootSrc_)
+            return true;
+        QModelIndex p = rootSrc_.parent();
+        while (p.isValid()) {
+            if (p == idx)
+                return true;
+            p = p.parent();
+        }
+    }
+
+    // Дети фильтруются по имени обычным текстовым фильтром.
+    return QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent);
 }
 
 // ── FileBrowser ─────────────────────────────────────────────────────────────
@@ -82,7 +109,7 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
     , conn_(conn)
     , model_(new FileSystemModel(conn, this))
     , dirProxy_(new DirectoryFilterProxy(this))
-    , searchProxy_(new QSortFilterProxyModel(this))
+    , searchProxy_(new ContentFilterProxy(this))
     , leftView_(new QTreeView(this))
     , rightView_(new QTreeView(this))
     , treeFilterEdit_(new QLineEdit(this))
@@ -95,8 +122,6 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
     dirProxy_->setSourceModel(model_);
 
     searchProxy_->setSourceModel(model_);
-    searchProxy_->setFilterCaseSensitivity(Qt::CaseInsensitive);
-    searchProxy_->setFilterKeyColumn(0);   // ищем по имени
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);
 
@@ -108,8 +133,9 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
 
         treeFilterEdit_->setPlaceholderText(tr("Filter directories…"));
         treeFilterEdit_->setClearButtonEnabled(true);
-        connect(treeFilterEdit_, &QLineEdit::textChanged,
-                this, &FileBrowser::onTreeFilterChanged);
+        connect(treeFilterEdit_, &QLineEdit::returnPressed, this, [this] {
+            onTreeFilterChanged(treeFilterEdit_->text());
+        });
         leftLay->addWidget(treeFilterEdit_);
 
         leftView_->setModel(dirProxy_);
@@ -119,16 +145,9 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
         {
             auto *lh = leftView_->header();
             lh->setStretchLastSection(false);
-            lh->setSectionResizeMode(0, QHeaderView::Interactive);
+            lh->setSectionResizeMode(0, QHeaderView::Stretch);
             lh->hideSection(1);  // Type
             lh->hideSection(2);  // Duration
-            const int w = Config::instance().fileBrowserColumnWidth(QLatin1String("tree_name"), -1);
-            if (w > 0)
-                lh->resizeSection(0, w);
-            connect(lh, &QHeaderView::sectionResized, this, [](int idx, int, int w) {
-                if (idx == 0)
-                    Config::instance().setFileBrowserColumnWidth(QLatin1String("tree_name"), w);
-            });
         }
         leftLay->addWidget(leftView_, 1);
 
@@ -147,8 +166,9 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
 
         contentFilterEdit_->setPlaceholderText(tr("Filter files…"));
         contentFilterEdit_->setClearButtonEnabled(true);
-        connect(contentFilterEdit_, &QLineEdit::textChanged,
-                this, &FileBrowser::onContentFilterChanged);
+        connect(contentFilterEdit_, &QLineEdit::returnPressed, this, [this] {
+            onContentFilterChanged(contentFilterEdit_->text());
+        });
         rightLay->addWidget(contentFilterEdit_);
 
         rightView_->setModel(searchProxy_);
@@ -159,16 +179,17 @@ FileBrowser::FileBrowser(Connection *conn, QWidget *parent)
         // Ширины колонок восстанавливаются из Config и сохраняются при изменении.
         auto *rh = rightView_->header();
         rh->setStretchLastSection(false);
-        for (int c = 0; c < 3; ++c)
-            rh->setSectionResizeMode(c, QHeaderView::Interactive);
+        rh->setSectionResizeMode(0, QHeaderView::Stretch);    // Name растягивается
+        rh->setSectionResizeMode(1, QHeaderView::Interactive); // Type
+        rh->setSectionResizeMode(2, QHeaderView::Interactive); // Duration
         auto &cfg = Config::instance();
-        for (int c = 0; c < 3; ++c) {
+        for (int c = 1; c < 3; ++c) {
             const int w = cfg.fileBrowserColumnWidth(QLatin1String(colKeys[c]), -1);
             if (w > 0)
                 rh->resizeSection(c, w);
         }
         connect(rh, &QHeaderView::sectionResized, this, [this](int idx, int, int w) {
-            if (idx >= 0 && idx < 3)
+            if (idx >= 1 && idx < 3)
                 Config::instance().setFileBrowserColumnWidth(QLatin1String(colKeys[idx]), w);
         });
 
@@ -197,6 +218,11 @@ void FileBrowser::onLeftSelectionChanged()
 {
     // Индекс в dirProxy_ → source model → searchProxy_.
     const QModelIndex srcIdx = dirProxy_->mapToSource(leftView_->currentIndex());
+
+    // Сообщаем прокси правой панели, какой каталог сейчас выбран — он и его
+    // предки не должны отфильтровываться, иначе корень просмотра сбросится.
+    searchProxy_->setRootSourceIndex(srcIdx);
+
     const QModelIndex proxyIdx = srcIdx.isValid()
         ? searchProxy_->mapFromSource(srcIdx)
         : QModelIndex();
@@ -207,18 +233,11 @@ void FileBrowser::onLeftSelectionChanged()
 
     auto &cfg = Config::instance();
 
-    // ── Правая панель: автофит, если ещё ни разу не ресайзили ────────
-    bool hasRightWidths = false;
-    for (int c = 0; c < 3 && !hasRightWidths; ++c)
-        hasRightWidths = cfg.fileBrowserColumnWidth(QLatin1String(colKeys[c]), -1) > 0;
-    if (!hasRightWidths)
-        for (int c = 0; c < rightView_->header()->count(); ++c)
-            rightView_->resizeColumnToContents(c);
-
-    // ── Левое дерево: автофит колонки имени ──────────────────────────
-    const int nameW = cfg.fileBrowserColumnWidth(QLatin1String("tree_name"), -1);
-    if (nameW <= 0)
-        leftView_->resizeColumnToContents(0);
+    // ── Правая панель: автофит колонок Type/Duration при первом показе ──
+    if (cfg.fileBrowserColumnWidth(QLatin1String(colKeys[1]), -1) <= 0)
+        rightView_->resizeColumnToContents(1);
+    if (cfg.fileBrowserColumnWidth(QLatin1String(colKeys[2]), -1) <= 0)
+        rightView_->resizeColumnToContents(2);
 }
 
 void FileBrowser::onTreeFilterChanged(const QString &text)
@@ -229,6 +248,18 @@ void FileBrowser::onTreeFilterChanged(const QString &text)
 void FileBrowser::onContentFilterChanged(const QString &text)
 {
     searchProxy_->setFilterFixedString(text);
+}
+
+void FileBrowser::setSearchAsType(bool on)
+{
+    disconnect(treeTextChangedConn_);
+    disconnect(contentTextChangedConn_);
+    if (on) {
+        treeTextChangedConn_ = connect(treeFilterEdit_, &QLineEdit::textChanged,
+                                       this, &FileBrowser::onTreeFilterChanged);
+        contentTextChangedConn_ = connect(contentFilterEdit_, &QLineEdit::textChanged,
+                                          this, &FileBrowser::onContentFilterChanged);
+    }
 }
 
 void FileBrowser::enterDirectory(const QModelIndex &contentIndex)
@@ -255,8 +286,11 @@ QVector<BrowserIntent> FileBrowser::treeIntents() const
 
 void FileBrowser::onActivate()
 {
-    if (conn_->isConnected() && model_->canFetchMore({}))
-        model_->fetchMore({});
+    if (!conn_->isConnected())
+        return;
+    const QModelIndex rootIdx = model_->index(0, 0, QModelIndex());
+    if (rootIdx.isValid() && model_->canFetchMore(rootIdx))
+        model_->fetchMore(rootIdx);
 }
 
 void FileBrowser::onDeactivate()
@@ -270,6 +304,9 @@ void FileBrowser::onConnectionChanged(bool connected)
     setEnabled(connected);
     if (connected) {
         model_->refresh();
-        model_->fetchMore({});
+        // Загружаем содержимое корневого элемента «/».
+        const QModelIndex rootIdx = model_->index(0, 0, QModelIndex());
+        if (rootIdx.isValid() && model_->canFetchMore(rootIdx))
+            model_->fetchMore(rootIdx);
     }
 }

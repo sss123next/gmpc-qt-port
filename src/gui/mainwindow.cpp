@@ -554,6 +554,8 @@ void MainWindow::setupCentralArea()
     const bool searchLive = Config::instance().searchAsType();
     currentPlaylist_->setSearchAsType(searchLive);
     searchBrowser_->setSearchAsType(searchLive);
+    databaseBrowser_->setSearchAsType(searchLive);
+    fileBrowser_->setSearchAsType(searchLive);
 
     // Order here defines the stack index and must match setupBrowserTabs(),
     browserStack_->addBrowser(nowPlaying_);

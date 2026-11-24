@@ -29,6 +29,11 @@ FileSystemModel::FileSystemModel(Connection *conn, QObject *parent)
     , conn_(conn)
     , root_(new FileNode{FileNode::Root, "MPD files", {}, nullptr})
 {
+    // Единственный видимый потомок корня — «/». Его содержимое подгружается
+    // лениво при раскрытии в дереве.
+    root_->children.append(new FileNode{FileNode::Directory, QStringLiteral("/"),
+                                        QString{}, root_, {}, 0, false});
+    root_->loaded = true;
 }
 
 FileSystemModel::~FileSystemModel()
@@ -145,11 +150,10 @@ bool FileSystemModel::canFetchMore(const QModelIndex &parent) const
 
 void FileSystemModel::fetchMore(const QModelIndex &parent)
 {
-    if (!parent.isValid()) {
-        if (!root_->loaded)
-            loadDirectory(root_);
+    // Корень модели всегда содержит «/»; настоящая загрузка идёт через дочерние
+    // FileNode::Directory при раскрытии в дереве.
+    if (!parent.isValid())
         return;
-    }
 
     auto *node = static_cast<FileNode *>(parent.internalPointer());
     if (node->type == FileNode::Directory && !node->loaded)
@@ -161,7 +165,9 @@ void FileSystemModel::refresh()
     beginResetModel();
     qDeleteAll(root_->children);
     root_->children.clear();
-    root_->loaded = false;
+    root_->children.append(new FileNode{FileNode::Directory, QStringLiteral("/"),
+                                        QString{}, root_, {}, 0, false});
+    root_->loaded = true;
     endResetModel();
 }
 
@@ -170,7 +176,9 @@ void FileSystemModel::clear()
     beginResetModel();
     qDeleteAll(root_->children);
     root_->children.clear();
-    root_->loaded = false;
+    root_->children.append(new FileNode{FileNode::Directory, QStringLiteral("/"),
+                                        QString{}, root_, {}, 0, false});
+    root_->loaded = true;
     endResetModel();
 }
 

@@ -20,7 +20,7 @@ class FileSystemModel;
 class QTreeView;
 class QLineEdit;
 
-/// Прокси для левого дерева: только директории + фильтр по имени.
+/// Прокси для левого дерева: только директории + рекурсивный фильтр по имени.
 class DirectoryFilterProxy : public QSortFilterProxyModel {
     Q_OBJECT
 public:
@@ -28,10 +28,41 @@ public:
         : QSortFilterProxyModel(parent) {
         setFilterCaseSensitivity(Qt::CaseInsensitive);
         setFilterKeyColumn(0);
+        setRecursiveFilteringEnabled(true);
     }
 protected:
     bool filterAcceptsRow(int sourceRow,
                           const QModelIndex &sourceParent) const override;
+};
+
+/// Прокси для правой панели (содержимое каталога).
+///
+/// Всегда пропускает выбранный каталог и его предков, чтобы корень просмотра
+/// оставался стабильным при вводе фильтра. Дети фильтруются по имени обычным
+/// порядком.
+class ContentFilterProxy : public QSortFilterProxyModel {
+    Q_OBJECT
+public:
+    explicit ContentFilterProxy(QObject *parent = nullptr)
+        : QSortFilterProxyModel(parent) {
+        setFilterCaseSensitivity(Qt::CaseInsensitive);
+        setFilterKeyColumn(0);
+    }
+
+    /// Запомнить корневой индекс исходной модели — он и его предки будут
+    /// всегда пропускаться вне зависимости от фильтра.
+    void setRootSourceIndex(const QModelIndex &srcIdx) {
+        rootSrc_ = srcIdx;
+        beginFilterChange();
+        endFilterChange();
+    }
+
+protected:
+    bool filterAcceptsRow(int sourceRow,
+                          const QModelIndex &sourceParent) const override;
+
+private:
+    QPersistentModelIndex rootSrc_;
 };
 
 /// Browse MPD's virtual filesystem.
@@ -56,6 +87,10 @@ public:
      */
     void enterDirectory(const QModelIndex &contentIndex);
 
+    /** @brief Toggle live filtering (textChanged) vs Enter-only search
+     *         для обеих панелей (левое дерево и правая таблица). */
+    void setSearchAsType(bool on);
+
     /** @brief Намерения выделенных строк правой панели: каталог, трэк или список.
      *  Индексы проксированные, но UriRole/TypeRole прокси отдаёт исходной моделью, так
      *  что маппинг здесь нужен только если когда-нибудь понадобится сам узел.
@@ -77,11 +112,13 @@ private slots:
 private:
     Connection *conn_;
     FileSystemModel *model_;
-    DirectoryFilterProxy *dirProxy_;    ///< фильтр: только директории
-    QSortFilterProxyModel *searchProxy_;///< поиск по имени в правой панели
-    QTreeView *leftView_;               ///< directory tree
-    QTreeView *rightView_;              ///< song list for selected directory
-    QLineEdit *treeFilterEdit_;         ///< фильтр левого дерева
-    QLineEdit *contentFilterEdit_;      ///< фильтр правой панели
+    DirectoryFilterProxy *dirProxy_;      ///< фильтр: только директории
+    ContentFilterProxy *searchProxy_;     ///< фильтр правой панели (стабильный корень)
+    QTreeView *leftView_;                 ///< directory tree
+    QTreeView *rightView_;                ///< song list for selected directory
+    QLineEdit *treeFilterEdit_;           ///< фильтр левого дерева
+    QLineEdit *contentFilterEdit_;        ///< фильтр правой панели
+    QMetaObject::Connection treeTextChangedConn_;
+    QMetaObject::Connection contentTextChangedConn_;
 };
 
