@@ -76,6 +76,10 @@ add_executable(test-db-browser test-db-browser.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/apple-music.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrc-red.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrcmux.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/unison.cpp
 )
 target_link_libraries(test-db-browser PRIVATE testcore Qt6::Widgets Qt6::Network
     PkgConfig::SQLITE3 PkgConfig::TAGLIB
@@ -189,7 +193,11 @@ add_executable(test-cover-widget test-cover-widget.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/apple-music.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrc-red.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrcmux.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/unison.cpp)
 target_link_libraries(test-cover-widget PRIVATE Qt6::Widgets Qt6::Network
     PkgConfig::SQLITE3 PkgConfig::TAGLIB
     doctest::doctest)
@@ -204,7 +212,8 @@ add_executable(test-deezer-provider test-deezer-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/apple-music.cpp)
 target_link_libraries(test-deezer-provider PRIVATE Qt6::Core Qt6::Gui Qt6::Network
     PkgConfig::SQLITE3 PkgConfig::TAGLIB
     doctest::doctest)
@@ -246,6 +255,10 @@ add_executable(test-provider-parsers test-provider-parsers.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cover-provider.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/apple-music.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrc-red.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrcmux.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/unison.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp)
 target_link_libraries(test-provider-parsers PRIVATE Qt6::Core Qt6::Gui Qt6::Network
     PkgConfig::SQLITE3 PkgConfig::TAGLIB
@@ -360,7 +373,11 @@ add_executable(test-now-playing test-now-playing.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/apple-music.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrc-red.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrcmux.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/unison.cpp)
 target_link_libraries(test-now-playing PRIVATE testcore Qt6::Widgets Qt6::Network
     PkgConfig::SQLITE3 PkgConfig::TAGLIB
     doctest::doctest trompeloeil::trompeloeil)
@@ -381,7 +398,11 @@ add_executable(test-song-info-dialog test-song-info-dialog.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/cache-sqlite.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
-    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp)
+    ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/apple-music.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrc-red.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrcmux.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/unison.cpp)
 target_link_libraries(test-song-info-dialog PRIVATE testcore Qt6::Widgets
     Qt6::Network PkgConfig::SQLITE3 PkgConfig::TAGLIB
     doctest::doctest trompeloeil::trompeloeil
@@ -435,6 +456,10 @@ add_executable(test-cover-load-leak test-cover-load-leak.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/apple-music.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrc-red.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrcmux.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/unison.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp)
 target_link_libraries(test-cover-load-leak PRIVATE Qt6::Widgets Qt6::Network
     PkgConfig::SQLITE3 PkgConfig::TAGLIB
@@ -455,6 +480,10 @@ add_executable(test-metadata-leak test-metadata-leak.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/discogs.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrdb.cpp
     ${CMAKE_SOURCE_DIR}/src/providers/lyrics-ovh.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/apple-music.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrc-red.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/lrcmux.cpp
+    ${CMAKE_SOURCE_DIR}/src/providers/unison.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp)
 target_link_libraries(test-metadata-leak PRIVATE Qt6::Core Qt6::Gui Qt6::Network
     PkgConfig::SQLITE3 PkgConfig::TAGLIB

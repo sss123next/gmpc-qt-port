@@ -16,6 +16,9 @@ MetadataManager::MetadataManager(const QString &cachePath,
     : QObject(parent)
     , coverProvider_(new CoverProvider(lastFmApiKey, discogsToken, cachePath, musicDir, this))
     , lyricsProvider_(new LrcLibProvider(this))
+    , lrcRedProvider_(new LrcRedProvider(this))
+    , lrcmuxProvider_(new LrcmuxProvider(this))
+    , unisonProvider_(new UnisonProvider(this))
     , lyricsFallback_(new LyricsOvhProvider(this))
     , cache_(new CacheSqlite(cachePath))
     , musicDir_(musicDir)
@@ -59,8 +62,104 @@ MetadataManager::MetadataManager(const QString &cachePath,
                 }
             });
 
-    // When LrcLib fails, try lyrics.ovh as fallback
+    // When LrcLib fails, try lrc.red
     connect(lyricsProvider_, &LrcLibProvider::notFound, this,
+            [this]() {
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    lrcRedProvider_->fetchLyrics(pendingArtistLyrics_,
+                                                  pendingTitleLyrics_);
+                }
+            });
+
+    connect(lyricsProvider_, &LrcLibProvider::error, this,
+            [this](const QString &msg) {
+                // Fall through to next provider on error too
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    lrcRedProvider_->fetchLyrics(pendingArtistLyrics_,
+                                                  pendingTitleLyrics_);
+                }
+            });
+
+    // ── lrc.red ────────────────────────────────────────────────────
+    connect(lrcRedProvider_, &LrcRedProvider::lyricsFound, this,
+            [this](const QString &plain, const QString &synced) {
+                QString text = synced.isEmpty() ? plain : synced;
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    cachePut(QString("lyrics:%1:%2")
+                             .arg(pendingArtistLyrics_, pendingTitleLyrics_),
+                             text.toUtf8());
+                    emit lyricsReady(pendingArtistLyrics_, pendingTitleLyrics_, text);
+                    pendingArtistLyrics_.clear();
+                    pendingTitleLyrics_.clear();
+                    refreshingLyrics_ = false;
+                }
+            });
+
+    connect(lrcRedProvider_, &LrcRedProvider::notFound, this,
+            [this]() {
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    lrcmuxProvider_->fetchLyrics(pendingArtistLyrics_,
+                                                  pendingTitleLyrics_);
+                }
+            });
+
+    connect(lrcRedProvider_, &LrcRedProvider::error, this,
+            [this](const QString &msg) {
+                emit error(msg);
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    lrcmuxProvider_->fetchLyrics(pendingArtistLyrics_,
+                                                  pendingTitleLyrics_);
+                }
+            });
+
+    // ── Lrcmux ─────────────────────────────────────────────────────
+    connect(lrcmuxProvider_, &LrcmuxProvider::lyricsFound, this,
+            [this](const QString &plain, const QString &synced) {
+                QString text = synced.isEmpty() ? plain : synced;
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    cachePut(QString("lyrics:%1:%2")
+                             .arg(pendingArtistLyrics_, pendingTitleLyrics_),
+                             text.toUtf8());
+                    emit lyricsReady(pendingArtistLyrics_, pendingTitleLyrics_, text);
+                    pendingArtistLyrics_.clear();
+                    pendingTitleLyrics_.clear();
+                    refreshingLyrics_ = false;
+                }
+            });
+
+    connect(lrcmuxProvider_, &LrcmuxProvider::notFound, this,
+            [this]() {
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    unisonProvider_->fetchLyrics(pendingArtistLyrics_,
+                                                  pendingTitleLyrics_);
+                }
+            });
+
+    connect(lrcmuxProvider_, &LrcmuxProvider::error, this,
+            [this](const QString &msg) {
+                emit error(msg);
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    unisonProvider_->fetchLyrics(pendingArtistLyrics_,
+                                                  pendingTitleLyrics_);
+                }
+            });
+
+    // ── Unison ─────────────────────────────────────────────────────
+    connect(unisonProvider_, &UnisonProvider::lyricsFound, this,
+            [this](const QString &plain, const QString &synced) {
+                QString text = synced.isEmpty() ? plain : synced;
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    cachePut(QString("lyrics:%1:%2")
+                             .arg(pendingArtistLyrics_, pendingTitleLyrics_),
+                             text.toUtf8());
+                    emit lyricsReady(pendingArtistLyrics_, pendingTitleLyrics_, text);
+                    pendingArtistLyrics_.clear();
+                    pendingTitleLyrics_.clear();
+                    refreshingLyrics_ = false;
+                }
+            });
+
+    connect(unisonProvider_, &UnisonProvider::notFound, this,
             [this]() {
                 if (!pendingArtistLyrics_.isEmpty()) {
                     lyricsFallback_->fetchLyrics(pendingArtistLyrics_,
@@ -68,9 +167,13 @@ MetadataManager::MetadataManager(const QString &cachePath,
                 }
             });
 
-    connect(lyricsProvider_, &LrcLibProvider::error, this,
+    connect(unisonProvider_, &UnisonProvider::error, this,
             [this](const QString &msg) {
                 emit error(msg);
+                if (!pendingArtistLyrics_.isEmpty()) {
+                    lyricsFallback_->fetchLyrics(pendingArtistLyrics_,
+                                                  pendingTitleLyrics_);
+                }
             });
 
     // ── Lyrics.ovh fallback ─────────────────────────────────────────

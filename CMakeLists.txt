@@ -115,14 +115,22 @@ set(METADATA_SOURCES
 set(PROVIDER_SOURCES
     src/providers/lastfm.cpp
     src/providers/lastfm.h
+    src/providers/apple-music.cpp
+    src/providers/apple-music.h
     src/providers/discogs.cpp
     src/providers/discogs.h
     src/providers/lyrdb.cpp
     src/providers/lyrdb.h
+    src/providers/lrc-red.cpp
+    src/providers/lrc-red.h
+    src/providers/lrcmux.cpp
+    src/providers/lrcmux.h
     src/providers/lyrics-ovh.cpp
     src/providers/lyrics-ovh.h
     src/providers/musicbrainz.cpp
     src/providers/musicbrainz.h
+    src/providers/unison.cpp
+    src/providers/unison.h
 )
 
 set(WIDGET_SOURCES

@@ -17,6 +17,9 @@
 
 class CoverProvider;
 class LrcLibProvider;
+class LrcRedProvider;
+class LrcmuxProvider;
+class UnisonProvider;
 class LyricsOvhProvider;
 class CacheSqlite;
 
@@ -84,6 +87,9 @@ private:
 
     CoverProvider    *coverProvider_;
     LrcLibProvider   *lyricsProvider_;
+    LrcRedProvider   *lrcRedProvider_;
+    LrcmuxProvider   *lrcmuxProvider_;
+    UnisonProvider   *unisonProvider_;
     LyricsOvhProvider *lyricsFallback_;
     CacheSqlite      *cache_;
     QString           musicDir_;
@@ -103,4 +109,7 @@ private:
 // ── Forward-declare external providers ──────────────────────────────────────
 #include "tools/async-download.h"
 #include "providers/lyrdb.h"
+#include "providers/lrc-red.h"
+#include "providers/lrcmux.h"
+#include "providers/unison.h"
 #include "providers/lyrics-ovh.h"

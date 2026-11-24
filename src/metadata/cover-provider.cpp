@@ -1,5 +1,6 @@
 #include "cover-provider.h"
 #include "providers/discogs.h"
+#include "providers/apple-music.h"
 #include "tools/async-download.h"
 #include "tag-reader.h"
 #include "core/config.h"
@@ -30,9 +31,22 @@ CoverProvider::CoverProvider(const QString &lastFmApiKey,
     , cache_(cachePath)
     , dl_(new AsyncDownload(this))
     , discogs_(new DiscogsProvider(discogsToken_, this))
+    , appleMusic_(new AppleMusicProvider(this))
     , ownsDl_(true)
     , musicDir_(musicDir)
 {
+    // Forward Apple Music signals — connected once, dispatch through seq_-aware methods.
+    connect(appleMusic_, &AppleMusicProvider::coverFound, this, [this](const QByteArray &data) {
+        onAMCover(data);
+    });
+    connect(appleMusic_, &AppleMusicProvider::notFound, this, [this]() {
+        onAMNotFound();
+    });
+    connect(appleMusic_, &AppleMusicProvider::error, this, [this](const QString &msg) {
+        Q_UNUSED(msg);
+        onAMError(msg);
+    });
+
     // Forward Discogs signals — re-connected per-request in tryDiscogs()
     // with the correct request sequence captured.
     Q_UNUSED(discogs_);
@@ -256,17 +270,45 @@ void CoverProvider::onMBCover(const QByteArray &data)
 
 void CoverProvider::onMBNotFound()
 {
-    // Fall through to Last.FM
-    if (!lastFmApiKey_.isEmpty())
-        tryLastFm();
-    else
-        tryDeezer();
+    // Fall through to Apple Music
+    tryAppleMusic();
 }
 
 void CoverProvider::onMBError(const QString &msg)
 {
     Q_UNUSED(msg);
     onMBNotFound();
+}
+
+// ── Apple Music / iTunes Search API ───────────────────────────────────────
+
+static const char *kAMSearch = "https://itunes.apple.com/search";
+
+void CoverProvider::tryAppleMusic()
+{
+    appleMusic_->fetchCover(artist_, album_, 600);
+}
+
+void CoverProvider::onAMCover(const QByteArray &data)
+{
+    if (data.isEmpty()) { onAMNotFound(); return; }
+    cache_.put(cacheKey(), data);
+    emit coverReady(data);
+}
+
+void CoverProvider::onAMNotFound()
+{
+    // Fall through to Last.FM (or Deezer if no API key)
+    if (!lastFmApiKey_.isEmpty())
+        tryLastFm();
+    else
+        tryDeezer();
+}
+
+void CoverProvider::onAMError(const QString &msg)
+{
+    Q_UNUSED(msg);
+    onAMNotFound();
 }
 
 // ── Last.FM ─────────────────────────────────────────────────────────────────

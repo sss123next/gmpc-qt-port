@@ -17,6 +17,7 @@
 
 class AsyncDownload;
 class DiscogsProvider;
+class AppleMusicProvider;
 
 /// Facade that fetches cover art through a cascading provider chain.
 class CoverProvider : public QObject {
@@ -73,6 +74,10 @@ private:
     void onLFError(const QString &msg);
     void tryDeezer();
     void onDeezerError(const QString &msg);
+    void tryAppleMusic();
+    void onAMCover(const QByteArray &data);
+    void onAMNotFound();
+    void onAMError(const QString &msg);
     void tryDiscogs();
     void tryComplete(const QString &artist, const QString &album,
                      const QByteArray &data, const QString &label);
@@ -94,6 +99,7 @@ private:
     CacheSqlite cache_;
     AsyncDownload *dl_;
     DiscogsProvider *discogs_;
+    AppleMusicProvider *appleMusic_;
     bool ownsDl_ = true;
     QString artist_;
     QString album_;
