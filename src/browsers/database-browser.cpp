@@ -6,6 +6,7 @@
 #include "database-browser.h"
 #include "core/config.h"
 #include "gui/column-chooser-dialog.h"
+#include "widgets/cover-viewer.h"
 #include "widgets/cover-widget.h"
 
 #include <mpd/tag.h>
@@ -94,7 +95,10 @@ DatabaseBrowser::DatabaseBrowser(Connection *conn, MpdCommands *cmds,
     setupUi();
 }
 
-DatabaseBrowser::~DatabaseBrowser() = default;
+DatabaseBrowser::~DatabaseBrowser()
+{
+    delete coverViewer_;
+}
 
 void DatabaseBrowser::setupUi()
 {
@@ -156,6 +160,8 @@ void DatabaseBrowser::setupUi()
     auto *header = new QHBoxLayout;
     cover_ = new CoverWidget(right);
     cover_->setCoverSize(96);
+    cover_->installEventFilter(this);
+    cover_->setCursor(Qt::PointingHandCursor);
     header->addWidget(cover_, 0, Qt::AlignTop);
 
     auto *texts = new QVBoxLayout;
@@ -329,6 +335,10 @@ void DatabaseBrowser::showNode(const QModelIndex &proxyIndex)
     if (!coverFrom && !cachedSongs_.isEmpty())
         coverFrom = &cachedSongs_.first();
 
+    // Если полноэкранный просмотр был закрыт — освободить память.
+    if (coverViewer_ && !coverViewer_->isVisible())
+        coverViewer_->clear();
+
     setHeaderInfo(musicDbDisplayName(ref.name),
                   ref.isAlbum() ? musicDbDisplayName(ref.groupName)
                                 : tr("Group"),
@@ -501,6 +511,19 @@ void DatabaseBrowser::applyTreeFilter()
         tree_->expand(treeProxy_->index(row, 0));
 }
 
+// ── Клик по обложке: полноэкранный просмотр ──────────────────────────────
+
+bool DatabaseBrowser::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == cover_ && event->type() == QEvent::MouseButtonPress) {
+        if (!coverViewer_)
+            coverViewer_ = new CoverViewer;
+        coverViewer_->show(cover_->coverData());
+        return true;
+    }
+    return BrowserWidget::eventFilter(obj, event);
+}
+
 // ── Смена группировки и соединения ───────────────────────────────────────
 
 void DatabaseBrowser::onTagChanged(int index)
@@ -545,6 +568,12 @@ void DatabaseBrowser::onConnectionChanged(bool connected)
 
 void DatabaseBrowser::onDeactivate()
 {
+    // Закрываем полноэкранный просмотр, если открыт.
+    if (coverViewer_) {
+        coverViewer_->clear();
+        coverViewer_->close();
+    }
+
     if (!Config::instance().lowMemoryMode())
         return;
 

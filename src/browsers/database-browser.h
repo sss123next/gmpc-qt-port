@@ -20,6 +20,7 @@
 
 class Connection;
 class MpdCommands;
+class CoverViewer;
 class MetadataManager;
 class CoverWidget;
 class QComboBox;
@@ -76,6 +77,10 @@ public:
     void onDeactivate() override;
     void onConnectionChanged(bool connected) override;
 
+protected:
+    /// Клик по обложке открывает полноэкранный просмотр.
+    bool eventFilter(QObject *obj, QEvent *event) override;
+
 private slots:
     void onTagChanged(int index);
     /// Выбор узла: загрузить его трэки и шапку (или очистить правую панель).
@@ -113,6 +118,7 @@ private:
     QLineEdit *trackFilter_;
 
     CoverWidget *cover_;
+    CoverViewer *coverViewer_ = nullptr;
     QLabel *headerTitle_;
     QLabel *headerSubtitle_;
     QLabel *headerStats_;

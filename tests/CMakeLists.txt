@@ -67,6 +67,7 @@ add_executable(test-db-browser test-db-browser.cpp
     ${CMAKE_SOURCE_DIR}/src/gui/column-chooser-dialog.cpp
     # Шапка держит CoverWidget: без менеджера метаданных он не линкуется.
     ${CMAKE_SOURCE_DIR}/src/widgets/cover-widget.cpp
+    ${CMAKE_SOURCE_DIR}/src/widgets/cover-viewer.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/metadata-manager.cpp
     ${CMAKE_SOURCE_DIR}/src/metadata/tag-reader.cpp
     ${CMAKE_SOURCE_DIR}/src/tools/async-download.cpp
