@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     // Must be created early so that QCommandLineParser can use it.
     QApplication app(argc, argv);
     app.setApplicationName("gmpc-qt");
-    app.setApplicationVersion("0.4.0");
+    app.setApplicationVersion("0.4.1");
     app.setOrganizationName("gmpc-qt");
 
     // ── Load translations ────────────────────────────────────────────

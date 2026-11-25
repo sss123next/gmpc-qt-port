@@ -3,7 +3,7 @@
 # or:  doxygen Doxyfile.in
 
 PROJECT_NAME           = "gmpc-qt"
-PROJECT_NUMBER         = 0.4.0
+PROJECT_NUMBER         = 0.4.1
 OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/docs/doxygen
 INPUT                  = src
 RECURSIVE              = YES

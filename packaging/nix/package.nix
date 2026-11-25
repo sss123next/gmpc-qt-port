@@ -2,7 +2,7 @@
 
 stdenv.mkDerivation {
   pname = "gmpc-qt";
-  version = "0.4.0";
+  version = "0.4.1";
   inherit src;
 
   nativeBuildInputs = [ cmake pkg-config qt6.wrapQtAppsHook ];

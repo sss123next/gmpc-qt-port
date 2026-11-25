@@ -244,32 +244,41 @@ void NowPlaying::onActivate()
         return;
     }
 
-    // Быстро сверяемся с сервером: играет ли тот же трэк?
+    // Если обновление контента было отложено (страница была скрыта, когда
+    // пришёл setSong), — синхронизируем всё принудительно.
+    if (needCover_) {
+        needCover_ = false;
+        if (!curArtist_.isEmpty() && !curAlbum_.isEmpty())
+            cover_->fetchCover(curArtist_, curAlbum_, curUri_);
+        else
+            cover_->clear();
+        refreshMetadata();
+        requestLyricsForCurrent();
+        return;
+    }
+
+    // Быстро сверяемся с сервером: не сменился ли трэк, пока мы были на
+    // другой вкладке (страница была видима при смене — контент не
+    // пропускали).
     if (conn_ && conn_->isConnected()) {
         Connection::ResponseScope scope(*conn_, "status");
         mpd_status *status = mpd_run_status(conn_->raw());
         const int curId = status ? mpd_status_get_song_id(status) : -1;
         if (status) mpd_status_free(status);
 
-        if (curId == lastSongId_ && lastSongId_ >= 0) {
-            // Трэк не менялся — догружаем только обложку, если не успели.
-            if (needCover_ && !curArtist_.isEmpty() && !curAlbum_.isEmpty()) {
+        if (curId != lastSongId_ && lastSongId_ >= 0) {
+            // Трэк сменился — перезагружаем всё.
+            if (curArtist_.isEmpty() || curAlbum_.isEmpty())
+                cover_->clear();
+            else
                 cover_->fetchCover(curArtist_, curAlbum_, curUri_);
-                needCover_ = false;
-            }
-            return;
+            refreshMetadata();
+            requestLyricsForCurrent();
         }
+        return;
     }
 
-    // Трэк сменился (или статус не получить) — перезагружаем всё.
-    if (curArtist_.isEmpty() || curAlbum_.isEmpty())
-        cover_->clear();
-    else
-        cover_->fetchCover(curArtist_, curAlbum_, curUri_);
-    needCover_ = false;
-
-    refreshMetadata();
-    requestLyricsForCurrent();
+    // Нет соединения — ничего не делаем.
 }
 
 void NowPlaying::onDeactivate()
